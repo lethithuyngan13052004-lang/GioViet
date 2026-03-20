@@ -137,12 +137,21 @@ namespace TimChuyenDi.Controllers
         public IActionResult SaveRoute(int id)
         {
             var customerId = int.Parse(User.FindFirstValue("UserId"));
-            var existingSave = _context.Savedroutes.FirstOrDefault(sr => sr.UserId == customerId && sr.TripId == id);
 
-            if (existingSave == null)
+            var user = _context.Users
+                .Include(u => u.Trips)
+                .FirstOrDefault(u => u.UserId == customerId);
+
+            var trip = _context.Trips.Find(id);
+
+            if (user != null && trip != null)
             {
-                _context.Savedroutes.Add(new Savedroute { UserId = customerId, TripId = id });
-                _context.SaveChanges();
+                // check đã lưu chưa
+                if (!user.Trips.Any(t => t.TripId == id))
+                {
+                    user.Trips.Add(trip);
+                    _context.SaveChanges();
+                }
             }
 
             return RedirectToAction("FindTrips");
@@ -153,14 +162,20 @@ namespace TimChuyenDi.Controllers
         {
             var customerId = int.Parse(User.FindFirstValue("UserId"));
 
-            var savedTrips = _context.Savedroutes
-                .Include(sr => sr.Trip).ThenInclude(t => t.FromStationNavigation).ThenInclude(s => s.Province)
-                .Include(sr => sr.Trip).ThenInclude(t => t.ToStationNavigation).ThenInclude(s => s.Province)
-                .Include(sr => sr.Trip).ThenInclude(t => t.Vehicle)
-                .Include(sr => sr.Trip).ThenInclude(t => t.Driver)
-                .Where(sr => sr.UserId == customerId)
-                .Select(sr => sr.Trip)
-                .ToList();
+            var user = _context.Users
+                .Include(u => u.Trips)
+                    .ThenInclude(t => t.FromStationNavigation)
+                        .ThenInclude(s => s.Province)
+                .Include(u => u.Trips)
+                    .ThenInclude(t => t.ToStationNavigation)
+                        .ThenInclude(s => s.Province)
+                .Include(u => u.Trips)
+                    .ThenInclude(t => t.Vehicle)
+                .Include(u => u.Trips)
+                    .ThenInclude(t => t.Driver)
+                .FirstOrDefault(u => u.UserId == customerId);
+
+            var savedTrips = user?.Trips.ToList() ?? new List<Trip>();
 
             return View(savedTrips);
         }
@@ -177,7 +192,7 @@ namespace TimChuyenDi.Controllers
                 .Include(r => r.Trip).ThenInclude(t => t.FromStationNavigation).ThenInclude(s => s.Province)
                 .Include(r => r.Trip).ThenInclude(t => t.ToStationNavigation).ThenInclude(s => s.Province)
                 .Include(r => r.Trip).ThenInclude(t => t.Driver)
-                .Include(r => r.Cargotype)
+                .Include(r => r.CargoType)
                 .Where(r => r.CustomerId == customerId)
                 .OrderByDescending(r => r.CreatedAt)
                 .ToList();
@@ -195,7 +210,7 @@ namespace TimChuyenDi.Controllers
                 .Include(r => r.Trip).ThenInclude(t => t.ToStationNavigation).ThenInclude(s => s.Province)
                 .Include(r => r.Trip).ThenInclude(t => t.Driver)
                 .Include(r => r.Trip).ThenInclude(t => t.Vehicle)
-                .Include(r => r.Cargotype)
+                .Include(r => r.CargoType)
                 .FirstOrDefault(r => r.ReqId == id && r.CustomerId == customerId);
 
             if (requestDetail == null) return NotFound("Không tìm thấy đơn hàng!");

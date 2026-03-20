@@ -27,22 +27,22 @@
                     <div class="row mb-3">
                         <div class="col-md-6">
                             <label class="form-label text-primary fw-bold">Tỉnh/Thành xuất phát</label>
-                            <select name="FromLocation" class="form-select" asp-items="ViewBag.Locations" asp-for="FromLocation" required></select>
+                            <select name="FromLocation" class="form-select" asp-items="ViewBag.Locations" asp-for="FromStationNavigation" required></select>
                         </div>
                         <div class="col-md-6">
                             <label class="form-label">Địa chỉ chi tiết</label>
-                            <input type="text" name="FromAddress" class="form-control" value="@Model.FromAddress" required />
+                            <input type="text" name="FromAddress" class="form-control" value="@Model.FromStationNavigation.Address" required />
                         </div>
                     </div>
 
                     <div class="row mb-3">
                         <div class="col-md-6">
                             <label class="form-label text-success fw-bold">Tỉnh/Thành đích đến</label>
-                            <select name="ToLocation" class="form-select" asp-items="ViewBag.Locations" asp-for="ToLocation" required></select>
+                            <select name="ToLocation" class="form-select" asp-items="ViewBag.Locations" asp-for="ToStationNavigation.Address" required></select>
                         </div>
                         <div class="col-md-6">
                             <label class="form-label">Địa chỉ trả hàng</label>
-                            <input type="text" name="ToAddress" class="form-control" value="@Model.ToAddress" required />
+                            <input type="text" name="ToAddress" class="form-control" value="@Model.ToStationNavigation.Address" required />
                         </div>
                     </div>
 
@@ -57,7 +57,7 @@
                         </div>
                         <div class="col-md-4">
                             <label class="form-label">Dự kiến đến nơi</label>
-                            <input type="datetime-local" name="ArrivalTime" class="form-control" value="@Model.ArrivalTime.ToString("yyyy-MM-ddTHH:mm")" required />
+                            <input type="datetime-local" name="ArrivalTime" class="form-control" value="@(Model.ArrivalTime.HasValue? Model.ArrivalTime.Value.ToString("yyyy-MM-ddTHH:mm") : "")" required />
                         </div>
                     </div>
 

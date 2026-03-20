@@ -22,7 +22,7 @@
         <div class="col-md-6 mb-3">
             <div class="card shadow-sm border-info">
                 <div class="card-header bg-info text-white fw-bold">
-                    @item.FromLocationNavigation.ProvinceName <i class="bi bi-arrow-right"></i> @item.ToLocationNavigation.ProvinceName
+                    @item.FromStationNavigation.Province <i class="bi bi-arrow-right"></i> @item.ToStationNavigation.Province
                 </div>
                 <div class="card-body">
                     <div class="card-footer bg-white border-top-0 text-end">
@@ -38,7 +38,12 @@
                         </form>
                     </div>
                     <p class="mb-1"><strong>Xe tải:</strong> @item.Vehicle.PlateNumber</p>
-                    <p class="mb-1"><strong>Lịch trình:</strong> @item.StartTime.ToString("dd/MM/yyyy HH:mm") - @item.ArrivalTime.ToString("dd/MM/yyyy HH:mm")</p>
+                    <p class="mb-1">
+                        <strong>Lịch trình:</strong>
+                        @item.StartTime.ToString("dd/MM/yyyy HH:mm")
+                        -
+                        @(item.ArrivalTime?.ToString("dd/MM/yyyy HH:mm") ?? "Chưa cập nhật")
+                    </p>
                     <p class="mb-1"><strong>Giá cước:</strong> <span class="text-success">@item.BasePricePerKg.ToString("N0") đ/kg</span></p>
                     <p class="mb-0"><strong>Chỗ trống hiện tại:</strong> <span class="text-danger fw-bold">@item.AvaiCapacityKg kg</span></p>
                 </div>

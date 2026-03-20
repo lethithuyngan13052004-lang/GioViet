@@ -28,7 +28,7 @@ namespace TimChuyenDi.Controllers
             }
 
             // Sắp xếp người mới đăng ký lên đầu
-            var users = query.OrderByDescending(u => u.CreatedAt).ToList();
+            var users = query.OrderByDescending(u => u.UserId).ToList();
 
             // Giữ lại từ khóa tìm kiếm trên giao diện
             ViewBag.SearchPhone = searchPhone;
@@ -59,8 +59,8 @@ namespace TimChuyenDi.Controllers
             var trips = _context.Trips
                 .Include(t => t.Driver)
                 .Include(t => t.Vehicle)
-                .Include(t => t.FromLocationNavigation)
-                .Include(t => t.ToLocationNavigation)
+                .Include(t => t.FromStationNavigation)
+                .Include(t => t.ToStationNavigation)
                 .OrderByDescending(t => t.StartTime) // Chuyến xe mới nhất lên đầu
                 .ToList();
 
@@ -88,7 +88,7 @@ namespace TimChuyenDi.Controllers
                     var newVehicle = new Vehicle
                     {
                         PlateNumber = plateNumber,
-                        MaxCapacityKg = maxCapacityKg
+                        CapacityKg = maxCapacityKg
                     };
                     _context.Vehicles.Add(newVehicle);
                     _context.SaveChanges();

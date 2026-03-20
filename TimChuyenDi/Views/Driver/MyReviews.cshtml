@@ -34,8 +34,13 @@
                         </div>
                     </div>
                     <p class="small text-muted mb-2">
-                        Chuyến đi: @item.Trip.FromLocationNavigation.ProvinceName ➔ @item.Trip.ToLocationNavigation.ProvinceName (Mã chuyến: #@item.TripId)
+                        Chuyến đi:
+                        @item.Req.Trip.FromStationNavigation.Province.ProvinceName
+                        ➔
+                        @item.Req.Trip.ToStationNavigation.Province.ProvinceName
+                        (Mã chuyến: #@item.Req.TripId)
                     </p>
+
                     <p class="mb-0 text-dark fst-italic">"@item.Comment"</p>
                 </div>
             </div>

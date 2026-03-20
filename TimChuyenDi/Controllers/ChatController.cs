@@ -36,8 +36,8 @@ namespace TimChuyenDi.Controllers
 
             // Lấy nhiều chuyến xe hơn (tối đa 30 chuyến) để AI có dữ liệu so sánh giá
             var trips = _context.Trips
-                .Include(t => t.FromLocationNavigation)
-                .Include(t => t.ToLocationNavigation)
+                .Include(t => t.FromStationNavigation)
+                .Include(t => t.ToStationNavigation)
                 .Include(t => t.Driver)
                 .Where(t => t.StartTime > DateTime.Now)
                 .OrderBy(t => t.StartTime)
@@ -55,7 +55,7 @@ namespace TimChuyenDi.Controllers
                 foreach (var t in trips)
                 {
                     // Thêm chữ "Mã chuyến xe" rõ ràng để AI lấy dữ liệu ghép vào Link
-                    dbContextInfo += $"- Mã chuyến xe: {t.TripId} | Tuyến: {t.FromLocationNavigation.ProvinceName} đi {t.ToLocationNavigation.ProvinceName} | Giá cước: {t.BasePricePerKg}đ/kg | Khởi hành: {t.StartTime:dd/MM/yyyy HH:mm} | Tài xế: {t.Driver.Name} | Chỗ trống: {t.AvaiCapacityKg}kg.\n";
+                    dbContextInfo += $"- Mã chuyến xe: {t.TripId} | Tuyến: {t.FromStationNavigation.Province} đi {t.ToStationNavigation.Province} | Giá cước: {t.BasePricePerKg}đ/kg | Khởi hành: {t.StartTime:dd/MM/yyyy HH:mm} | Tài xế: {t.Driver.Name} | Chỗ trống: {t.AvaiCapacityKg}kg.\n";
                 }
             }
 

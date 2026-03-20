@@ -19,7 +19,7 @@
                         <ul class="list-group list-group-flush bg-transparent">
                             <li class="list-group-item bg-transparent px-0 py-3">
                                 <i class="bi bi-geo-alt text-danger me-2"></i> <strong>Tuyến:</strong> <br />
-                                <span class="ms-4">@Model.FromLocationNavigation.ProvinceName <i class="bi bi-arrow-right mx-1 text-muted"></i> @Model.ToLocationNavigation.ProvinceName</span>
+                                <span class="ms-4">@Model.FromStationNavigation.Province <i class="bi bi-arrow-right mx-1 text-muted"></i> @Model.ToStationNavigation.Province</span>
                             </li>
                             <li class="list-group-item bg-transparent px-0">
                                 <i class="bi bi-calendar-event text-primary me-2"></i> <strong>Khởi hành:</strong> @Model.StartTime.ToString("dd/MM/yyyy HH:mm")
@@ -53,12 +53,12 @@
 
                             <div class="row">
                                 <div class="col-md-6 mb-3">
-                                    <label class="form-label fw-bold text-muted small">📍 ĐỊA CHỈ LẤY HÀNG (@Model.FromLocationNavigation.ProvinceName)</label>
+                                    <label class="form-label fw-bold text-muted small">📍 ĐỊA CHỈ LẤY HÀNG (@Model.FromStationNavigation.Province)</label>
                                     <input type="text" class="form-control" name="PickupAddress" placeholder="Ví dụ: Số 12, ngõ 34..." required />
                                 </div>
 
                                 <div class="col-md-6 mb-3">
-                                    <label class="form-label fw-bold text-muted small">🚩 ĐỊA CHỈ GIAO HÀNG (@Model.ToLocationNavigation.ProvinceName)</label>
+                                    <label class="form-label fw-bold text-muted small">🚩 ĐỊA CHỈ GIAO HÀNG (@Model.ToStationNavigation.Province)</label>
                                     <input type="text" class="form-control" name="DeliveryAddress" placeholder="Ví dụ: Tòa nhà Vincom..." required />
                                 </div>
                             </div>

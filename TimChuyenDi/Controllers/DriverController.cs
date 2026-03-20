@@ -220,8 +220,10 @@ namespace TimChuyenDi.Controllers
         public IActionResult DeleteTrip(int id)
         {
             var driverId = int.Parse(User.FindFirstValue("UserId"));
+
             var trip = _context.Trips
                                .Include(t => t.Shiprequests)
+                               .Include(t => t.Users) // 🔥 thêm dòng này
                                .FirstOrDefault(t => t.TripId == id && t.DriverId == driverId);
 
             if (trip != null)
@@ -232,14 +234,15 @@ namespace TimChuyenDi.Controllers
                     return RedirectToAction("MyTrips");
                 }
 
-                // Cú pháp xóa bảng phụ (SavedRoutes) ở DB mới
-                var savedRoutes = _context.Savedroutes.Where(sr => sr.TripId == trip.TripId);
-                _context.Savedroutes.RemoveRange(savedRoutes);
+                // 🔥 Xóa quan hệ saved routes (many-to-many)
+                trip.Users.Clear();
 
                 _context.Trips.Remove(trip);
                 _context.SaveChanges();
+
                 TempData["Success"] = "Xóa chuyến xe thành công!";
             }
+
             return RedirectToAction("MyTrips");
         }
 
