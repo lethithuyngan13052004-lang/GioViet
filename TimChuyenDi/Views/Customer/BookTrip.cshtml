@@ -1,0 +1,96 @@
+﻿@model TimChuyenDi.Models.Trip
+@{
+    ViewData["Title"] = "Gửi Yêu Cầu Ghép Hàng";
+}
+
+<div class="container mt-4 mb-5">
+    <div class="row justify-content-center">
+        <div class="col-lg-10">
+            <div class="card shadow-lg border-0 rounded-4 overflow-hidden">
+
+                <div class="card-header bg-warning text-dark fw-bold py-3 fs-5">
+                    <i class="bi bi-send-check me-2"></i> Xác nhận Yêu cầu Ghép Hàng
+                </div>
+
+                <div class="row g-0">
+
+                    <div class="col-md-5 bg-light p-4 border-end">
+                        <h5 class="fw-bold text-primary mb-4"><i class="bi bi-info-circle-fill me-2"></i>Thông tin chuyến xe</h5>
+                        <ul class="list-group list-group-flush bg-transparent">
+                            <li class="list-group-item bg-transparent px-0 py-3">
+                                <i class="bi bi-geo-alt text-danger me-2"></i> <strong>Tuyến:</strong> <br />
+                                <span class="ms-4">@Model.FromLocationNavigation.ProvinceName <i class="bi bi-arrow-right mx-1 text-muted"></i> @Model.ToLocationNavigation.ProvinceName</span>
+                            </li>
+                            <li class="list-group-item bg-transparent px-0">
+                                <i class="bi bi-calendar-event text-primary me-2"></i> <strong>Khởi hành:</strong> @Model.StartTime.ToString("dd/MM/yyyy HH:mm")
+                            </li>
+                            <li class="list-group-item bg-transparent px-0">
+                                <i class="bi bi-person-badge text-success me-2"></i> <strong>Tài xế:</strong> @Model.Driver.Name
+                            </li>
+                            <li class="list-group-item bg-transparent px-0">
+                                <i class="bi bi-truck text-dark me-2"></i> <strong>Biển số:</strong> <span class="badge bg-secondary fs-6">@Model.Vehicle.PlateNumber</span>
+                            </li>
+                            <li class="list-group-item bg-transparent px-0">
+                                <i class="bi bi-cash-coin text-warning me-2"></i> <strong>Giá cước:</strong> <span class="text-success fw-bold">@Model.BasePricePerKg.ToString("N0") đ/kg</span>
+                            </li>
+                            <li class="list-group-item bg-transparent px-0 border-bottom-0">
+                                <i class="bi bi-box-seam text-info me-2"></i> <strong>Chỗ trống:</strong> <span class="text-danger fw-bold fs-5">@Model.AvaiCapacityKg kg</span>
+                            </li>
+                        </ul>
+                    </div>
+
+                    <div class="col-md-7 p-4 p-md-5">
+
+                        @if (ViewBag.Error != null)
+                        {
+                            <div class="alert alert-danger shadow-sm"><i class="bi bi-exclamation-triangle-fill me-2"></i> @ViewBag.Error</div>
+                        }
+
+                        <h5 class="fw-bold mb-4 text-dark"><i class="bi bi-pencil-square me-2"></i>Nhập thông tin gửi hàng</h5>
+
+                        <form asp-action="BookTrip" asp-controller="Customer" method="post">
+                            <input type="hidden" name="TripId" value="@Model.TripId" />
+
+                            <div class="row">
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label fw-bold text-muted small">📍 ĐỊA CHỈ LẤY HÀNG (@Model.FromLocationNavigation.ProvinceName)</label>
+                                    <input type="text" class="form-control" name="PickupAddress" placeholder="Ví dụ: Số 12, ngõ 34..." required />
+                                </div>
+
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label fw-bold text-muted small">🚩 ĐỊA CHỈ GIAO HÀNG (@Model.ToLocationNavigation.ProvinceName)</label>
+                                    <input type="text" class="form-control" name="DeliveryAddress" placeholder="Ví dụ: Tòa nhà Vincom..." required />
+                                </div>
+                            </div>
+
+                            <div class="row mt-2">
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label fw-bold text-muted small">👤 TÊN & SĐT NGƯỜI NHẬN</label>
+                                    <input type="text" class="form-control" name="ReceiverInfo" placeholder="Anh Tuấn - 0987.xxx.xxx" required />
+                                </div>
+
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label fw-bold text-muted small">📦 KHỐI LƯỢNG (kg)</label>
+                                    <input type="number" class="form-control border-primary" name="Weight" min="1" max="@Model.AvaiCapacityKg" placeholder="Ví dụ: 50" required />
+                                    <small class="text-danger fst-italic">Tối đa: @Model.AvaiCapacityKg kg</small>
+                                </div>
+                            </div>
+
+                            <div class="mb-4 mt-2">
+                                <label class="form-label fw-bold text-muted small">GHI CHÚ CHO TÀI XẾ</label>
+                                <textarea class="form-control" name="Notes" rows="2" placeholder="Hàng dễ vỡ, xin nhẹ tay..."></textarea>
+                            </div>
+
+                            <div class="d-grid mt-2">
+                                <button type="submit" class="btn btn-warning btn-lg fw-bold text-dark shadow-sm">
+                                    <i class="bi bi-send-check-fill me-2"></i> GỬI YÊU CẦU CHO TÀI XẾ
+                                </button>
+                            </div>
+                        </form>
+
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

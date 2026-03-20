@@ -1,0 +1,109 @@
+﻿@model TimChuyenDi.Models.Shiprequest
+
+@{
+    ViewData["Title"] = "Chi tiết đơn hàng #" + Model.ReqId;
+
+    // Xử lý màu sắc trạng thái
+    string badgeClass = Model.Status switch
+    {
+        0 => "bg-warning text-dark",
+        1 => "bg-info text-dark",
+        2 => "bg-danger",
+        3 => "bg-primary",
+        4 => "bg-success",
+        _ => "bg-dark"
+    };
+    string statusText = Model.Status switch
+    {
+        0 => "⏳ Chờ xác nhận",
+        1 => "✅ Đã xác nhận",
+        2 => "❌ Bị từ chối",
+        3 => "🚚 Đang giao hàng",
+        4 => "🎉 Đã giao thành công",
+        _ => "⛔ Đã hủy"
+    };
+}
+
+<div class="container mt-5 mb-5">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h3 class="fw-bold text-primary"><i class="bi bi-receipt-cutoff me-2"></i>Chi tiết đơn hàng #@Model.ReqId</h3>
+        <a asp-action="RequestHistory" class="btn btn-outline-secondary"><i class="bi bi-arrow-left"></i> Quay lại</a>
+    </div>
+
+    <div class="card shadow border-0 rounded-4 overflow-hidden">
+        <div class="card-header bg-light p-4 border-bottom-0 d-flex justify-content-between align-items-center">
+            <div>
+                <span class="text-muted d-block">Ngày đặt hàng: @Model.CreatedAt?.ToString("dd/MM/yyyy HH:mm")</span>
+            </div>
+            <span class="badge @badgeClass fs-5 px-4 py-2 rounded-pill shadow-sm">@statusText</span>
+        </div>
+
+        <div class="card-body p-4">
+            <div class="row g-4">
+                <div class="col-md-7">
+                    <h5 class="fw-bold border-bottom pb-2 mb-3"><i class="bi bi-box-seam text-primary me-2"></i>Thông tin vận chuyển</h5>
+
+                    <div class="mb-3">
+                        <label class="text-muted fw-bold small">📍 ĐỊA CHỈ LẤY HÀNG (@Model.Trip.FromLocationNavigation.ProvinceName)</label>
+                        <p class="fs-6 mb-0">@Model.PickupAddress</p>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="text-muted fw-bold small">🚩 ĐỊA CHỈ GIAO HÀNG (@Model.Trip.ToLocationNavigation.ProvinceName)</label>
+                        <p class="fs-6 mb-0">@Model.DeliveryAddress</p>
+                    </div>
+
+                    <div class="mb-3 bg-light p-3 rounded-3">
+                        <label class="text-muted fw-bold small">👤 NGƯỜI NHẬN</label>
+                        <p class="fs-6 fw-bold text-dark mb-0">@Model.ReceiverInfo</p>
+                    </div>
+
+                    @if (!string.IsNullOrEmpty(Model.Notes))
+                    {
+                        <div class="alert alert-warning border-0 shadow-sm mt-3">
+                            <i class="bi bi-journal-text me-2"></i><strong>Ghi chú:</strong> @Model.Notes
+                        </div>
+                    }
+                </div>
+
+                <div class="col-md-5 border-start">
+                    <h5 class="fw-bold border-bottom pb-2 mb-3"><i class="bi bi-truck text-success me-2"></i>Thông tin chuyến xe</h5>
+
+                    <ul class="list-group list-group-flush mb-4">
+                        <li class="list-group-item bg-transparent px-0 d-flex justify-content-between">
+                            <span class="text-muted">Tài xế:</span>
+                            <span class="fw-bold">@Model.Trip.Driver.Name</span>
+                        </li>
+                        <li class="list-group-item bg-transparent px-0 d-flex justify-content-between">
+                            <span class="text-muted">Biển số xe:</span>
+                            <span class="badge bg-secondary fs-6">@Model.Trip.Vehicle.PlateNumber</span>
+                        </li>
+                        <li class="list-group-item bg-transparent px-0 d-flex justify-content-between">
+                            <span class="text-muted">Khởi hành:</span>
+                            <span>@Model.Trip.StartTime.ToString("dd/MM/yyyy HH:mm")</span>
+                        </li>
+                        <li class="list-group-item bg-transparent px-0 d-flex justify-content-between">
+                            <span class="text-muted">Khối lượng gửi:</span>
+                            <span class="fw-bold text-dark">@Model.Weight kg</span>
+                        </li>
+                    </ul>
+
+                    <div class="bg-primary bg-opacity-10 p-4 rounded-4 text-center border border-primary border-opacity-25">
+                        <span class="text-muted fw-bold d-block mb-1">TỔNG CƯỚC PHÍ</span>
+                        <h2 class="fw-bold text-primary mb-0">@Model.TotalPrice.ToString("N0") <span class="fs-5">VNĐ</span></h2>
+                    </div>
+
+                    @if (Model.Status == 0)
+                    {
+                        <form asp-action="CancelRequest" asp-controller="Customer" method="post" class="mt-4 d-grid">
+                            <input type="hidden" name="reqId" value="@Model.ReqId" />
+                            <button type="submit" class="btn btn-outline-danger" onclick="return confirm('Bạn có chắc chắn muốn hủy đơn hàng này?');">
+                                <i class="bi bi-x-circle me-1"></i> Hủy đơn hàng này
+                            </button>
+                        </form>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

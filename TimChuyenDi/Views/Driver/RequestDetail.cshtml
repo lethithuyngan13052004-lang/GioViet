@@ -1,0 +1,126 @@
+﻿@model TimChuyenDi.Models.Shiprequest
+
+@{
+    ViewData["Title"] = "Chi tiết đơn hàng #" + Model.ReqId;
+
+    string badgeClass = Model.Status switch
+    {
+        0 => "bg-warning text-dark",
+        1 => "bg-info text-dark",
+        2 => "bg-danger",
+        3 => "bg-primary",
+        4 => "bg-success",
+        _ => "bg-dark"
+    };
+    string statusText = Model.Status switch
+    {
+        0 => "⏳ Chờ xác nhận",
+        1 => "✅ Đã xác nhận",
+        2 => "❌ Đã từ chối",
+        3 => "🚚 Đang giao hàng",
+        4 => "🎉 Đã giao thành công",
+        _ => "⛔ Khách đã hủy"
+    };
+}
+
+<div class="container mt-4 mb-5">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h3 class="fw-bold text-dark"><i class="bi bi-card-checklist text-primary me-2"></i>Chi tiết Yêu cầu gửi hàng</h3>
+        <a asp-action="Index" class="btn btn-outline-secondary"><i class="bi bi-arrow-left"></i> Trở về danh sách</a>
+    </div>
+
+    <div class="card shadow-sm border-0 rounded-4 overflow-hidden">
+        <div class="card-header bg-light p-4 border-bottom d-flex justify-content-between align-items-center">
+            <div>
+                <h5 class="mb-1 text-primary">Mã đơn: #@Model.ReqId</h5>
+                <small class="text-muted">Ngày khách đặt: @Model.CreatedAt?.ToString("dd/MM/yyyy HH:mm")</small>
+            </div>
+            <span class="badge @badgeClass fs-5 px-4 py-2 rounded-pill shadow-sm">@statusText</span>
+        </div>
+
+        <div class="card-body p-4">
+            <div class="row g-4">
+                <div class="col-md-7">
+                    <h5 class="fw-bold border-bottom pb-2 mb-3"><i class="bi bi-geo-alt-fill text-danger me-2"></i>Thông tin vận chuyển</h5>
+
+                    <div class="mb-4 bg-light p-3 rounded-3 border-start border-4 border-primary">
+                        <label class="text-muted fw-bold small">👤 THÔNG TIN NGƯỜI GỬI (KHÁCH HÀNG)</label>
+                        <p class="fs-6 fw-bold text-dark mb-1">@Model.Customer.Name</p>
+                        <p class="fs-6 text-dark mb-0"><i class="bi bi-telephone-fill text-success me-2"></i>@Model.Customer.Phone</p>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="text-muted fw-bold small">📍 ĐỊA CHỈ ĐẾN LẤY HÀNG</label>
+                        <p class="fs-6 mb-0"><strong>@Model.PickupAddress</strong>, @Model.Trip.FromLocationNavigation.ProvinceName</p>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="text-muted fw-bold small">🚩 ĐỊA CHỈ TRẢ HÀNG</label>
+                        <p class="fs-6 mb-0"><strong>@Model.DeliveryAddress</strong>, @Model.Trip.ToLocationNavigation.ProvinceName</p>
+                    </div>
+
+                    <div class="mb-3 bg-light p-3 rounded-3 border-start border-4 border-info">
+                        <label class="text-muted fw-bold small">👤 THÔNG TIN NGƯỜI NHẬN</label>
+                        <p class="fs-6 fw-bold text-dark mb-0">@Model.ReceiverInfo</p>
+                    </div>
+
+                    @if (!string.IsNullOrEmpty(Model.Notes))
+                    {
+                        <div class="alert alert-warning border-0 shadow-sm mt-3">
+                            <i class="bi bi-exclamation-triangle-fill text-warning me-2"></i><strong>Khách ghi chú:</strong> @Model.Notes
+                        </div>
+                    }
+                </div>
+
+                <div class="col-md-5 border-start">
+                    <h5 class="fw-bold border-bottom pb-2 mb-3"><i class="bi bi-cash-stack text-success me-2"></i>Cước phí & Thao tác</h5>
+
+                    <ul class="list-group list-group-flush mb-4">
+                        <li class="list-group-item bg-transparent px-0 d-flex justify-content-between">
+                            <span class="text-muted">Khối lượng kiện hàng:</span>
+                            <span class="fw-bold text-danger fs-5">@Model.Weight kg</span>
+                        </li>
+                        <li class="list-group-item bg-transparent px-0 d-flex justify-content-between">
+                            <span class="text-muted">Thuộc chuyến xe:</span>
+                            <span class="fw-bold text-dark">@Model.Trip.Vehicle.PlateNumber</span>
+                        </li>
+                    </ul>
+
+                    <div class="bg-success bg-opacity-10 p-4 rounded-4 text-center border border-success border-opacity-25 mb-4">
+                        <span class="text-muted fw-bold d-block mb-1">SỐ TIỀN THU KHÁCH</span>
+                        <h2 class="fw-bold text-success mb-0">@Model.TotalPrice.ToString("N0") <span class="fs-5">VNĐ</span></h2>
+                    </div>
+
+                    <div class="d-grid gap-2">
+                        <form asp-action="UpdateRequestStatus" asp-controller="Driver" method="post" class="d-grid gap-2">
+                            <input type="hidden" name="reqId" value="@Model.ReqId" />
+
+                            @if (Model.Status == 0) // Đang chờ xác nhận
+                            {
+                                <button type="submit" name="status" value="1" class="btn btn-success btn-lg fw-bold shadow-sm">
+                                    <i class="bi bi-check-circle me-1"></i> Nhận đơn hàng này
+                                </button>
+                                <button type="submit" name="status" value="2" class="btn btn-outline-danger shadow-sm mt-2" onclick="return confirm('Bạn chắc chắn muốn từ chối đơn này?');">
+                                    Từ chối đơn
+                                </button>
+                            }
+                            else if (Model.Status == 1) // Đã xác nhận -> Cho phép bắt đầu giao
+                            {
+                                <button type="submit" name="status" value="3" class="btn btn-primary btn-lg fw-bold shadow-sm">
+                                    <i class="bi bi-truck me-1"></i> Bắt đầu đi giao hàng
+                                </button>
+                            }
+                            else if (Model.Status == 3) // Đang giao -> Cho phép chốt hoàn thành
+                            {
+                                <button type="submit" name="status" value="4" class="btn btn-success btn-lg fw-bold shadow-sm" onclick="return confirm('Xác nhận đã giao hàng thành công và thu tiền?');">
+                                    <i class="bi bi-check2-all me-1"></i> Đã giao thành công
+                                </button>
+                            }
+                        </form>
+                    </div>
+
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

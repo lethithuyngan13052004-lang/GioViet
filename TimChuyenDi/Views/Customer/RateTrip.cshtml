@@ -1,0 +1,43 @@
+﻿@model TimChuyenDi.Models.Trip
+@{
+    ViewData["Title"] = "Đánh giá dịch vụ";
+}
+
+<div class="row justify-content-center mt-5">
+    <div class="col-md-6">
+        <div class="card shadow border-warning">
+            <div class="card-header bg-warning text-dark fw-bold">
+                <i class="bi bi-star-fill"></i> Đánh Giá Dịch Vụ Vận Tải
+            </div>
+            <div class="card-body">
+                <h5 class="mb-3">Tài xế: @Model.Driver.Name</h5>
+                <p class="text-muted">Chuyến đi số: #@Model.TripId</p>
+
+                <form asp-action="RateTrip" method="post">
+                    <input type="hidden" name="tripId" value="@Model.TripId" />
+
+                    <div class="mb-4 mt-3">
+                        <label class="form-label fw-bold">Mức độ hài lòng (1 - 5 sao):</label>
+                        <select name="score" class="form-select form-select-lg border-warning" required>
+                            <option value="5">⭐⭐⭐⭐⭐ (5) - Tuyệt vời</option>
+                            <option value="4">⭐⭐⭐⭐ (4) - Tốt</option>
+                            <option value="3">⭐⭐⭐ (3) - Bình thường</option>
+                            <option value="2">⭐⭐ (2) - Kém</option>
+                            <option value="1">⭐ (1) - Rất tệ</option>
+                        </select>
+                    </div>
+
+                    <div class="mb-4">
+                        <label class="form-label fw-bold">Nhận xét của bạn:</label>
+                        <textarea name="comment" class="form-control" rows="4" placeholder="Ví dụ: Tài xế nhiệt tình, hàng hóa được bọc cẩn thận..." required></textarea>
+                    </div>
+
+                    <div class="d-grid gap-2">
+                        <button type="submit" class="btn btn-warning fw-bold">Gửi Đánh Giá</button>
+                        <a asp-action="RequestHistory" class="btn btn-secondary">Quay lại</a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>

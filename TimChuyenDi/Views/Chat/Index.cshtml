@@ -1,0 +1,105 @@
+﻿@{
+    ViewData["Title"] = "Trợ lý AI Gemini";
+}
+
+<div class="row justify-content-center mt-5 mb-5">
+    <div class="col-md-8">
+        <div class="card shadow border-0" style="border-radius: 15px; overflow: hidden;">
+            <div class="card-header text-white fw-bold d-flex align-items-center p-3" style="background: linear-gradient(90deg, #0052D4 0%, #4364F7 100%);">
+                <i class="bi bi-robot fs-4 me-2"></i> Trợ lý AI Tư vấn Ghép Hàng
+            </div>
+
+            <div class="card-body" id="chatBox" style="height: 450px; overflow-y: auto; background-color: #f4f6f9;">
+                <div class="mb-3 d-flex">
+                    <div class="p-3 bg-white border rounded-3 shadow-sm text-dark" style="max-width: 80%;">
+                        <strong>🤖 Trợ lý AI:</strong> Xin chào! Tôi là trợ lý ảo của nền tảng Ghép Hàng Liên Tỉnh. Tôi có thể giúp bạn tìm chuyến xe, tính toán chi phí hoặc giải đáp thắc mắc về dịch vụ. Bạn cần hỗ trợ gì?
+                    </div>
+                </div>
+            </div>
+
+            <div class="card-footer bg-white p-3 border-top-0">
+                <form id="chatForm" class="d-flex gap-2">
+                    <input type="text" id="userInput" class="form-control" placeholder="Nhập câu hỏi của bạn tại đây..." required autocomplete="off" style="border-radius: 20px;" />
+                    <button type="submit" class="btn btn-primary fw-bold" id="btnSend" style="border-radius: 20px; padding: 0 25px;">
+                        <i class="bi bi-send-fill"></i> Gửi
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        // 1. Khởi tạo một biến toàn cục để lưu "Trí nhớ" của AI
+        let conversationHistory = "";
+
+        $(document).ready(function () {
+            $("#chatForm").submit(function (e) {
+                e.preventDefault();
+
+                var message = $("#userInput").val();
+                if (!message.trim()) return;
+
+                // Cập nhật câu hỏi của bạn vào Trí nhớ
+                conversationHistory += "Khách hàng nói: " + message + "\n";
+
+                // In tin nhắn của Bạn lên màn hình (Giữ nguyên code cũ của bạn)
+                var userHtml = `
+                    <div class="mb-3 d-flex justify-content-end">
+                        <div class="p-3 bg-primary text-white rounded-3 shadow-sm" style="max-width: 80%;">
+                            <strong>👤 Bạn:</strong> ${message}
+                        </div>
+                    </div>`;
+                $("#chatBox").append(userHtml);
+                $("#userInput").val("");
+                $("#chatBox").scrollTop($("#chatBox")[0].scrollHeight);
+
+                var loadingHtml = `
+                    <div class="mb-3 d-flex" id="loadingMsg">
+                        <div class="p-3 bg-white border rounded-3 text-muted fst-italic shadow-sm">
+                            <span class="spinner-grow spinner-grow-sm text-primary" role="status"></span> AI đang suy nghĩ...
+                        </div>
+                    </div>`;
+                $("#chatBox").append(loadingHtml);
+                $("#chatBox").scrollTop($("#chatBox")[0].scrollHeight);
+
+                // 2. Gửi cả Câu hỏi mới VÀ Lịch sử chat xuống Backend
+                $.ajax({
+                    url: '/Chat/SendMessage',
+                    type: 'POST',
+                    data: {
+                        userMessage: message,
+                        history: conversationHistory // Đưa cuốn "nhật ký" cho AI đọc
+                    },
+                    success: function (res) {
+                        $("#loadingMsg").remove();
+
+                        if (res.success) {
+                            var formattedReply = res.reply.replace(/\n/g, "<br>");
+                            formattedReply = formattedReply.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+
+                            var aiHtml = `
+                                <div class="mb-3 d-flex">
+                                    <div class="p-3 bg-white border rounded-3 text-dark shadow-sm" style="max-width: 80%;">
+                                        <strong>🤖 Trợ lý AI:</strong> <br/> ${formattedReply}
+                                    </div>
+                                </div>`;
+                            $("#chatBox").append(aiHtml);
+
+                            // Cập nhật câu trả lời của AI vào Trí nhớ để dùng cho lần sau
+                            conversationHistory += "AI trả lời: " + res.reply + "\n";
+                        } else {
+                            alert("Có lỗi: " + res.reply);
+                        }
+                        $("#chatBox").scrollTop($("#chatBox")[0].scrollHeight);
+                    },
+                    error: function () {
+                        $("#loadingMsg").remove();
+                        alert("Lỗi kết nối đến máy chủ AI.");
+                    }
+                });
+            });
+        });
+    </script>
+}

@@ -1,0 +1,47 @@
+﻿@model IEnumerable<TimChuyenDi.Models.Trip>
+@{
+    ViewData["Title"] = "Quản lý Chuyến Xe";
+}
+
+<div class="d-flex justify-content-between align-items-center mt-4 mb-4">
+    <h4><i class="bi bi-map-fill"></i> Quản lý Toàn Bộ Chuyến Xe</h4>
+</div>
+
+<div class="card shadow-sm border-0">
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="table-dark">
+                    <tr>
+                        <th>Mã chuyến</th>
+                        <th>Tài xế</th>
+                        <th>Xe vận chuyển</th>
+                        <th>Tuyến đường</th>
+                        <th>Khởi hành</th>
+                        <th>Giá (VNĐ/kg)</th>
+                        <th>Chỗ trống</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var item in Model)
+                    {
+                        <tr>
+                            <td class="fw-bold">#@item.TripId</td>
+                            <td>
+                                @item.Driver.Name<br />
+                                <small class="text-muted">@item.Driver.Phone</small>
+                            </td>
+                            <td><span class="badge bg-secondary">@item.Vehicle.PlateNumber</span></td>
+                            <td class="fw-bold text-primary">
+                                @item.FromLocationNavigation.ProvinceName <i class="bi bi-arrow-right"></i> @item.ToLocationNavigation.ProvinceName
+                            </td>
+                            <td>@item.StartTime.ToString("dd/MM/yyyy HH:mm")</td>
+                            <td class="text-success fw-bold">@item.BasePricePerKg.ToString("N0")</td>
+                            <td class="text-danger fw-bold">@item.AvaiCapacityKg kg</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>

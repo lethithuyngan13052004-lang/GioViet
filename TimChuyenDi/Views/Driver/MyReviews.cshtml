@@ -1,0 +1,44 @@
+﻿@model IEnumerable<TimChuyenDi.Models.Rating>
+@{
+    ViewData["Title"] = "Đánh giá của khách hàng";
+}
+
+<div class="mt-4 mb-4 d-flex justify-content-between align-items-center">
+    <h4><i class="bi bi-star-fill text-warning"></i> Nhận Xét Từ Khách Hàng</h4>
+    <div class="text-end">
+        <span class="fs-5">Điểm trung bình: <strong class="text-danger">@ViewBag.AverageScore / 5</strong> ⭐</span><br />
+        <small class="text-muted">(Dựa trên @ViewBag.TotalReviews lượt đánh giá)</small>
+    </div>
+</div>
+
+<div class="row">
+    @if (!Model.Any())
+    {
+        <div class="col-12 text-center text-muted mt-5">
+            <p>Bạn chưa có đánh giá nào. Hãy hoàn thành tốt các chuyến đi để nhận "mưa" lời khen nhé!</p>
+        </div>
+    }
+
+    @foreach (var item in Model)
+    {
+        <div class="col-md-6 mb-3">
+            <div class="card shadow-sm h-100 border-0 border-start border-warning border-4">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <h6 class="fw-bold mb-1">@item.Customer.Name</h6>
+                        <div class="text-warning">
+                            @for (int i = 0; i < item.Score; i++)
+                            {
+                                <span>⭐</span>
+                            }
+                        </div>
+                    </div>
+                    <p class="small text-muted mb-2">
+                        Chuyến đi: @item.Trip.FromLocationNavigation.ProvinceName ➔ @item.Trip.ToLocationNavigation.ProvinceName (Mã chuyến: #@item.TripId)
+                    </p>
+                    <p class="mb-0 text-dark fst-italic">"@item.Comment"</p>
+                </div>
+            </div>
+        </div>
+    }
+</div>

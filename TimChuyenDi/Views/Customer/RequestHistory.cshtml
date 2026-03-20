@@ -1,0 +1,102 @@
+﻿@model IEnumerable<TimChuyenDi.Models.Shiprequest>
+@{
+    ViewData["Title"] = "Lịch sử Gửi hàng";
+}
+
+<h4 class="mt-4 mb-4"><i class="bi bi-clock-history"></i> Lịch Sử Yêu Cầu Gửi Hàng</h4>
+
+<div class="card shadow-sm border-0">
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="table-dark">
+                    <tr>
+                        <th>Mã đơn</th>
+                        <th>Tuyến đường</th>
+                        <th>Tài xế</th>
+                        <th>Khối lượng</th>
+                        <th>Tổng tiền</th>
+                        <th>Trạng thái</th>
+                        <th>Thao tác</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @if (!Model.Any())
+                    {
+                        <tr><td colspan="7" class="text-center py-4 text-muted">Bạn chưa có lịch sử gửi hàng nào.</td></tr>
+                    }
+                    @foreach (var item in Model)
+                    {
+                        <tr>
+                            <td class="fw-bold text-secondary">#@item.ReqId</td>
+                            <td class="fw-bold">
+                                @item.Trip.FromLocationNavigation.ProvinceName <i class="bi bi-arrow-right"></i> @item.Trip.ToLocationNavigation.ProvinceName<br />
+                                <small class="text-muted fw-normal">Đi: @item.Trip.StartTime.ToString("dd/MM/yyyy HH:mm")</small>
+                            </td>
+                            <td>
+                                @item.Trip.Driver.Name<br />
+                                <small>@item.Trip.Driver.Phone</small>
+                            </td>
+                            <td class="text-danger fw-bold">@item.Weight kg</td>
+                            <td class="text-success fw-bold">@item.TotalPrice.ToString("N0") đ</td>
+                            <td>
+                                @if (item.Status == 0)
+                                {
+                                    <span class="badge bg-warning text-dark">Chờ xác nhận</span>
+                                }
+                                else if (item.Status == 1)
+                                {
+
+                                    <span class="badge bg-primary">Đã xác nhận</span>
+                                }
+                                else if (item.Status == 2)
+                                {
+
+                                    <span class="badge bg-danger">Bị từ chối</span>
+                                }
+                                else if (item.Status == 3)
+                                {
+
+                                    <span class="badge bg-info text-dark">Đang giao</span>
+                                }
+                                else if (item.Status == 4)
+                                {
+
+                                    <span class="badge bg-success">Đã giao hoàn tất</span>
+                                }
+                                else if (item.Status == 5)
+                                {
+
+                                    <span class="badge bg-secondary">Đã hủy</span>
+                                }
+                            </td>
+                            <td>
+
+                                @if (item.Status == 0)
+                                {
+                                    <form asp-action="CancelRequest" method="post" class="d-inline">
+                                        <input type="hidden" name="reqId" value="@item.ReqId" />
+                                        <button type="submit" class="btn btn-sm btn-outline-danger" onclick="return confirm('Bạn có chắc chắn muốn hủy đơn gửi hàng này không?');">Hủy đơn</button>
+                                    </form>
+                                }
+                                else if (item.Status == 4)
+                                {
+                                    <a asp-controller="Customer" asp-action="RateTrip" asp-route-tripId="@item.TripId" class="btn btn-sm btn-warning">Đánh giá</a>
+                                }
+
+                            </td>
+
+                            <td>
+                                <a asp-action="RequestDetail" asp-controller="Customer" asp-route-id="@item.ReqId" class="btn btn-outline-primary btn-sm mt-2">
+                                    <i class="bi bi-eye"></i> Xem chi tiết
+                                </a>
+                            </td>
+
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>

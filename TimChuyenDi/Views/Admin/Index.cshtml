@@ -1,0 +1,103 @@
+﻿@model IEnumerable<TimChuyenDi.Models.User>
+@{
+    ViewData["Title"] = "Quản lý Người dùng";
+}
+
+<div class="d-flex justify-content-between align-items-center mt-4 mb-3">
+    <h4><i class="bi bi-people-fill"></i> Quản lý Người dùng Hệ thống</h4>
+</div>
+
+<div class="card shadow-sm mb-4 border-0 bg-light">
+    <div class="card-body">
+        <form asp-action="Index" method="get" class="row g-3 align-items-center">
+            <div class="col-auto">
+                <label class="col-form-label fw-bold">Tìm theo số điện thoại:</label>
+            </div>
+            <div class="col-auto">
+                <input type="text" name="searchPhone" class="form-control" value="@ViewBag.SearchPhone" placeholder="Nhập SĐT..." />
+            </div>
+            <div class="col-auto">
+                <button type="submit" class="btn btn-primary"><i class="bi bi-search"></i> Tìm kiếm</button>
+                <a asp-action="Index" class="btn btn-outline-secondary">Làm mới</a>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="card shadow-sm border-0">
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="table-dark">
+                    <tr>
+                        <th>ID</th>
+                        <th>Họ và Tên</th>
+                        <th>Số điện thoại</th>
+                        <th>Vai trò</th>
+                        <th>Ngày tạo</th>
+                        <th>Trạng thái</th>
+                        <th>Thao tác</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var item in Model)
+                    {
+                        <tr>
+                            <td>@item.UserId</td>
+                            <td class="fw-bold">@item.Name</td>
+                            <td>@item.Phone</td>
+                            <td>
+                                @if (item.Role == 0)
+                                {
+                                    <span class="badge bg-danger">Admin</span>
+                                }
+                                else if (item.Role == 1)
+                                {
+
+                                    <span class="badge bg-info text-dark">Tài xế</span>
+                                }
+                                else
+                                {
+
+                                    <span class="badge bg-success">Khách hàng</span>
+                                }
+                            </td>
+                            <td>@(item.CreatedAt.HasValue? item.CreatedAt.Value.ToString("dd/MM/yyyy") : "")</td>
+                            <td>
+                                @if (item.IsActive == true)
+                                {
+                                    <span class="badge bg-primary">Hoạt động</span>
+                                }
+                                else
+                                {
+
+                                    <span class="badge bg-secondary">Đã khóa</span>
+                                }
+                            </td>
+                            <td>
+                                @if (item.Role != 0)
+                                {
+                                    <form asp-action="ToggleStatus" method="post" class="d-inline">
+                                        <input type="hidden" name="userId" value="@item.UserId" />
+                                        @if (item.IsActive == true)
+                                        {
+                                            <button type="submit" class="btn btn-sm btn-outline-danger" onclick="return confirm('Bạn có chắc muốn khóa tài khoản này không?');">Khóa</button>
+                                        }
+                                        else
+                                        {
+                                            <button type="submit" class="btn btn-sm btn-success">Mở khóa</button>
+                                        }
+                                    </form>
+                                }
+                                else
+                                {
+                                    <span class="text-muted small">Quyền tối cao</span>
+                                }
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>

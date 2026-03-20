@@ -1,0 +1,185 @@
+﻿/* --- TÙY CHỈNH GIAO DIỆN CHUNG --- */
+body {
+    background-color: #f4f6f9; /* Màu xám xanh nhạt - rất dịu và sang */
+    color: #333;
+}
+
+/* --- LÀM ĐẸP THANH MENU (NAVBAR) --- */
+.navbar {
+    /* Đổ màu dải gradient xanh dương hiện đại */
+    background: linear-gradient(90deg, #0052D4 0%, #4364F7 50%, #6FB1FC 100%) !important;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+}
+
+.navbar-brand {
+    font-size: 1.4rem;
+    letter-spacing: 0.5px;
+}
+
+/* --- BANNER TRANG CHỦ (HERO SECTION) --- */
+.hero-banner {
+    /* Kết hợp lớp phủ đen mờ (0.6) và ảnh nền của bạn */
+    background: linear-gradient(rgba(0, 0, 0, 0.6), rgba(0, 0, 0, 0.6)), url('/images/banner.jpg') no-repeat center center;
+    background-size: cover;
+    color: white;
+    padding: 80px 20px;
+    margin-bottom: 40px;
+    text-align: center;
+    border-radius: 20px;
+    box-shadow: 0 10px 25px rgba(0,0,0,0.15);
+}
+
+/* --- HIỆU ỨNG THẺ (CARD HOVER) --- */
+.card {
+    border-radius: 12px;
+    border: none;
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+    overflow: hidden;
+}
+
+    /* Khi di chuột vào card, nó sẽ tự động nổi lên */
+    .card:hover {
+        transform: translateY(-8px);
+        box-shadow: 0 15px 30px rgba(0,0,0,0.15) !important;
+    }
+
+/* --- BO GÓC CHO CÁC NÚT BẤM --- */
+.btn {
+    border-radius: 8px;
+    transition: all 0.3s ease;
+}
+
+    .btn:hover {
+        transform: scale(1.02);
+    }
+
+/* Đổ bóng cho form tìm kiếm */
+.form-control, .form-select {
+    border-radius: 8px;
+}
+
+/* 2. HIỆU ỨNG FORM TÌM KIẾM NỔI ĐÈ LÊN BANNER */
+.floating-search {
+    margin-top: -60px; /* Kéo form trồi lên đè vào banner */
+    position: relative;
+    z-index: 10;
+    background: #ffffff;
+    border-radius: 15px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.08); /* Đổ bóng mềm */
+    padding: 25px;
+    border: none !important;
+}
+
+/* --- GIAO DIỆN CHATBOT NỔI (FLOATING WIDGET) --- */
+
+/* 1. Nút tròn góc phải dưới */
+.chatbot-toggler {
+    position: fixed;
+    bottom: 30px;
+    right: 30px;
+    width: 65px;
+    height: 65px;
+    border-radius: 50%;
+    background: linear-gradient(90deg, #0052D4 0%, #4364F7 100%);
+    color: white;
+    border: none;
+    box-shadow: 0 5px 20px rgba(0, 0, 0, 0.3);
+    cursor: pointer;
+    z-index: 9999;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: transform 0.3s ease;
+}
+
+    .chatbot-toggler:hover {
+        transform: scale(1.1);
+    }
+
+/* 2. Khung chat ẩn/hiện */
+.chatbot-window {
+    position: fixed;
+    bottom: 110px; /* Nằm ngay trên nút tròn */
+    right: 30px;
+    width: 380px;
+    height: 550px;
+    background-color: #fff;
+    border-radius: 15px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+    z-index: 9998;
+    display: none; /* Ẩn đi khi mới vào web */
+    flex-direction: column;
+    overflow: hidden;
+    border: 1px solid #e0e0e0;
+}
+
+    /* Hiệu ứng khi mở khung chat */
+    .chatbot-window.show {
+        display: flex;
+        animation: slideUp 0.3s ease-out forwards;
+    }
+
+@keyframes slideUp {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Khu vực cuộn tin nhắn */
+.chatbot-body {
+    flex: 1;
+    overflow-y: auto;
+    padding: 15px;
+    background-color: #f4f6f9;
+}
+
+/* 3. LÀM MỀM MẠI CÁC THẺ (CARD) CHUYẾN XE */
+.trip-card {
+    border: none;
+    border-radius: 12px;
+    background-color: #ffffff;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.04);
+    transition: all 0.3s ease;
+}
+
+.trip-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 15px 25px rgba(0,0,0,0.12);
+}
+
+/* Biến header của thẻ chuyến xe thành nền trắng, chữ xanh, gạch đứt ngang */
+.trip-card .card-header {
+    background-color: transparent !important;
+    color: #0d6efd !important;
+    border-bottom: 2px dashed #e9ecef;
+    font-size: 1.1rem;
+    padding-top: 15px;
+    padding-bottom: 15px;
+}
+
+/* --- HIỆU ỨNG CHO FOOTER --- */
+.footer-link {
+    transition: color 0.3s ease, padding-left 0.3s ease;
+}
+
+    /* Khi hover vào link, đổi màu và đẩy chữ sang phải 5px */
+    .footer-link:hover {
+        color: #6FB1FC !important;
+        padding-left: 5px;
+    }
+
+.social-icon {
+    transition: color 0.3s ease, transform 0.3s ease;
+}
+
+    /* Khi hover vào icon mạng xã hội, phóng to nhẹ và đổi màu */
+    .social-icon:hover {
+        color: #6FB1FC !important;
+        transform: scale(1.1);
+    }

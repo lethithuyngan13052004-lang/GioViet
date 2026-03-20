@@ -1,0 +1,72 @@
+﻿@model TimChuyenDi.Models.Trip
+@{
+    ViewData["Title"] = "Sửa Chuyến Xe";
+}
+
+<div class="row justify-content-center mt-4">
+    <div class="col-md-8">
+        <div class="card shadow border-info">
+            <div class="card-header bg-info text-white fw-bold">
+                Cập Nhật Thông Tin Chuyến Xe #@Model.TripId
+            </div>
+            <div class="card-body">
+                <form asp-action="EditTrip" method="post">
+                    <input type="hidden" name="TripId" value="@Model.TripId" />
+
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label">Chọn xe vận tải</label>
+                            <select name="VehicleId" class="form-select" asp-items="ViewBag.Vehicles" asp-for="VehicleId" required></select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Giá cước cơ bản (VNĐ/kg)</label>
+                            <input type="number" step="0.01" name="BasePricePerKg" class="form-control" value="@Model.BasePricePerKg" required />
+                        </div>
+                    </div>
+
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label text-primary fw-bold">Tỉnh/Thành xuất phát</label>
+                            <select name="FromLocation" class="form-select" asp-items="ViewBag.Locations" asp-for="FromLocation" required></select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Địa chỉ chi tiết</label>
+                            <input type="text" name="FromAddress" class="form-control" value="@Model.FromAddress" required />
+                        </div>
+                    </div>
+
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label text-success fw-bold">Tỉnh/Thành đích đến</label>
+                            <select name="ToLocation" class="form-select" asp-items="ViewBag.Locations" asp-for="ToLocation" required></select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Địa chỉ trả hàng</label>
+                            <input type="text" name="ToAddress" class="form-control" value="@Model.ToAddress" required />
+                        </div>
+                    </div>
+
+                    <div class="row mb-3">
+                        <div class="col-md-4">
+                            <label class="form-label">Trọng tải (kg)</label>
+                            <input type="number" name="AvaiCapacityKg" class="form-control" value="@Model.AvaiCapacityKg" required />
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Thời gian xuất phát</label>
+                            <input type="datetime-local" name="StartTime" class="form-control" value="@Model.StartTime.ToString("yyyy-MM-ddTHH:mm")" required />
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Dự kiến đến nơi</label>
+                            <input type="datetime-local" name="ArrivalTime" class="form-control" value="@Model.ArrivalTime.ToString("yyyy-MM-ddTHH:mm")" required />
+                        </div>
+                    </div>
+
+                    <div class="text-end">
+                        <a asp-action="MyTrips" class="btn btn-secondary">Hủy</a>
+                        <button type="submit" class="btn btn-info text-white fw-bold">Lưu Thay Đổi</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>

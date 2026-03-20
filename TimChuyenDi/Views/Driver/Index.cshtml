@@ -1,0 +1,106 @@
+﻿@model IEnumerable<TimChuyenDi.Models.Shiprequest>
+@{
+    ViewData["Title"] = "Quản lý Yêu cầu Ghép hàng";
+}
+
+<div class="card shadow-sm mt-4">
+    <div class="card-header bg-dark text-white fw-bold">
+        <i class="bi bi-truck"></i> Yêu Cầu Ghép Hàng Từ Khách
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>Khách hàng</th>
+                        <th>Tuyến đường</th>
+                        <th>Khối lượng</th>
+                        <th>Cước phí</th>
+                        <th>Trạng thái</th>
+                        <th>Thao tác</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @if (!Model.Any())
+                    {
+                        <tr><td colspan="6" class="text-center py-4 text-muted">Hiện chưa có yêu cầu gửi hàng nào.</td></tr>
+                    }
+                    @foreach (var item in Model)
+                    {
+                        <tr>
+                            <td>
+                                <strong>@item.Customer.Name</strong><br />
+                                <small class="text-muted"><i class="bi bi-telephone"></i> @item.Customer.Phone</small>
+                            </td>
+                            <td>
+                                @item.Trip.FromLocationNavigation.ProvinceName <i class="bi bi-arrow-right"></i> @item.Trip.ToLocationNavigation.ProvinceName<br />
+                                <small class="text-primary">Khởi hành: @item.Trip.StartTime.ToString("dd/MM/yyyy HH:mm")</small>
+                            </td>
+                            <td class="text-danger fw-bold">@item.Weight kg</td>
+                            <td class="text-success fw-bold">@item.TotalPrice.ToString("N0") đ</td>
+                            <td>
+                                @if (item.Status == 0)
+                                {
+                                    <span class="badge bg-warning text-dark">Chờ xác nhận</span>
+                                }
+                                else if (item.Status == 1)
+                                {
+
+                                    <span class="badge bg-success">Đã xác nhận</span>
+                                }
+                                else if (item.Status == 2)
+                                {
+
+                                    <span class="badge bg-danger">Đã từ chối</span>
+                                }
+                            </td>
+                            <td>
+                                @if (item.Status == 0)
+                                {
+                                    <form asp-action="UpdateRequestStatus" method="post" class="d-inline">
+                                        <input type="hidden" name="reqId" value="@item.ReqId" />
+                                        <input type="hidden" name="status" value="1" />
+                                        <button type="submit" class="btn btn-sm btn-success mb-1">Nhận đơn</button>
+                                    </form>
+                                    <form asp-action="UpdateRequestStatus" method="post" class="d-inline">
+                                        <input type="hidden" name="reqId" value="@item.ReqId" />
+                                        <input type="hidden" name="status" value="2" />
+                                        <button type="submit" class="btn btn-sm btn-outline-danger mb-1">Từ chối</button>
+                                    </form>
+                                }
+                                else if (item.Status == 1)
+                                {
+                                    <form asp-action="UpdateRequestStatus" method="post" class="d-inline">
+                                        <input type="hidden" name="reqId" value="@item.ReqId" />
+                                        <input type="hidden" name="status" value="3" />
+                                        <button type="submit" class="btn btn-sm btn-info text-dark mb-1">Bắt đầu giao</button>
+                                    </form>
+                                }
+                                else if (item.Status == 3)
+                                {
+                                    <form asp-action="UpdateRequestStatus" method="post" class="d-inline">
+                                        <input type="hidden" name="reqId" value="@item.ReqId" />
+                                        <input type="hidden" name="status" value="4" />
+                                        <button type="submit" class="btn btn-sm btn-primary mb-1">Hoàn thành</button>
+                                    </form>
+                                }
+                                else
+                                {
+                                    <span class="text-muted small">Đã xử lý xong</span>
+                                }
+                            </td>
+
+                            <td>
+                                <a asp-action="RequestDetail" asp-controller="Driver" asp-route-id="@item.ReqId" class="btn btn-outline-primary btn-sm mt-1">
+                                    <i class="bi bi-eye"></i> Xem chi tiết
+                                </a>
+                            </td>
+
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
