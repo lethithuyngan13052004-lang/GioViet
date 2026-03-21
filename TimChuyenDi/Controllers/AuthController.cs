@@ -1,8 +1,9 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
 using Microsoft.AspNetCore.Authentication;
-using TimChuyenDi.Models; 
+using TimChuyenDi.Models;
 using System.Linq;
+using System.Collections.Generic;
 
 namespace TimChuyenDi.Controllers
 {
@@ -26,20 +27,16 @@ namespace TimChuyenDi.Controllers
         [HttpPost]
         public IActionResult Login(string phone, string password)
         {
-            // Tìm user theo số điện thoại (Phone là tên đăng nhập)
             var user = _context.Users.SingleOrDefault(u => u.Phone == phone);
 
-            // Kiểm tra user có tồn tại và mật khẩu đã băm (BCrypt) có khớp không
             if (user != null && BCrypt.Net.BCrypt.Verify(password, user.PasswordHash))
             {
-                // Kiểm tra tài khoản có bị khóa không (1: Hoạt động, 0: Khóa)
                 if (user.IsActive == false)
                 {
                     ViewBag.Error = "Tài khoản của bạn đã bị khóa bởi Admin.";
                     return View();
                 }
 
-                // Khởi tạo các thông tin lưu vào phiên đăng nhập (Cookie)
                 var claims = new List<Claim>
                 {
                     new Claim(ClaimTypes.Name, user.Name),
@@ -50,14 +47,11 @@ namespace TimChuyenDi.Controllers
                 var identity = new ClaimsIdentity(claims, "Cookies");
                 var principal = new ClaimsPrincipal(identity);
 
-                // Thực hiện ghi Cookie
                 HttpContext.SignInAsync("Cookies", principal);
 
-                // Phân luồng chuyển hướng dựa trên Role (0: Admin, 1: Driver, 2: Customer)
-                if (user.Role == 0) return RedirectToAction("Index", "Admin");
-                if (user.Role == 1) return RedirectToAction("Index", "Driver");
-
-                // Khách hàng (Customer) đăng nhập thành công sẽ về trang chủ tìm xe
+                // Phân quyền theo DB: 1 là Admin, 2 là Customer, 3 là Driver
+                if (user.Role == 1) return RedirectToAction("Index", "Admin");
+                if (user.Role == 3) return RedirectToAction("Index", "Driver");
                 return RedirectToAction("Index", "Home");
             }
 
@@ -72,17 +66,27 @@ namespace TimChuyenDi.Controllers
             return RedirectToAction("Login", "Auth");
         }
 
-        // 4. MẸO NHỎ ĐỂ TEST: Hàm này giúp bạn reset mật khẩu của dữ liệu mẫu thành "123456" chuẩn BCrypt
+        // ========================================== 
+        // 4. HÀM CHỮA CHÁY (Bản vá lỗi NULL PasswordDemo)
+        // ==========================================
         [HttpGet]
         public IActionResult SetupPasswords()
         {
             var users = _context.Users.ToList();
+            int count = 0;
+
             foreach (var u in users)
             {
-                u.PasswordHash = BCrypt.Net.BCrypt.HashPassword("123456");
+                // Thêm điều kiện: Nếu PasswordDemo đang bị NULL thì cũng lôi ra cập nhật lại luôn!
+                if (string.IsNullOrEmpty(u.PasswordHash) || !u.PasswordHash.StartsWith("$2a$") || string.IsNullOrEmpty(u.PasswordDemo))
+                {
+                    u.PasswordHash = BCrypt.Net.BCrypt.HashPassword("123456");
+                    u.PasswordDemo = "123456"; // Fill luôn dữ liệu vào chỗ trống
+                    count++;
+                }
             }
             _context.SaveChanges();
-            return Content("Đã cập nhật mật khẩu tất cả user mẫu thành: 123456");
+            return Content($"BÁO CÁO: Đã quét Database và cập nhật thành công {count} tài khoản!");
         }
 
         // GET: Hiển thị form đăng ký
@@ -96,7 +100,6 @@ namespace TimChuyenDi.Controllers
         [HttpPost]
         public IActionResult Register(string name, string phone, string password, int role)
         {
-            // Kiểm tra xem số điện thoại đã tồn tại chưa
             var exists = _context.Users.Any(u => u.Phone == phone);
             if (exists)
             {
@@ -104,21 +107,19 @@ namespace TimChuyenDi.Controllers
                 return View();
             }
 
-            // Tạo người dùng mới
             var newUser = new User
             {
                 Name = name,
                 Phone = phone,
-                PasswordHash = BCrypt.Net.BCrypt.HashPassword(password), // Băm mật khẩu
+                PasswordHash = BCrypt.Net.BCrypt.HashPassword(password),
+                PasswordDemo = password, // FIX: Lưu luôn pass dạng text để thầy cô dễ test
                 Role = role,
-                IsActive = true,
-               // CreatedAt = DateTime.Now
+                IsActive = true
             };
 
             _context.Users.Add(newUser);
             _context.SaveChanges();
 
-            // Đăng ký xong chuyển hướng về trang Đăng nhập
             TempData["SuccessMessage"] = "Đăng ký thành công! Vui lòng đăng nhập.";
             return RedirectToAction("Login");
         }

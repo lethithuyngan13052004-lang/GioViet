@@ -13,27 +13,34 @@
         <h4 class="card-title text-primary mb-3"><i class="bi bi-search"></i> Tìm Chuyến Xe Ghép Hàng Liên Tỉnh</h4>
         <form asp-controller="Home" asp-action="Index" method="get" class="row g-3 align-items-end">
 
-            <div class="col-md-3">
+            <div class="col-md-2">
                 <label class="form-label fw-bold">Điểm xuất phát</label>
-                <select name="fromLocation" class="form-select" asp-items="ViewBag.Locations">
-                    <option value="">-- Chọn nơi đi --</option>
+                <select name="fromProvinceId" class="form-select" asp-items="ViewBag.Provinces">
+                    <option value="">-- Chọn Tỉnh/Thành --</option>
+                </select>
+            </div>
+
+            <div class="col-md-2">
+                <label class="form-label fw-bold">Điểm đến</label>
+                <select name="toProvinceId" class="form-select" asp-items="ViewBag.Provinces">
+                    <option value="">-- Chọn Tỉnh/Thành --</option>
                 </select>
             </div>
 
             <div class="col-md-3">
-                <label class="form-label fw-bold">Điểm đến</label>
-                <select name="toLocation" class="form-select" asp-items="ViewBag.Locations">
-                    <option value="">-- Chọn nơi đến --</option>
+                <label class="form-label fw-bold">Loại hàng hóa</label>
+                <select name="cargoTypeId" class="form-select" asp-items="ViewBag.CargoTypes">
+                    <option value="">-- Tất cả loại hàng --</option>
                 </select>
             </div>
 
             <div class="col-md-3">
                 <label class="form-label fw-bold">Ngày đi (Từ ngày)</label>
-                <input type="date" name="startDate" class="form-control" value="@ViewBag.CurrentDate" />
+                <input type="date" id="searchStartDate" name="startDate" class="form-control" value="@ViewBag.CurrentDate" />
             </div>
 
-            <div class="col-md-3 d-grid">
-                <button type="submit" class="btn btn-primary fw-bold">Tìm Kiếm Tuyến</button>
+            <div class="col-md-2 d-grid">
+                <button type="submit" class="btn btn-primary fw-bold">Tìm Kiếm</button>
             </div>
         </form>
     </div>
@@ -49,12 +56,11 @@
             <div class="col-md-6 mb-3">
                 <div class="card trip-card h-100">
                     <div class="card-header fw-bold">
-                        @item.FromStationNavigation.Province <i class="bi bi-arrow-right text-muted"></i> @item.ToStationNavigation.Province
+                        @item.FromStationNavigation.Province.ProvinceName <i class="bi bi-arrow-right text-muted"></i> @item.ToStationNavigation.Province.ProvinceName
                     </div>
                     <div class="card-body">
                         @{
                             double avgScore = 0;
-                            // Lấy điểm trung bình của tài xế này từ ViewBag
                             if (ViewBag.AvgRatings != null && ViewBag.AvgRatings.ContainsKey(item.DriverId))
                             {
                                 avgScore = ViewBag.AvgRatings[item.DriverId];
@@ -76,10 +82,11 @@
                                 <span class="badge bg-secondary ms-2">Chưa có đánh giá</span>
                             }
                         </p>
-                        <p class="mb-1"><strong>Biển số:</strong> @item.Vehicle.PlateNumber</p>
+                        <p class="mb-1"><strong>Lộ trình chi tiết:</strong> Trạm @item.FromStationNavigation.StationName <i class="bi bi-arrow-right small text-muted"></i> Trạm @item.ToStationNavigation.StationName</p>
+                        <p class="mb-1"><strong>Biển số:</strong> @item.Vehicle.PlateNumber - <span class="text-primary fw-bold">@item.Vehicle.VehicleType.TypeName</span></p>
                         <p class="mb-1"><strong>Khởi hành:</strong> <span class="text-success">@item.StartTime.ToString("dd/MM/yyyy HH:mm")</span></p>
                         <p class="mb-1"><strong>Trọng tải trống:</strong> <span class="text-danger">@item.AvaiCapacityKg kg</span></p>
-                        <p class="mb-0"><strong>Giá cước:</strong> @item.BasePricePerKg.ToString("N0") VNĐ / kg</p>
+                        <p class="mb-0"><strong>Giá cước gốc:</strong> @item.BasePricePerKg.ToString("N0") VNĐ / kg</p>
                     </div>
                     <div class="card-footer bg-white text-end">
                         <a asp-controller="Customer" asp-action="SaveRoute" asp-route-id="@item.TripId" class="btn btn-outline-success btn-sm">Lưu tuyến</a>
@@ -96,6 +103,7 @@
         </div>
     }
 </div>
+
 @if (ViewBag.TotalPages > 1)
 {
     <nav aria-label="Page navigation" class="mt-4 mb-5">
@@ -103,8 +111,9 @@
 
             <li class="page-item @(ViewBag.CurrentPage == 1 ? "disabled" : "")">
                 <a class="page-link" asp-controller="Home" asp-action="Index"
-                   asp-route-fromLocation="@ViewBag.CurrentFrom"
-                   asp-route-toLocation="@ViewBag.CurrentTo"
+                   asp-route-fromProvinceId="@ViewBag.CurrentFrom"
+                   asp-route-toProvinceId="@ViewBag.CurrentTo"
+                   asp-route-cargoTypeId="@ViewBag.CurrentCargo"
                    asp-route-startDate="@ViewBag.CurrentDate"
                    asp-route-page="@(ViewBag.CurrentPage - 1)">Trước</a>
             </li>
@@ -113,8 +122,9 @@
             {
                 <li class="page-item @(i == ViewBag.CurrentPage ? "active" : "")">
                     <a class="page-link" asp-controller="Home" asp-action="Index"
-                       asp-route-fromLocation="@ViewBag.CurrentFrom"
-                       asp-route-toLocation="@ViewBag.CurrentTo"
+                       asp-route-fromProvinceId="@ViewBag.CurrentFrom"
+                       asp-route-toProvinceId="@ViewBag.CurrentTo"
+                       asp-route-cargoTypeId="@ViewBag.CurrentCargo"
                        asp-route-startDate="@ViewBag.CurrentDate"
                        asp-route-page="@i">@i</a>
                 </li>
@@ -122,8 +132,9 @@
 
             <li class="page-item @(ViewBag.CurrentPage == ViewBag.TotalPages ? "disabled" : "")">
                 <a class="page-link" asp-controller="Home" asp-action="Index"
-                   asp-route-fromLocation="@ViewBag.CurrentFrom"
-                   asp-route-toLocation="@ViewBag.CurrentTo"
+                   asp-route-fromProvinceId="@ViewBag.CurrentFrom"
+                   asp-route-toProvinceId="@ViewBag.CurrentTo"
+                   asp-route-cargoTypeId="@ViewBag.CurrentCargo"
                    asp-route-startDate="@ViewBag.CurrentDate"
                    asp-route-page="@(ViewBag.CurrentPage + 1)">Sau</a>
             </li>
@@ -131,3 +142,21 @@
         </ul>
     </nav>
 }
+
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        // Lấy ngày hiện tại chuẩn theo giờ Việt Nam hoặc giờ của máy khách
+        var today = new Date();
+        var dd = String(today.getDate()).padStart(2, '0');
+        var mm = String(today.getMonth() + 1).padStart(2, '0'); // Tháng bắt đầu từ 0
+        var yyyy = today.getFullYear();
+
+        var formattedToday = yyyy + '-' + mm + '-' + dd;
+
+        // Gán thuộc tính min vào ô chọn ngày
+        var dateInput = document.getElementById('searchStartDate');
+        if(dateInput) {
+            dateInput.setAttribute('min', formattedToday);
+        }
+    });
+</script>
