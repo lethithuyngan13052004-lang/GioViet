@@ -16,16 +16,14 @@ namespace TimChuyenDi.Controllers
             _context = context;
         }
 
-        // 1. Giao diện trang đăng nhập
         [HttpGet]
         public IActionResult Login()
         {
             return View();
         }
 
-        // 2. Xử lý khi người dùng ấn nút "Đăng nhập"
         [HttpPost]
-        public IActionResult Login(string phone, string password)
+        public async Task<IActionResult> Login(string phone, string password)
         {
             var user = _context.Users.SingleOrDefault(u => u.Phone == phone);
 
@@ -37,38 +35,47 @@ namespace TimChuyenDi.Controllers
                     return View();
                 }
 
+                // 🔥 FIX ROLE INT -> STRING
+                string roleName = user.Role switch
+                {
+                    1 => "Admin",
+                    2 => "Customer",
+                    3 => "Driver",
+                    _ => "Guest"
+                };
+
                 var claims = new List<Claim>
                 {
                     new Claim(ClaimTypes.Name, user.Name),
                     new Claim("UserId", user.UserId.ToString()),
-                    new Claim(ClaimTypes.Role, user.Role.ToString())
+                    new Claim(ClaimTypes.Role, roleName)
                 };
 
                 var identity = new ClaimsIdentity(claims, "Cookies");
                 var principal = new ClaimsPrincipal(identity);
 
-                HttpContext.SignInAsync("Cookies", principal);
+                await HttpContext.SignInAsync("Cookies", principal);
 
-                // Phân quyền theo DB: 1 là Admin, 2 là Customer, 3 là Driver
-                if (user.Role == 1) return RedirectToAction("Index", "Admin");
-                if (user.Role == 3) return RedirectToAction("Index", "Driver");
-                return RedirectToAction("Index", "Home");
+                // Redirect theo role
+                return roleName switch
+                {
+                    "Admin" => RedirectToAction("Index", "Admin"),
+                    "Driver" => RedirectToAction("Index", "Driver"),
+                    _ => RedirectToAction("Index", "Home")
+                };
             }
 
             ViewBag.Error = "Số điện thoại hoặc mật khẩu không đúng!";
             return View();
         }
 
-        // 3. Xử lý Đăng xuất
-        public IActionResult Logout()
+        public async Task<IActionResult> Logout()
         {
-            HttpContext.SignOutAsync("Cookies");
+            await HttpContext.SignOutAsync("Cookies");
             return RedirectToAction("Login", "Auth");
         }
 
-        // ========================================== 
-        // 4. HÀM CHỮA CHÁY (Bản vá lỗi NULL PasswordDemo)
-        // ==========================================
+        // Fix password null
         [HttpGet]
         public IActionResult SetupPasswords()
         {
@@ -77,33 +84,31 @@ namespace TimChuyenDi.Controllers
 
             foreach (var u in users)
             {
-                // Thêm điều kiện: Nếu PasswordDemo đang bị NULL thì cũng lôi ra cập nhật lại luôn!
                 if (string.IsNullOrEmpty(u.PasswordHash) || !u.PasswordHash.StartsWith("$2a$") || string.IsNullOrEmpty(u.PasswordDemo))
                 {
                     u.PasswordHash = BCrypt.Net.BCrypt.HashPassword("123456");
-                    u.PasswordDemo = "123456"; // Fill luôn dữ liệu vào chỗ trống
+                    u.PasswordDemo = "123456";
                     count++;
                 }
             }
+
             _context.SaveChanges();
-            return Content($"BÁO CÁO: Đã quét Database và cập nhật thành công {count} tài khoản!");
+            return Content($"Đã cập nhật {count} tài khoản!");
         }
 
-        // GET: Hiển thị form đăng ký
         [HttpGet]
         public IActionResult Register()
         {
             return View();
         }
 
-        // POST: Xử lý lưu tài khoản mới
         [HttpPost]
-        public IActionResult Register(string name, string phone, string password, int role)
+        public IActionResult Register(string name, string phone, string email, string password)
         {
             var exists = _context.Users.Any(u => u.Phone == phone);
             if (exists)
             {
-                ViewBag.Error = "Số điện thoại này đã được đăng ký! Vui lòng dùng số khác.";
+                ViewBag.Error = "Số điện thoại đã tồn tại!";
                 return View();
             }
 
@@ -111,16 +116,17 @@ namespace TimChuyenDi.Controllers
             {
                 Name = name,
                 Phone = phone,
+                Email = email,
                 PasswordHash = BCrypt.Net.BCrypt.HashPassword(password),
-                PasswordDemo = password, // FIX: Lưu luôn pass dạng text để thầy cô dễ test
-                Role = role,
+                PasswordDemo = password,
+                Role = 2, // mặc định khách
                 IsActive = true
             };
 
             _context.Users.Add(newUser);
             _context.SaveChanges();
 
-            TempData["SuccessMessage"] = "Đăng ký thành công! Vui lòng đăng nhập.";
+            TempData["SuccessMessage"] = "Đăng ký thành công!";
             return RedirectToAction("Login");
         }
     }
