@@ -22,6 +22,21 @@ namespace TimChuyenDi.Controllers
         // ==================================================
         public IActionResult Index(int? fromProvinceId, int? toProvinceId, DateTime? startDate, int? cargoTypeId, int page = 1)
         {
+            // 🔥 CHECK LOGIN + ROLE TRƯỚC
+            if (User.Identity.IsAuthenticated)
+            {
+                var role = User.FindFirst(System.Security.Claims.ClaimTypes.Role)?.Value;
+
+                return role switch
+                {
+                    "1" => RedirectToAction("Index", "Admin"),
+                    "3" => RedirectToAction("Index", "Driver"),
+                    _ => View() // Customer vẫn ở Home
+                };
+            }
+
+            // ================== CODE CŨ ==================
+
             var provinces = _context.Provinces.OrderBy(p => p.ProvinceName).ToList();
             ViewBag.Provinces = new SelectList(provinces, "ProvinceId", "ProvinceName");
 

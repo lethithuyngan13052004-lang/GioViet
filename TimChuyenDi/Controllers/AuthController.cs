@@ -23,7 +23,7 @@ namespace TimChuyenDi.Controllers
         }
 
         [HttpPost]
-        public async Task<IActionResult> Login(string phone, string password)
+        public async Task<IActionResult> Login(string phone, string password, bool rememberMe)
         {
             var user = _context.Users.SingleOrDefault(u => u.Phone == phone);
 
@@ -31,7 +31,7 @@ namespace TimChuyenDi.Controllers
             {
                 if (user.IsActive == false)
                 {
-                    ViewBag.Error = "Tài khoản của bạn đã bị khóa bởi Admin.";
+                    ViewBag.Error = "Tài khoản bị khóa!";
                     return View();
                 }
 
@@ -39,17 +39,21 @@ namespace TimChuyenDi.Controllers
         {
             new Claim(ClaimTypes.Name, user.Name),
             new Claim("UserId", user.UserId.ToString()),
-
-            // 👉 Lưu role dạng int nhưng convert sang string tại đây
             new Claim(ClaimTypes.Role, user.Role.ToString())
         };
 
                 var identity = new ClaimsIdentity(claims, "Cookies");
                 var principal = new ClaimsPrincipal(identity);
 
-                await HttpContext.SignInAsync("Cookies", principal);
+                // 🔥 QUAN TRỌNG NHẤT
+                await HttpContext.SignInAsync("Cookies", principal, new AuthenticationProperties
+                {
+                    IsPersistent = rememberMe, // ✔ tick thì lưu, không thì không
+                    ExpiresUtc = rememberMe
+                        ? DateTime.UtcNow.AddDays(7)
+                        : DateTime.UtcNow.AddHours(2) // session ngắn nếu không nhớ
+                });
 
-                // 👉 Redirect theo role int
                 return user.Role switch
                 {
                     1 => RedirectToAction("Index", "Admin"),
@@ -58,7 +62,7 @@ namespace TimChuyenDi.Controllers
                 };
             }
 
-            ViewBag.Error = "Số điện thoại hoặc mật khẩu không đúng!";
+            ViewBag.Error = "Sai tài khoản hoặc mật khẩu!";
             return View();
         }
 
