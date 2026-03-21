@@ -9,30 +9,38 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
 </head>
 <body>
+
+    @{
+        // 👉 Lấy role 1 lần duy nhất
+        var role = User.FindFirst(System.Security.Claims.ClaimTypes.Role)?.Value;
+    }
+
     <header>
-        <nav class="navbar navbar-expand-sm navbar-toggleable-sm navbar-dark bg-primary border-bottom box-shadow mb-3">
+        <nav class="navbar navbar-expand-sm navbar-dark bg-primary mb-3">
             <div class="container">
-                <a class="navbar-brand fw-bold text-white" asp-area="" asp-controller="Home" asp-action="Index">
+                <a class="navbar-brand fw-bold text-white" asp-controller="Home" asp-action="Index">
                     <i class="bi bi-truck"></i> Ghép Hàng Liên Tỉnh
                 </a>
-                <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target=".navbar-collapse" aria-controls="navbarSupportedContent"
-                        aria-expanded="false" aria-label="Toggle navigation">
-                    <span class="navbar-toggler-icon"></span>
-                </button>
+
                 <div class="navbar-collapse collapse d-sm-inline-flex justify-content-between">
+
+                    <!-- MENU BÊN TRÁI -->
                     <ul class="navbar-nav flex-grow-1">
 
-                        @* Nếu chưa đăng nhập, hoặc là Khách hàng (Role = 2) thì hiện nút Tìm chuyến *@
-                        @if (!User.Identity.IsAuthenticated || User.IsInRole("2"))
+                        <!-- Chưa đăng nhập -->
+                        @if (!User.Identity.IsAuthenticated)
                         {
                             <li class="nav-item">
                                 <a class="nav-link text-white" asp-controller="Home" asp-action="Index">Tìm chuyến xe</a>
                             </li>
                         }
 
-                        @* Các Menu dành riêng cho Khách hàng (Role = 2) *@
-                        @if (User.Identity.IsAuthenticated && User.IsInRole("2"))
+                        <!-- CUSTOMER (2) -->
+                        @if (role == "2")
                         {
+                            <li class="nav-item">
+                                <a class="nav-link text-white" asp-controller="Home" asp-action="Index">Tìm chuyến xe</a>
+                            </li>
                             <li class="nav-item">
                                 <a class="nav-link text-white" asp-controller="Customer" asp-action="MySavedRoutes">Tuyến đã lưu</a>
                             </li>
@@ -41,8 +49,8 @@
                             </li>
                         }
 
-                        @* Các Menu dành riêng cho Tài xế (Role = 1) *@
-                        @if (User.Identity.IsAuthenticated && User.IsInRole("1"))
+                        <!-- DRIVER (3) -->
+                        @if (role == "3")
                         {
                             <li class="nav-item">
                                 <a class="nav-link text-white" asp-controller="Driver" asp-action="Index">Duyệt yêu cầu</a>
@@ -55,8 +63,8 @@
                             </li>
                         }
 
-                        @* Các Menu dành riêng cho Admin (Role = 0) *@
-                        @if (User.Identity.IsAuthenticated && User.IsInRole("0"))
+                        <!-- ADMIN (1) -->
+                        @if (role == "1")
                         {
                             <li class="nav-item">
                                 <a class="nav-link text-white" asp-controller="Admin" asp-action="Index">Quản lý User</a>
@@ -71,7 +79,7 @@
 
                     </ul>
 
-                    @* Khu vực bên phải: Đăng nhập / Đăng xuất *@
+                    <!-- MENU BÊN PHẢI -->
                     <ul class="navbar-nav">
                         @if (User.Identity.IsAuthenticated)
                         {
@@ -79,7 +87,8 @@
                                 <span class="nav-link text-light fw-bold">Xin chào, @User.Identity.Name!</span>
                             </li>
                             <li class="nav-item">
-                                <a class="nav-link text-white btn btn-sm btn-danger ms-2" asp-controller="Auth" asp-action="Logout">Đăng xuất</a>
+                                <a class="nav-link text-white btn btn-sm btn-danger ms-2"
+                                   asp-controller="Auth" asp-action="Logout">Đăng xuất</a>
                             </li>
                         }
                         else
@@ -88,176 +97,36 @@
                                 <a class="nav-link text-white" asp-controller="Auth" asp-action="Login">Đăng nhập</a>
                             </li>
                             <li class="nav-item">
-                                <a class="nav-link text-white btn btn-sm btn-outline-light ms-2" asp-controller="Auth" asp-action="Register">Đăng ký</a>
+                                <a class="nav-link text-white btn btn-sm btn-outline-light ms-2"
+                                   asp-controller="Auth" asp-action="Register">Đăng ký</a>
                             </li>
                         }
                     </ul>
+
                 </div>
             </div>
         </nav>
     </header>
+
     <div class="container">
         <main role="main" class="pb-3">
             @RenderBody()
         </main>
     </div>
 
-    <footer style="background-color:#05295d;" class=" text-light py-5 mt-5">
-        <div class="container">
-            <div class="row">
-                <div class="col-lg-4 col-md-6 mb-4">
-                    <h5 class="text-white fw-bold mb-3"><i class="bi bi-truck"></i> Ghép Hàng Liên Tỉnh</h5>
-                    <p class="text-muted small">Nền tảng kết nối trực tiếp chủ hàng và nhà xe liên tỉnh trên toàn quốc. Chúng tôi mang đến giải pháp tối ưu chi phí vận chuyển, an toàn và nhanh chóng nhất.</p>
-                    <div class="mt-4">
-                        <p class="mb-2 text-muted small"><i class="bi bi-geo-alt-fill text-primary me-2"></i> Hà Nội, Việt Nam</p>
-                        <p class="mb-2 text-muted small"><i class="bi bi-telephone-fill text-primary me-2"></i> Hotline: 1900 xxxx</p>
-                        <p class="mb-0 text-muted small"><i class="bi bi-envelope-fill text-primary me-2"></i> Email: hotro@ghephang.vn</p>
-                    </div>
-                </div>
-
-                <div class="col-lg-4 col-md-6 mb-4 ps-lg-5">
-                    <h5 class="text-white fw-bold mb-3">Về Chúng Tôi</h5>
-                    <ul class="list-unstyled">
-                        <li class="mb-2"><a asp-controller="Home" asp-action="Index" class="text-muted text-decoration-none footer-link">Trang chủ</a></li>
-                        @* <li class="nav-item">
-                            <a class="nav-link text-warning fw-bold" asp-controller="Chat" asp-action="Index">
-                                <i class="bi bi-stars"></i> Trợ lý AI
-                            </a>
-                        </li> *@
-                        <li class="mb-2"><a href="#" class="text-muted text-decoration-none footer-link">Tìm chuyến xe</a></li>
-                        <li class="mb-2"><a href="#" class="text-muted text-decoration-none footer-link">Quy định & Chính sách</a></li>
-                        <li class="mb-2"><a href="#" class="text-muted text-decoration-none footer-link">Bảo mật thông tin</a></li>
-                    </ul>
-                </div>
-
-                <div class="col-lg-4 col-md-12 mb-4">
-                    <h5 class="text-white fw-bold mb-3">Kết Nối</h5>
-                    <p class="text-muted small">Theo dõi chúng tôi trên các nền tảng mạng xã hội để cập nhật những chuyến xe giá rẻ và khuyến mãi mới nhất.</p>
-                    <div class="d-flex gap-3 mt-3">
-                        <a href="#" class="text-light fs-4 social-icon"><i class="bi bi-facebook"></i></a>
-                        <a href="#" class="text-light fs-4 social-icon"><i class="bi bi-youtube"></i></a>
-                        <a href="#" class="text-light fs-4 social-icon"><i class="bi bi-tiktok"></i></a>
-                    </div>
-                </div>
-            </div>
-
-            <hr class="border-secondary mt-4 mb-4" />
-            <div class="text-center text-muted small">
-                &copy; 2026 - Ứng dụng Ghép Hàng Liên Tỉnh - Đồ án Tốt nghiệp
-            </div>
+    <footer style="background-color:#05295d;" class="text-light py-5 mt-5">
+        <div class="container text-center">
+            <p class="mb-0 small">
+                &copy; 2026 - Ứng dụng Ghép Hàng Liên Tỉnh
+            </p>
         </div>
     </footer>
+
     <script src="~/lib/jquery/dist/jquery.min.js"></script>
     <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
     <script src="~/js/site.js" asp-append-version="true"></script>
-    <button class="chatbot-toggler" id="btnToggleChat" title="Chat với Trợ lý AI">
-        <i class="bi bi-robot fs-2"></i>
-    </button>
 
-    <div class="chatbot-window" id="chatWindow">
-        <div class="bg-primary text-white p-3 d-flex justify-content-between align-items-center" style="background: linear-gradient(90deg, #0052D4 0%, #4364F7 100%);">
-            <h6 class="mb-0 fw-bold"><i class="bi bi-stars text-warning me-2"></i> Trợ lý AI Tư vấn</h6>
-            <button class="btn btn-sm text-white border-0" id="btnCloseChat"><i class="bi bi-x-lg"></i></button>
-        </div>
-
-        <div class="chatbot-body" id="chatBox">
-            <div class="mb-3 d-flex">
-                <div class="p-3 bg-white border rounded-3 shadow-sm text-dark" style="max-width: 85%; font-size: 0.95rem;">
-                    <strong>🤖 Trợ lý AI:</strong> Xin chào! Tôi là trợ lý ảo của nền tảng Ghép Hàng. Bạn muốn tìm chuyến xe ghép đi tỉnh nào hôm nay?
-                </div>
-            </div>
-        </div>
-
-        <div class="p-3 bg-white border-top">
-            <form id="chatFormWidget" class="d-flex gap-2 mb-0">
-                <input type="text" id="userInputWidget" class="form-control form-control-sm rounded-pill px-3" placeholder="Nhập câu hỏi..." required autocomplete="off" />
-                <button type="submit" class="btn btn-primary btn-sm rounded-circle" style="width: 35px; height: 35px; padding: 0;">
-                    <i class="bi bi-send-fill"></i>
-                </button>
-            </form>
-        </div>
-    </div>
-
-    <script>
-        // Trí nhớ của AI
-        let conversationHistory = "";
-
-        // Xử lý Ẩn/Hiện khung chat
-        document.getElementById('btnToggleChat').addEventListener('click', function() {
-            document.getElementById('chatWindow').classList.toggle('show');
-        });
-        document.getElementById('btnCloseChat').addEventListener('click', function() {
-            document.getElementById('chatWindow').classList.remove('show');
-        });
-
-        // Xử lý Gửi tin nhắn bằng AJAX (Dùng jQuery vì layout của bạn đã có sẵn)
-        $(document).ready(function () {
-            $("#chatFormWidget").submit(function (e) {
-                e.preventDefault();
-
-                var message = $("#userInputWidget").val();
-                if (!message.trim()) return;
-
-                conversationHistory += "Khách hàng nói: " + message + "\n";
-
-                // In tin nhắn của Bạn
-                var userHtml = `
-                    <div class="mb-3 d-flex justify-content-end">
-                        <div class="p-2 bg-primary text-white rounded-3 shadow-sm" style="max-width: 85%; font-size: 0.95rem;">
-                            ${message}
-                        </div>
-                    </div>`;
-                $("#chatBox").append(userHtml);
-                $("#userInputWidget").val("");
-                $("#chatBox").scrollTop($("#chatBox")[0].scrollHeight);
-
-                // Hiệu ứng đang gõ
-                var loadingHtml = `
-                    <div class="mb-3 d-flex" id="loadingMsgWidget">
-                        <div class="p-2 bg-white border rounded-3 text-muted fst-italic shadow-sm" style="font-size: 0.85rem;">
-                            <span class="spinner-grow spinner-grow-sm text-primary" role="status"></span> AI đang tính toán...
-                        </div>
-                    </div>`;
-                $("#chatBox").append(loadingHtml);
-                $("#chatBox").scrollTop($("#chatBox")[0].scrollHeight);
-
-                // Gửi dữ liệu xuống ChatController
-                $.ajax({
-                    url: '/Chat/SendMessage',
-                    type: 'POST',
-                    data: {
-                        userMessage: message,
-                        history: conversationHistory
-                    },
-                    success: function (res) {
-                        $("#loadingMsgWidget").remove();
-
-                        if (res.success) {
-                            var formattedReply = res.reply.replace(/\n/g, "<br>");
-                            formattedReply = formattedReply.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
-
-                            var aiHtml = `
-                                <div class="mb-3 d-flex">
-                                    <div class="p-2 bg-white border rounded-3 text-dark shadow-sm" style="max-width: 90%; font-size: 0.95rem;">
-                                        <strong>🤖 AI:</strong> <br/> ${formattedReply}
-                                    </div>
-                                </div>`;
-                            $("#chatBox").append(aiHtml);
-
-                            conversationHistory += "AI trả lời: " + res.reply + "\n";
-                        } else {
-                            alert("Có lỗi: " + res.reply);
-                        }
-                        $("#chatBox").scrollTop($("#chatBox")[0].scrollHeight);
-                    },
-                    error: function () {
-                        $("#loadingMsgWidget").remove();
-                        alert("Lỗi kết nối đến máy chủ AI.");
-                    }
-                });
-            });
-        });
-    </script>
     @await RenderSectionAsync("Scripts", required: false)
+
 </body>
 </html>

@@ -23,33 +23,41 @@ namespace TimChuyenDi.Controllers
         }
 
         [HttpPost]
-        public async Task<IActionResult> Login(string phone, string password)
+        [HttpPost]
+        public async Task<IActionResult> Login(string phone, string password, bool rememberMe)
         {
             var user = _context.Users.SingleOrDefault(u => u.Phone == phone);
 
             if (user != null && BCrypt.Net.BCrypt.Verify(password, user.PasswordHash))
             {
-                if (user.IsActive == false)
+                if (!user.IsActive.GetValueOrDefault()) // nếu null thì coi như false
                 {
-                    ViewBag.Error = "Tài khoản của bạn đã bị khóa bởi Admin.";
+                    ViewBag.Error = "Tài khoản bị khóa!";
                     return View();
                 }
 
+                // Tạo claims
                 var claims = new List<Claim>
         {
             new Claim(ClaimTypes.Name, user.Name),
             new Claim("UserId", user.UserId.ToString()),
-
-            // 👉 Lưu role dạng int nhưng convert sang string tại đây
-            new Claim(ClaimTypes.Role, user.Role.ToString())
+            new Claim(ClaimTypes.Role, user.Role.ToString()) // hoặc chuyển sang string 1=Admin,2=Customer,3=Driver nếu muốn
         };
 
                 var identity = new ClaimsIdentity(claims, "Cookies");
                 var principal = new ClaimsPrincipal(identity);
 
-                await HttpContext.SignInAsync("Cookies", principal);
+                // Sign in với cookie
+                var authProperties = new AuthenticationProperties
+                {
+                    IsPersistent = rememberMe,        // ✅ chỉ lưu lâu nếu tick
+                    AllowRefresh = true,              // ✅ tự gia hạn khi user hoạt động
+                    ExpiresUtc = rememberMe ? DateTime.UtcNow.AddDays(7) : (DateTime?)null
+                };
 
-                // 👉 Redirect theo role int
+                await HttpContext.SignInAsync("Cookies", principal, authProperties);
+
+                // Redirect theo role
                 return user.Role switch
                 {
                     1 => RedirectToAction("Index", "Admin"),
@@ -58,7 +66,7 @@ namespace TimChuyenDi.Controllers
                 };
             }
 
-            ViewBag.Error = "Số điện thoại hoặc mật khẩu không đúng!";
+            ViewBag.Error = "Sai tài khoản hoặc mật khẩu!";
             return View();
         }
 
