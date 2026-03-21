@@ -23,37 +23,41 @@ namespace TimChuyenDi.Controllers
         }
 
         [HttpPost]
+        [HttpPost]
         public async Task<IActionResult> Login(string phone, string password, bool rememberMe)
         {
             var user = _context.Users.SingleOrDefault(u => u.Phone == phone);
 
             if (user != null && BCrypt.Net.BCrypt.Verify(password, user.PasswordHash))
             {
-                if (user.IsActive == false)
+                if (!user.IsActive.GetValueOrDefault()) // nếu null thì coi như false
                 {
                     ViewBag.Error = "Tài khoản bị khóa!";
                     return View();
                 }
 
+                // Tạo claims
                 var claims = new List<Claim>
         {
             new Claim(ClaimTypes.Name, user.Name),
             new Claim("UserId", user.UserId.ToString()),
-            new Claim(ClaimTypes.Role, user.Role.ToString())
+            new Claim(ClaimTypes.Role, user.Role.ToString()) // hoặc chuyển sang string 1=Admin,2=Customer,3=Driver nếu muốn
         };
 
                 var identity = new ClaimsIdentity(claims, "Cookies");
                 var principal = new ClaimsPrincipal(identity);
 
-                // 🔥 QUAN TRỌNG NHẤT
-                await HttpContext.SignInAsync("Cookies", principal, new AuthenticationProperties
+                // Sign in với cookie
+                var authProperties = new AuthenticationProperties
                 {
-                    IsPersistent = rememberMe, // ✔ tick thì lưu, không thì không
-                    ExpiresUtc = rememberMe
-                        ? DateTime.UtcNow.AddDays(7)
-                        : DateTime.UtcNow.AddHours(2) // session ngắn nếu không nhớ
-                });
+                    IsPersistent = rememberMe,        // ✅ chỉ lưu lâu nếu tick
+                    AllowRefresh = true,              // ✅ tự gia hạn khi user hoạt động
+                    ExpiresUtc = rememberMe ? DateTime.UtcNow.AddDays(7) : (DateTime?)null
+                };
 
+                await HttpContext.SignInAsync("Cookies", principal, authProperties);
+
+                // Redirect theo role
                 return user.Role switch
                 {
                     1 => RedirectToAction("Index", "Admin"),
