@@ -1,0 +1,152 @@
+﻿@{
+    ViewData["Title"] = "Bản đồ vị trí";
+}
+
+<div class="container mt-4">
+    <div class="card shadow-sm border-0">
+        <div class="card-header bg-primary text-white text-center py-3">
+            <h4 class="mb-0 fw-bold"><i class="bi bi-geo-alt-fill"></i> XÁC ĐỊNH ĐỊA ĐIỂM</h4>
+        </div>
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-4 mb-3">
+                    <div class="p-3 bg-light rounded border shadow-sm">
+                        
+                        <div class="mb-4">
+                            <label class="form-label fw-bold text-primary"><i class="bi bi-search"></i> Nhập địa chỉ tìm kiếm</label>
+                            <div class="input-group">
+                                <input type="text" id="addressInput" class="form-control border-primary" placeholder="Ví dụ: 123 Cầu Giấy, Hà Nội">
+                                <button class="btn btn-primary" type="button" onclick="searchAddress()">Tìm</button>
+                            </div>
+                            <div id="searchStatus" class="small mt-1 text-muted"></div>
+                        </div>
+
+                        <div class="text-center mb-4">
+                            <span class="badge bg-secondary">HOẶC</span>
+                        </div>
+
+                        <button type="button" class="btn btn-danger w-100 mb-4 fw-bold shadow-sm py-2" onclick="getLocation()">
+                            <i class="bi bi-cursor-fill"></i> SỬ DỤNG VỊ TRÍ GPS CỦA TÔI
+                        </button>
+
+                        <hr>
+
+                        <div class="row g-2">
+                            <div class="col-6 text-center">
+                                <label class="small text-muted fw-bold">Vĩ độ (Lat)</label>
+                                <input type="text" id="latInput" class="form-control form-control-sm bg-white text-center fw-bold" readonly placeholder="0.000000">
+                            </div>
+                            <div class="col-6 text-center">
+                                <label class="small text-muted fw-bold">Kinh độ (Lng)</label>
+                                <input type="text" id="lngInput" class="form-control form-control-sm bg-white text-center fw-bold" readonly placeholder="0.000000">
+                            </div>
+                        </div>
+
+                        <button type="button" class="btn btn-success w-100 mt-4 fw-bold py-2 shadow" onclick="confirmLocation()">XÁC NHẬN VỊ TRÍ NÀY</button>
+                    </div>
+                </div>
+
+                <div class="col-md-8">
+                    <div id="myMap" style="height: 600px; width: 100%; border-radius: 12px; border: 2px solid #dee2e6;"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+<script>
+    var map, marker;
+
+    document.addEventListener("DOMContentLoaded", function () {
+    // Khởi tạo map tại Hà Nội làm mặc định
+    map = L.map('myMap').setView([21.028511, 105.804817], 13);
+
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '&copy; OpenStreetMap contributors'
+    }).addTo(map);
+
+    marker = L.marker([21.028511, 105.804817]).addTo(map);
+
+    // Click vào map để chọn vị trí thủ công
+    map.on('click', function(e) {
+    updateUI(e.latlng.lat, e.latlng.lng);
+    });
+    });
+
+    // --- HÀM 1: TÌM KIẾM THEO ĐỊA CHỈ CHỮ (GEOCODING) ---
+    async function searchAddress() {
+    var addr = document.getElementById('addressInput').value;
+    var status = document.getElementById('searchStatus');
+        
+    if (!addr) return alert("Vui lòng nhập địa chỉ!");
+    status.innerHTML = "⌛ Đang tìm vị trí...";
+
+    try {
+    // Gọi API Nominatim miễn phí của OpenStreetMap
+    var res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(addr)}`);
+    var data = await res.json();
+
+    if (data && data.length > 0) {
+    var lat = data[0].lat;
+    var lon = data[0].lon;
+                
+    // Cập nhật giao diện và bản đồ
+    updateUI(lat, lon);
+    map.setView([lat, lon], 16); // Phóng to vào vị trí tìm thấy
+                
+    marker.bindPopup("<b>Tìm thấy:</b><br>" + data[0].display_name).openPopup();
+    status.innerHTML = "✅ Đã tìm thấy!";
+    } else {
+    status.innerHTML = "❌ Không tìm thấy địa chỉ này!";
+    }
+    } catch (e) {
+    status.innerHTML = "❌ Lỗi kết nối API!";
+    console.error(e);
+    }
+    }
+
+    // --- HÀM 2: LẤY VỊ TRÍ GPS CỦA TÔI ---
+    function getLocation() {
+    if (navigator.geolocation) {
+    alert("Vui lòng chọn 'Cho phép' trên trình duyệt để lấy vị trí hiện tại.");
+    navigator.geolocation.getCurrentPosition(function (p) {
+    var lat = p.coords.latitude;
+    var lng = p.coords.longitude;
+                
+    updateUI(lat, lng);
+    map.setView([lat, lng], 17);
+    marker.bindPopup("<b>Vị trí GPS của bạn!</b>").openPopup();
+    }, function (e) {
+    alert("Lỗi GPS: " + e.message);
+    });
+    } else {
+    alert("Trình duyệt không hỗ trợ định vị GPS.");
+    }
+    }
+
+    // --- HÀM 3: CẬP NHẬT UI CHUNG ---
+    function updateUI(lat, lng) {
+    var l = parseFloat(lat).toFixed(6);
+    var g = parseFloat(lng).toFixed(6);
+        
+    document.getElementById('latInput').value = l;
+    document.getElementById('lngInput').value = g;
+        
+    // Di chuyển cái ghim
+    marker.setLatLng([l, g]);
+    }
+
+    function confirmLocation() {
+    var lat = document.getElementById('latInput').value;
+    var lng = document.getElementById('lngInput').value;
+    if(!lat || lat == "0.000000") {
+    alert("Vui lòng chọn một vị trí trên bản đồ!");
+    } else {
+    alert("Đã xác nhận vị trí:\nLat: " + lat + "\nLng: " + lng);
+    // Ở đây bro có thể dùng AJAX gửi tọa độ về Controller để lưu vào DB
+    }
+    }
+</script>

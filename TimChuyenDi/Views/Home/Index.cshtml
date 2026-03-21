@@ -3,50 +3,107 @@
     ViewData["Title"] = "Trang chủ - Tìm Chuyến Đi";
 }
 
+<style>
+    /* Hiệu ứng cho khu vực bản đồ mới */
+    .map-banner {
+        background: linear-gradient(135deg, #ffffff 0%, #f0f7ff 100%);
+        border-radius: 15px;
+        border: 1px solid #e0e9f5;
+        transition: all 0.3s ease;
+    }
+    .map-banner:hover {
+        box-shadow: 0 10px 20px rgba(13, 110, 253, 0.1) !important;
+        transform: translateY(-2px);
+    }
+    /* Hiệu ứng cho thẻ chuyến xe của bro */
+    .trip-card {
+        border-radius: 12px;
+        transition: all 0.2s ease;
+    }
+    .trip-card:hover {
+        border-color: #0d6efd;
+        box-shadow: 0 5px 15px rgba(0,0,0,0.08);
+    }
+</style>
+
 <div class="hero-banner mt-3">
     <h1 class="display-4 fw-bold mb-3"><i class="bi bi-truck-front"></i> Dịch Vụ Ghép Hàng Tiết Kiệm</h1>
     <p class="lead mb-4">Kết nối trực tiếp chủ hàng và nhà xe liên tỉnh trên toàn quốc. An toàn, nhanh chóng và tối ưu chi phí.</p>
 </div>
 
 <div class="card floating-search mb-5">
-    <div class="card-body bg-white rounded">
+    <div class="card-body bg-white rounded shadow-sm">
         <h4 class="card-title text-primary mb-3"><i class="bi bi-search"></i> Tìm Chuyến Xe Ghép Hàng Liên Tỉnh</h4>
         <form asp-controller="Home" asp-action="Index" method="get" class="row g-3 align-items-end">
 
             <div class="col-md-2">
-                <label class="form-label fw-bold">Điểm xuất phát</label>
+                <label class="form-label fw-bold small text-uppercase text-muted">Điểm xuất phát</label>
                 <select name="fromProvinceId" class="form-select" asp-items="ViewBag.Provinces">
-                    <option value="">-- Chọn Tỉnh/Thành --</option>
+                    <option value="">-- Chọn Tỉnh --</option>
                 </select>
             </div>
 
             <div class="col-md-2">
-                <label class="form-label fw-bold">Điểm đến</label>
+                <label class="form-label fw-bold small text-uppercase text-muted">Điểm đến</label>
                 <select name="toProvinceId" class="form-select" asp-items="ViewBag.Provinces">
-                    <option value="">-- Chọn Tỉnh/Thành --</option>
+                    <option value="">-- Chọn Tỉnh --</option>
                 </select>
             </div>
 
             <div class="col-md-3">
-                <label class="form-label fw-bold">Loại hàng hóa</label>
+                <label class="form-label fw-bold small text-uppercase text-muted">Loại hàng hóa</label>
                 <select name="cargoTypeId" class="form-select" asp-items="ViewBag.CargoTypes">
                     <option value="">-- Tất cả loại hàng --</option>
                 </select>
             </div>
 
             <div class="col-md-3">
-                <label class="form-label fw-bold">Ngày đi (Từ ngày)</label>
+                <label class="form-label fw-bold small text-uppercase text-muted">Ngày đi (Từ ngày)</label>
                 <input type="date" id="searchStartDate" name="startDate" class="form-control" value="@ViewBag.CurrentDate" />
             </div>
 
             <div class="col-md-2 d-grid">
-                <button type="submit" class="btn btn-primary fw-bold">Tìm Kiếm</button>
+                <button type="submit" class="btn btn-primary fw-bold py-2">TÌM KIẾM</button>
             </div>
         </form>
     </div>
 </div>
 
-<h5 class="mb-3">Có <span class="text-danger fw-bold">@ViewBag.TotalTrips</span> chuyến xe phù hợp với yêu cầu của bạn</h5>
+<div class="row justify-content-center mb-5">
+    <div class="col-md-10 col-lg-8">
+        <div class="map-banner p-4 text-center shadow-sm">
+            <div class="d-flex align-items-center justify-content-center flex-wrap">
+                <div class="me-md-4 mb-3 mb-md-0">
+                    <i class="bi bi-geo-alt-fill text-danger" style="font-size: 2.5rem;"></i>
+                </div>
+                <div class="text-md-start">
+                    <h4 class="fw-bold text-dark mb-1">Tìm chuyến theo vị trí thực tế?</h4>
+                    <p class="text-muted mb-0">Định vị GPS để tìm các xe đi ngang qua khu vực của bạn.</p>
+                </div>
+                <div class="ms-md-auto mt-3 mt-md-0">
+                    <a asp-controller="Home" asp-action="Map" class="btn btn-dark btn-lg fw-bold px-4 rounded-pill shadow-sm">
+                        <i class="bi bi-map me-2"></i> MỞ BẢN ĐỒ
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h5 class="mb-0">Có <span class="text-danger fw-bold">@ViewBag.TotalTrips</span> chuyến xe phù hợp</h5>
+    
+    <div class="dropdown">
+        <button class="btn btn-outline-secondary btn-sm dropdown-toggle rounded-pill px-3" type="button" data-bs-toggle="dropdown">
+            <i class="bi bi-sort-down me-1"></i> Sắp xếp theo
+        </button>
+        <ul class="dropdown-menu shadow-sm">
+            <li><a class="dropdown-item small" href="#">Giá rẻ nhất</a></li>
+            <li><a class="dropdown-item small" href="#">Ngày gần nhất</a></li>
+            <li><a class="dropdown-item small" href="#">Đánh giá cao nhất</a></li>
+        </ul>
+    </div>
+</div>
 
 <div class="row">
     @if (Model.Any())
@@ -54,8 +111,8 @@
         foreach (var item in Model)
         {
             <div class="col-md-6 mb-3">
-                <div class="card trip-card h-100">
-                    <div class="card-header fw-bold">
+                <div class="card trip-card h-100 border-light shadow-sm">
+                    <div class="card-header fw-bold bg-light">
                         @item.FromStationNavigation.Province.ProvinceName <i class="bi bi-arrow-right text-muted"></i> @item.ToStationNavigation.Province.ProvinceName
                     </div>
                     <div class="card-body">
@@ -88,9 +145,9 @@
                         <p class="mb-1"><strong>Trọng tải trống:</strong> <span class="text-danger">@item.AvaiCapacityKg kg</span></p>
                         <p class="mb-0"><strong>Giá cước gốc:</strong> @item.BasePricePerKg.ToString("N0") VNĐ / kg</p>
                     </div>
-                    <div class="card-footer bg-white text-end">
-                        <a asp-controller="Customer" asp-action="SaveRoute" asp-route-id="@item.TripId" class="btn btn-outline-success btn-sm">Lưu tuyến</a>
-                        <a asp-controller="Customer" asp-action="BookTrip" asp-route-id="@item.TripId" class="btn btn-warning btn-sm">Gửi yêu cầu ghép hàng</a>
+                    <div class="card-footer bg-white text-end border-0">
+                        <a asp-controller="Customer" asp-action="SaveRoute" asp-route-id="@item.TripId" class="btn btn-outline-success btn-sm rounded-pill px-3">Lưu tuyến</a>
+                        <a asp-controller="Customer" asp-action="BookTrip" asp-route-id="@item.TripId" class="btn btn-warning btn-sm rounded-pill px-3 fw-bold">Gửi yêu cầu</a>
                     </div>
                 </div>
             </div>
@@ -99,6 +156,7 @@
     else
     {
         <div class="col-12 text-center text-muted mt-5">
+            <i class="bi bi-inbox" style="font-size: 3rem;"></i>
             <p>Không tìm thấy chuyến xe nào phù hợp. Vui lòng thay đổi thông tin tìm kiếm!</p>
         </div>
     }
@@ -108,9 +166,8 @@
 {
     <nav aria-label="Page navigation" class="mt-4 mb-5">
         <ul class="pagination justify-content-center">
-
             <li class="page-item @(ViewBag.CurrentPage == 1 ? "disabled" : "")">
-                <a class="page-link" asp-controller="Home" asp-action="Index"
+                <a class="page-link shadow-sm" asp-controller="Home" asp-action="Index"
                    asp-route-fromProvinceId="@ViewBag.CurrentFrom"
                    asp-route-toProvinceId="@ViewBag.CurrentTo"
                    asp-route-cargoTypeId="@ViewBag.CurrentCargo"
@@ -121,7 +178,7 @@
             @for (int i = 1; i <= ViewBag.TotalPages; i++)
             {
                 <li class="page-item @(i == ViewBag.CurrentPage ? "active" : "")">
-                    <a class="page-link" asp-controller="Home" asp-action="Index"
+                    <a class="page-link shadow-sm" asp-controller="Home" asp-action="Index"
                        asp-route-fromProvinceId="@ViewBag.CurrentFrom"
                        asp-route-toProvinceId="@ViewBag.CurrentTo"
                        asp-route-cargoTypeId="@ViewBag.CurrentCargo"
@@ -131,29 +188,24 @@
             }
 
             <li class="page-item @(ViewBag.CurrentPage == ViewBag.TotalPages ? "disabled" : "")">
-                <a class="page-link" asp-controller="Home" asp-action="Index"
+                <a class="page-link shadow-sm" asp-controller="Home" asp-action="Index"
                    asp-route-fromProvinceId="@ViewBag.CurrentFrom"
                    asp-route-toProvinceId="@ViewBag.CurrentTo"
                    asp-route-cargoTypeId="@ViewBag.CurrentCargo"
                    asp-route-startDate="@ViewBag.CurrentDate"
                    asp-route-page="@(ViewBag.CurrentPage + 1)">Sau</a>
             </li>
-
         </ul>
     </nav>
 }
 
 <script>
     document.addEventListener('DOMContentLoaded', function () {
-        // Lấy ngày hiện tại chuẩn theo giờ Việt Nam hoặc giờ của máy khách
         var today = new Date();
         var dd = String(today.getDate()).padStart(2, '0');
-        var mm = String(today.getMonth() + 1).padStart(2, '0'); // Tháng bắt đầu từ 0
+        var mm = String(today.getMonth() + 1).padStart(2, '0'); 
         var yyyy = today.getFullYear();
-
         var formattedToday = yyyy + '-' + mm + '-' + dd;
-
-        // Gán thuộc tính min vào ô chọn ngày
         var dateInput = document.getElementById('searchStartDate');
         if(dateInput) {
             dateInput.setAttribute('min', formattedToday);
