@@ -6,7 +6,7 @@ using TimChuyenDi.Models;
 
 namespace TimChuyenDi.Controllers
 {
-    [Authorize(Roles = "1")] // Số 0 là Role của Admin mà chúng ta đã định nghĩa
+    [Authorize(Roles = "1")] // Số 1 là Role của Admin mà chúng ta đã định nghĩa
     public class AdminController : Controller
     {
         private readonly TimchuyendiContext _context;

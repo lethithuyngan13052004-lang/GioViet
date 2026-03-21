@@ -35,32 +35,25 @@ namespace TimChuyenDi.Controllers
                     return View();
                 }
 
-                // 🔥 FIX ROLE INT -> STRING
-                string roleName = user.Role switch
-                {
-                    1 => "Admin",
-                    2 => "Customer",
-                    3 => "Driver",
-                    _ => "Guest"
-                };
-
                 var claims = new List<Claim>
-                {
-                    new Claim(ClaimTypes.Name, user.Name),
-                    new Claim("UserId", user.UserId.ToString()),
-                    new Claim(ClaimTypes.Role, roleName)
-                };
+        {
+            new Claim(ClaimTypes.Name, user.Name),
+            new Claim("UserId", user.UserId.ToString()),
+
+            // 👉 Lưu role dạng int nhưng convert sang string tại đây
+            new Claim(ClaimTypes.Role, user.Role.ToString())
+        };
 
                 var identity = new ClaimsIdentity(claims, "Cookies");
                 var principal = new ClaimsPrincipal(identity);
 
                 await HttpContext.SignInAsync("Cookies", principal);
 
-                // Redirect theo role
-                return roleName switch
+                // 👉 Redirect theo role int
+                return user.Role switch
                 {
-                    "Admin" => RedirectToAction("Index", "Admin"),
-                    "Driver" => RedirectToAction("Index", "Driver"),
+                    1 => RedirectToAction("Index", "Admin"),
+                    3 => RedirectToAction("Index", "Driver"),
                     _ => RedirectToAction("Index", "Home")
                 };
             }
