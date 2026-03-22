@@ -1,4 +1,4 @@
-﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using System.Linq;
@@ -95,6 +95,140 @@ namespace TimChuyenDi.Controllers
                 }
             }
             return RedirectToAction("ManageVehicles");
+        }
+
+        // ==================================================
+        // QUẢN LÝ TRẠM (STATIONS) TRÊN BẢN ĐỒ
+        // ==================================================
+
+        // GET: Hiển thị giao diện bản đồ quản lý Trạm
+        public IActionResult ManageStations()
+        {
+            // Truyền danh sách Tỉnh/TP để dùng cho form Thêm/Sửa trạm
+            ViewBag.Provinces = _context.Provinces.OrderBy(p => p.ProvinceName).ToList();
+            return View();
+        }
+
+        // API GET: Lấy danh sách tất cả các trạm để vẽ lên Map
+        [HttpGet]
+        public IActionResult GetStations()
+        {
+            var stations = _context.Stations
+                .Include(s => s.Province)
+                .Include(s => s.District)
+                .Include(s => s.Ward)
+                .Select(s => new
+                {
+                    id = s.StationId,
+                    name = s.StationName,
+                    address = s.Address,
+                    lat = s.Latitude,
+                    lng = s.Longitude,
+                    provinceId = s.ProvinceId,
+                    districtId = s.DistrictId,
+                    wardId = s.WardId,
+                    provinceName = s.Province != null ? s.Province.ProvinceName : "",
+                    districtName = s.District != null ? s.District.DistrictName : "",
+                    wardName = s.Ward != null ? s.Ward.WardName : ""
+                }).ToList();
+
+            return Json(stations);
+        }
+
+        // API POST: Thêm mới hoặc Cập nhật Trạm
+        [HttpPost]
+        public IActionResult SaveStation([FromBody] TimChuyenDi.Models.Station model)
+        {
+            try
+            {
+                if (model.StationId == 0) // Thêm mới
+                {
+                    _context.Stations.Add(model);
+                }
+                else // Cập nhật
+                {
+                    var existing = _context.Stations.Find(model.StationId);
+                    if (existing == null) return NotFound("Không tìm thấy trạm này");
+
+                    existing.StationName = model.StationName;
+                    existing.Address = model.Address;
+                    existing.Latitude = model.Latitude;
+                    existing.Longitude = model.Longitude;
+                    existing.ProvinceId = model.ProvinceId;
+                    existing.DistrictId = model.DistrictId;
+                    existing.WardId = model.WardId;
+                }
+
+                _context.SaveChanges();
+                return Ok(new { success = true, message = "Lưu trạm thành công" });
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new { success = false, message = "Lỗi: " + ex.Message });
+            }
+        }
+
+        // API POST: Xoá trạm
+        [HttpPost]
+        public IActionResult DeleteStation(int id)
+        {
+            var station = _context.Stations.Find(id);
+            if (station != null)
+            {
+                // Kiểm tra xem trạm có đang được sử dụng trong Trip nào không trước khi xoá (tuỳ chọn)
+                bool isInUse = _context.Trips.Any(t => t.FromStation == id || t.ToStation == id);
+                if (isInUse)
+                {
+                    return BadRequest(new { success = false, message = "Không thể xoá vì trạm này đang được sử dụng trong chuyến xe." });
+                }
+
+                _context.Stations.Remove(station);
+                _context.SaveChanges();
+                return Ok(new { success = true });
+            }
+            return NotFound(new { success = false, message = "Không tìm thấy trạm." });
+        }
+
+        // API GET: Map API response (chuỗi địa chỉ) về ID của CSDL
+        [HttpGet]
+        public IActionResult ResolveLocationIds(string provinceName, string districtName, string wardName)
+        {
+            int? pId = null, dId = null, wId = null;
+
+            if (!string.IsNullOrEmpty(provinceName))
+            {
+                var pSearch = provinceName.ToLower().Replace("thành phố", "").Replace("tỉnh", "").Trim();
+                var province = _context.Provinces.ToList().FirstOrDefault(p => p.ProvinceName.ToLower().Contains(pSearch) || pSearch.Contains(p.ProvinceName.ToLower()));
+                
+                if (province != null)
+                {
+                    pId = province.ProvinceId;
+
+                    if (!string.IsNullOrEmpty(districtName))
+                    {
+                        var dSearch = districtName.ToLower().Replace("quận", "").Replace("huyện", "").Replace("thị xã", "").Replace("thành phố", "").Trim();
+                        var district = _context.Districts.Where(d => d.ProvinceId == pId).ToList().FirstOrDefault(d => d.DistrictName.ToLower().Contains(dSearch) || dSearch.Contains(d.DistrictName.ToLower()));
+                        
+                        if (district != null)
+                        {
+                            dId = district.DistrictId;
+
+                            if (!string.IsNullOrEmpty(wardName))
+                            {
+                                var wSearch = wardName.ToLower().Replace("phường", "").Replace("xã", "").Replace("thị trấn", "").Trim();
+                                var ward = _context.Wards.Where(w => w.DistrictId == dId).ToList().FirstOrDefault(w => w.WardName.ToLower().Contains(wSearch) || wSearch.Contains(w.WardName.ToLower()));
+                                
+                                if (ward != null)
+                                {
+                                    wId = ward.WardId;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            return Json(new { provinceId = pId, districtId = dId, wardId = wId });
         }
     }
 }

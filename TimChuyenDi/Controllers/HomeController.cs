@@ -1,4 +1,4 @@
-﻿using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.EntityFrameworkCore;
 using System.Diagnostics;
@@ -22,18 +22,6 @@ namespace TimChuyenDi.Controllers
         // ==================================================
         public IActionResult Index(int? fromProvinceId, int? toProvinceId, DateTime? startDate, int? cargoTypeId, int page = 1)
         {
-            // 🔥 CHECK LOGIN + ROLE TRƯỚC
-            if (User.Identity.IsAuthenticated)
-            {
-                var role = User.FindFirst(System.Security.Claims.ClaimTypes.Role)?.Value;
-
-                return role switch
-                {
-                    "1" => RedirectToAction("Index", "Admin"),
-                    "3" => RedirectToAction("Index", "Driver"),
-                    _ => View() // Customer vẫn ở Home
-                };
-            }
 
             // ================== CODE CŨ ==================
 
@@ -94,6 +82,20 @@ namespace TimChuyenDi.Controllers
             ViewBag.CurrentCargo = cargoTypeId;
             ViewBag.CurrentPage = page;
             ViewBag.TotalPages = totalPages;
+
+
+            // 🔥 CHECK LOGIN + ROLE TRƯỚC
+            if (User.Identity.IsAuthenticated)
+            {
+                var role = User.FindFirst(System.Security.Claims.ClaimTypes.Role)?.Value;
+
+                return role switch
+                {
+                    "1" => RedirectToAction("Index", "Admin"),
+                    "3" => RedirectToAction("Index", "Driver"),
+                    _ => View(trips) // Customer vẫn ở Home
+                };
+            }
 
             return View(trips);
         }
@@ -312,6 +314,30 @@ namespace TimChuyenDi.Controllers
         public IActionResult Map()
         {
             return View();
+        }
+        // ==================================================
+        // 4. API LẤY HUYỆN/XÃ CHO TÍNH NĂNG CHỌN VỊ TRÍ
+        // ==================================================
+        [HttpGet]
+        public IActionResult GetDistricts(int provinceId)
+        {
+            var districts = _context.Districts
+                .Where(d => d.ProvinceId == provinceId)
+                .Select(d => new { id = d.DistrictId, name = d.DistrictName })
+                .OrderBy(d => d.name)
+                .ToList();
+            return Json(districts);
+        }
+
+        [HttpGet]
+        public IActionResult GetWards(int districtId)
+        {
+            var wards = _context.Wards
+                .Where(w => w.DistrictId == districtId)
+                .Select(w => new { id = w.WardId, name = w.WardName })
+                .OrderBy(w => w.name)
+                .ToList();
+            return Json(wards);
         }
     } // Đóng class HomeController
 

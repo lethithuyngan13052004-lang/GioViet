@@ -1,0 +1,393 @@
+@{
+    ViewData["Title"] = "Quản lý Trạm";
+    var provinces = ViewBag.Provinces as List<TimChuyenDi.Models.Province>;
+}
+
+<div class="container-fluid mt-3">
+    <div class="row">
+        <!-- CỘT TRÁI: FORM VÀ TÌM KIẾM -->
+        <div class="col-md-4 mb-3">
+            <div class="card shadow-sm border-0 h-100">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0 fw-bold" id="formTitle"><i class="bi bi-geo-alt-fill"></i> Thêm Trạm Mới</h5>
+                </div>
+                <div class="card-body overflow-auto" style="max-height: 80vh;">
+                    
+                    <!-- Search Address -->
+                    <div class="mb-4 p-3 bg-light rounded border">
+                        <label class="form-label fw-bold text-primary"><i class="bi bi-search"></i> Nhập địa chỉ tìm kiếm nhanh</label>
+                        <div class="input-group">
+                            <input type="text" id="addressInput" class="form-control border-primary" placeholder="Ví dụ: 123 Cầu Giấy, Hà Nội">
+                            <button class="btn btn-primary" type="button" onclick="searchAddress()">Tìm</button>
+                        </div>
+                        <div id="searchStatus" class="small mt-1 text-muted"></div>
+                    </div>
+
+                    <hr />
+
+                    <!-- Station Form -->
+                    <form id="stationForm">
+                        <input type="hidden" id="StationId" value="0" />
+                        
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Tên Trạm <span class="text-danger">*</span></label>
+                            <input type="text" id="StationName" class="form-control" placeholder="Bến xe Mỹ Đình, Điểm thu hàng..." required/>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Địa chỉ chi tiết <span class="text-danger">*</span></label>
+                            <input type="text" id="Address" class="form-control" placeholder="Số nhà, đường..." required/>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Tỉnh/Thành <span class="text-danger">*</span></label>
+                            <select id="ProvinceId" class="form-select" onchange="loadDistricts()" required>
+                                <option value="">-- Chọn Tỉnh --</option>
+                                @foreach (var p in provinces)
+                                {
+                                    <option value="@p.ProvinceId">@p.ProvinceName</option>
+                                }
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Quận/Huyện</label>
+                            <select id="DistrictId" class="form-select" onchange="loadWards()">
+                                <option value="">-- Chọn Huyện --</option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Phường/Xã</label>
+                            <select id="WardId" class="form-select">
+                                <option value="">-- Chọn Phường/Xã --</option>
+                            </select>
+                        </div>
+
+                        <div class="row mb-3">
+                            <div class="col-6">
+                                <label class="form-label text-muted small">Vĩ độ (Lat)</label>
+                                <input type="text" id="Latitude" class="form-control bg-light text-center fw-bold" readonly/>
+                            </div>
+                            <div class="col-6">
+                                <label class="form-label text-muted small">Kinh độ (Lng)</label>
+                                <input type="text" id="Longitude" class="form-control bg-light text-center fw-bold" readonly/>
+                            </div>
+                        </div>
+
+                        <div class="d-flex justify-content-between mt-4">
+                            <button type="button" class="btn btn-outline-danger" id="btnDelete" style="display:none;" onclick="deleteStation()">
+                                <i class="bi bi-trash"></i> Xoá Trạm
+                            </button>
+                            <button type="button" class="btn btn-secondary" onclick="resetForm()">
+                                 Huỷ
+                            </button>
+                            <button type="button" class="btn btn-primary fw-bold" onclick="saveStation()">
+                                <i class="bi bi-floppy"></i> Lưu Trạm
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- CỘT PHẢI: BẢN ĐỒ -->
+        <div class="col-md-8">
+            <div id="stationMap" style="height: 85vh; width: 100%; border-radius: 12px; border: 2px solid #dee2e6; box-shadow: 0 4px 6px rgba(0,0,0,0.1);"></div>
+        </div>
+    </div>
+</div>
+
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+<script>
+    var map;
+    var markers = L.layerGroup();
+    var tempMarker = null;
+
+    document.addEventListener("DOMContentLoaded", function () {
+        // Khởi tạo map tại Việt Nam
+        map = L.map('stationMap').setView([16.0544, 108.2022], 6);
+
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '&copy; OpenStreetMap contributors'
+        }).addTo(map);
+        
+        markers.addTo(map);
+
+        // Lấy danh sách trạm từ API và vẽ lên bản đồ
+        loadStations();
+
+        // Xử lý sự kiện click trên bản đồ
+        map.on('click', function(e) {
+            handleMapClick(e.latlng.lat, e.latlng.lng);
+        });
+    });
+
+    async function searchAddress() {
+        var addr = document.getElementById('addressInput').value;
+        var status = document.getElementById('searchStatus');
+            
+        if (!addr) return alert("Vui lòng nhập địa chỉ!");
+        status.innerHTML = "⌛ Đang tìm vị trí...";
+
+        try {
+            var res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(addr)}`);
+            var data = await res.json();
+
+            if (data && data.length > 0) {
+                var lat = parseFloat(data[0].lat);
+                var lon = parseFloat(data[0].lon);
+                
+                status.innerHTML = "✅ Đã tìm thấy!";
+                map.setView([lat, lon], 16);
+                handleMapClick(lat, lon);
+            } else {
+                status.innerHTML = "❌ Không tìm thấy địa chỉ này!";
+            }
+        } catch (e) {
+            status.innerHTML = "❌ Lỗi kết nối API!";
+            console.error(e);
+        }
+    }
+
+    async function handleMapClick(lat, lng) {
+        document.getElementById('formTitle').innerHTML = '<i class="bi bi-geo-alt-fill"></i> Thêm Trạm Mới';
+        document.getElementById('btnDelete').style.display = 'none';
+        
+        document.getElementById('StationId').value = "0";
+        document.getElementById('Latitude').value = lat.toFixed(6);
+        document.getElementById('Longitude').value = lng.toFixed(6);
+
+        // Di chuyển cái ghim tạm
+        if(tempMarker) {
+            tempMarker.setLatLng([lat, lng]);
+        } else {
+            tempMarker = L.marker([lat, lng], { draggable: true }).addTo(map);
+            // Kéo ghim cũng tự update toạ độ
+            tempMarker.on('dragend', function(event) {
+                var position = tempMarker.getLatLng();
+                handleMapClick(position.lat, position.lng);
+            });
+        }
+        
+        // REVERSE GEOCODING
+        var status = document.getElementById('searchStatus');
+        status.innerHTML = "⌛ Đang phân tích toạ độ...";
+        try {
+            var res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}`);
+            var data = await res.json();
+
+            if (data && data.address) {
+                status.innerHTML = "✅ Tự động điền dữ liệu!";
+                
+                // Hiển thị tạm toàn bộ Address Parts lên console để dễ fix lỗi sau này
+                console.log("Nominatim Address JSON:", data.address);
+                
+                var addrPart = data.address.road || data.address.pedestrian || "";
+                if(data.address.house_number) addrPart = data.address.house_number + " " + addrPart;
+                if(!addrPart) addrPart = data.display_name.split(',')[0]; // Lấy tạm vế đầu tiên của display_name
+                document.getElementById('Address').value = addrPart.trim();
+                
+                // Mở rộng bộ lọc từ khoá nhận diện Quận/Huyện/Xã của Nominatim ở Việt Nam
+                var wardStr = data.address.suburb || data.address.village || data.address.hamlet || data.address.quarter || data.address.neighbourhood || data.address.town || "";
+                var distStr = data.address.district || data.address.county || data.address.city_district || data.address.town || data.address.city || "";
+                var provStr = data.address.city || data.address.province || data.address.state || "";
+
+                // Gọi Server để map ra ID
+                var resolveRes = await fetch(`/Admin/ResolveLocationIds?provinceName=${encodeURIComponent(provStr)}&districtName=${encodeURIComponent(distStr)}&wardName=${encodeURIComponent(wardStr)}`);
+                var resolveData = await resolveRes.json();
+
+                if (resolveData.provinceId) {
+                    document.getElementById('ProvinceId').value = resolveData.provinceId;
+                    await loadDistrictsAsync(resolveData.provinceId);
+                    
+                    if (resolveData.districtId) {
+                        document.getElementById('DistrictId').value = resolveData.districtId;
+                        await loadWardsAsync(resolveData.districtId);
+                        
+                        if (resolveData.wardId) {
+                            document.getElementById('WardId').value = resolveData.wardId;
+                        }
+                    }
+                }
+            } else {
+                status.innerHTML = "❌ Không nhận diện được địa chỉ!";
+            }
+        } catch (e) {
+             status.innerHTML = "❌ Lỗi hệ thống khi phân tích toạ độ!";
+        }
+    }
+
+    function loadStations() {
+        markers.clearLayers();
+        fetch('/Admin/GetStations')
+            .then(res => res.json())
+            .then(data => {
+                data.forEach(s => {
+                    if (s.lat && s.lng) {
+                        // Custom icon cho trạm đã lưu
+                        var customIcon = L.icon({
+                            iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-green.png',
+                            shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png',
+                            iconSize: [25, 41],
+                            iconAnchor: [12, 41],
+                            popupAnchor: [1, -34],
+                            shadowSize: [41, 41]
+                        });
+
+                        var m = L.marker([s.lat, s.lng], {icon: customIcon});
+                        var popupContent = `
+                            <div class="text-center">
+                                <h6 class="fw-bold mb-1">${s.name}</h6>
+                                <p class="small text-muted mb-2">${s.address}<br/>${s.wardName ? s.wardName + ', ' : ''}${s.districtName ? s.districtName + ', ' : ''}${s.provinceName}</p>
+                                <button class="btn btn-sm btn-warning w-100 fw-bold" onclick='editStation(${JSON.stringify(s).replace(/'/g, "&#39;")})'>
+                                    <i class="bi bi-pencil-square"></i> Chọn Sửa Trạm Này
+                                </button>
+                            </div>
+                        `;
+                        m.bindPopup(popupContent);
+                        markers.addLayer(m);
+                    }
+                });
+            });
+    }
+
+    function editStation(s) {
+        document.getElementById('formTitle').innerHTML = '<i class="bi bi-pencil-square"></i> Sửa Thông Tin Trạm';
+        document.getElementById('btnDelete').style.display = 'inline-block';
+        
+        document.getElementById('StationId').value = s.id;
+        document.getElementById('StationName').value = s.name;
+        document.getElementById('Address').value = s.address;
+        document.getElementById('Latitude').value = s.lat;
+        document.getElementById('Longitude').value = s.lng;
+        document.getElementById('ProvinceId').value = s.provinceId;
+        
+        // Remove temp marker if editing existing
+        if(tempMarker) {
+            map.removeLayer(tempMarker);
+            tempMarker = null;
+        }
+
+        loadDistrictsAsync(s.provinceId).then(() => {
+            document.getElementById('DistrictId').value = s.districtId;
+            if(s.districtId) {
+                 loadWardsAsync(s.districtId).then(() => {
+                     document.getElementById('WardId').value = s.wardId;
+                 });
+            }
+        });
+
+        // Đóng popup
+        map.closePopup();
+        map.setView([s.lat, s.lng], 16);
+    }
+
+    function resetForm() {
+        document.getElementById('stationForm').reset();
+        document.getElementById('StationId').value = "0";
+        document.getElementById('btnDelete').style.display = 'none';
+        document.getElementById('formTitle').innerHTML = '<i class="bi bi-geo-alt-fill"></i> Thêm Trạm Mới';
+        document.getElementById('DistrictId').innerHTML = '<option value="">-- Chọn Huyện --</option>';
+        document.getElementById('WardId').innerHTML = '<option value="">-- Chọn Phường/Xã --</option>';
+        document.getElementById('searchStatus').innerHTML = "";
+        
+        if(tempMarker) {
+            map.removeLayer(tempMarker);
+            tempMarker = null;
+        }
+    }
+
+    function loadDistricts() {
+        var pId = document.getElementById('ProvinceId').value;
+        loadDistrictsAsync(pId);
+    }
+
+    async function loadDistrictsAsync(pId) {
+        if (!pId) {
+            document.getElementById('DistrictId').innerHTML = '<option value="">-- Chọn Huyện --</option>';
+            document.getElementById('WardId').innerHTML = '<option value="">-- Chọn Phường/Xã --</option>';
+            return;
+        }
+        var res = await fetch(`/Home/GetDistricts?provinceId=${pId}`);
+        var data = await res.json();
+        let html = '<option value="">-- Chọn Huyện --</option>';
+        data.forEach(d => { html += `<option value="${d.id}">${d.name}</option>`; });
+        document.getElementById('DistrictId').innerHTML = html;
+        document.getElementById('WardId').innerHTML = '<option value="">-- Chọn Phường/Xã --</option>';
+    }
+
+    function loadWards() {
+        var dId = document.getElementById('DistrictId').value;
+        loadWardsAsync(dId);
+    }
+
+    async function loadWardsAsync(dId) {
+        if (!dId) {
+            document.getElementById('WardId').innerHTML = '<option value="">-- Chọn Phường/Xã --</option>';
+            return;
+        }
+        var res = await fetch(`/Home/GetWards?districtId=${dId}`);
+        var data = await res.json();
+        let html = '<option value="">-- Chọn Phường/Xã --</option>';
+        data.forEach(w => { html += `<option value="${w.id}">${w.name}</option>`; });
+        document.getElementById('WardId').innerHTML = html;
+    }
+
+    function saveStation() {
+        var form = document.getElementById('stationForm');
+        if (!form.checkValidity()) {
+            form.reportValidity();
+            return;
+        }
+        
+        var lat = document.getElementById('Latitude').value;
+        if(!lat) {
+            alert("Vui lòng chọn 1 vị trí trên bản đồ!");
+            return;
+        }
+
+        var data = {
+            StationId: parseInt(document.getElementById('StationId').value),
+            StationName: document.getElementById('StationName').value,
+            Address: document.getElementById('Address').value,
+            Latitude: parseFloat(document.getElementById('Latitude').value),
+            Longitude: parseFloat(document.getElementById('Longitude').value),
+            ProvinceId: parseInt(document.getElementById('ProvinceId').value),
+            DistrictId: document.getElementById('DistrictId').value ? parseInt(document.getElementById('DistrictId').value) : null,
+            WardId: document.getElementById('WardId').value ? parseInt(document.getElementById('WardId').value) : null
+        };
+
+        fetch('/Admin/SaveStation', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(data)
+        })
+        .then(res => res.json())
+        .then(result => {
+            if(result.success) {
+                alert("Lưu trạm thành công!");
+                resetForm();
+                loadStations();
+            } else {
+                alert(result.message);
+            }
+        });
+    }
+
+    function deleteStation() {
+        if (!confirm("Bạn có chắc chắn muốn xoá trạm này không?")) return;
+
+        var id = document.getElementById('StationId').value;
+        fetch(`/Admin/DeleteStation?id=${id}`, { method: 'POST' })
+        .then(res => res.json())
+        .then(result => {
+            if(result.success) {
+                alert("Đã xoá trạm!");
+                resetForm();
+                loadStations();
+            } else {
+                alert(result.message);
+            }
+        });
+    }
+</script>
