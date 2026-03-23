@@ -189,6 +189,56 @@ namespace TimChuyenDi.Controllers
             return NotFound(new { success = false, message = "Không tìm thấy trạm." });
         }
 
+        // Helper method to normalize names for comparison
+        private string NormalizeAddressName(string name)
+        {
+            if (string.IsNullOrEmpty(name)) return "";
+            name = name.ToLower().Trim();
+
+            // Remove common prefixes
+            string[] prefixes = { "thành phố", "tỉnh", "quận", "huyện", "thị xã", "phường", "xã", "thị trấn" };
+            foreach (var prefix in prefixes)
+            {
+                if (name.StartsWith(prefix + " "))
+                {
+                    name = name.Substring(prefix.Length).Trim();
+                }
+                else
+                {
+                    name = name.Replace(prefix, "").Trim();
+                }
+            }
+
+            // Remove diacritics
+            string[] VietnameseSigns = {
+                "aAeEoOuUiIdDyY",
+                "áàạảãâấầậẩẫăắằặẳẵ",
+                "ÁÀẠẢÃÂẤẦẬẨẪĂẮẰẶẲẴ",
+                "éèẹẻẽêếềệểễ",
+                "ÉÈẸẺẼÊẾỀỆỂỄ",
+                "óòọỏõôốồộổỗơớờợởỡ",
+                "ÓÒỌỎÕÔỐỒỘỔỖƠỚỜỢỞỠ",
+                "úùụủũưứừựửữ",
+                "ÚÙỤỦŨƯỨỪỰỬỮ",
+                "íìịỉĩ",
+                "ÍÌỊỈĨ",
+                "đ",
+                "Đ",
+                "ýỳỵỷỹ",
+                "ÝỲỴỶỸ"
+            };
+
+            for (int i = 1; i < VietnameseSigns.Length; i++)
+            {
+                for (int j = 0; j < VietnameseSigns[i].Length; j++)
+                {
+                    name = name.Replace(VietnameseSigns[i][j].ToString(), VietnameseSigns[0][i - 1].ToString());
+                }
+            }
+
+            return name.Trim();
+        }
+
         // API GET: Map API response (chuỗi địa chỉ) về ID của CSDL
         [HttpGet]
         public IActionResult ResolveLocationIds(string provinceName, string districtName, string wardName)
@@ -197,8 +247,9 @@ namespace TimChuyenDi.Controllers
 
             if (!string.IsNullOrEmpty(provinceName))
             {
-                var pSearch = provinceName.ToLower().Replace("thành phố", "").Replace("tỉnh", "").Trim();
-                var province = _context.Provinces.ToList().FirstOrDefault(p => p.ProvinceName.ToLower().Contains(pSearch) || pSearch.Contains(p.ProvinceName.ToLower()));
+                var pSearch = NormalizeAddressName(provinceName);
+                var provinces = _context.Provinces.ToList();
+                var province = provinces.FirstOrDefault(p => NormalizeAddressName(p.ProvinceName).Contains(pSearch) || pSearch.Contains(NormalizeAddressName(p.ProvinceName)));
                 
                 if (province != null)
                 {
@@ -206,8 +257,9 @@ namespace TimChuyenDi.Controllers
 
                     if (!string.IsNullOrEmpty(districtName))
                     {
-                        var dSearch = districtName.ToLower().Replace("quận", "").Replace("huyện", "").Replace("thị xã", "").Replace("thành phố", "").Trim();
-                        var district = _context.Districts.Where(d => d.ProvinceId == pId).ToList().FirstOrDefault(d => d.DistrictName.ToLower().Contains(dSearch) || dSearch.Contains(d.DistrictName.ToLower()));
+                        var dSearch = NormalizeAddressName(districtName);
+                        var districts = _context.Districts.Where(d => d.ProvinceId == pId).ToList();
+                        var district = districts.FirstOrDefault(d => NormalizeAddressName(d.DistrictName).Contains(dSearch) || dSearch.Contains(NormalizeAddressName(d.DistrictName)));
                         
                         if (district != null)
                         {
@@ -215,8 +267,9 @@ namespace TimChuyenDi.Controllers
 
                             if (!string.IsNullOrEmpty(wardName))
                             {
-                                var wSearch = wardName.ToLower().Replace("phường", "").Replace("xã", "").Replace("thị trấn", "").Trim();
-                                var ward = _context.Wards.Where(w => w.DistrictId == dId).ToList().FirstOrDefault(w => w.WardName.ToLower().Contains(wSearch) || wSearch.Contains(w.WardName.ToLower()));
+                                var wSearch = NormalizeAddressName(wardName);
+                                var wards = _context.Wards.Where(w => w.DistrictId == dId).ToList();
+                                var ward = wards.FirstOrDefault(w => NormalizeAddressName(w.WardName).Contains(wSearch) || wSearch.Contains(NormalizeAddressName(w.WardName)));
                                 
                                 if (ward != null)
                                 {
