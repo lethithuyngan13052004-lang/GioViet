@@ -30,9 +30,14 @@ namespace TimChuyenDi.Controllers
 
             if (user != null && BCrypt.Net.BCrypt.Verify(password, user.PasswordHash))
             {
-                if (!user.IsActive.GetValueOrDefault()) // nếu null thì coi như false
+                var admin = _context.Users.FirstOrDefault(u => u.Role == 1);
+
+                if (!user.IsActive.GetValueOrDefault())
                 {
-                    ViewBag.Error = "Tài khoản bị khóa!";
+                    var adminEmail = admin?.Email ?? "admin@gmail.com";
+
+                    ViewBag.Error = $"Tài khoản của bạn đã bị khóa!<br/>" +
+                                    $"Nếu bạn cho rằng đây là nhầm lẫn, vui lòng liên hệ: <b>{adminEmail}</b>";
                     return View();
                 }
 
@@ -121,7 +126,8 @@ namespace TimChuyenDi.Controllers
                 PasswordHash = BCrypt.Net.BCrypt.HashPassword(password),
                 PasswordDemo = password,
                 Role = 2, // mặc định khách
-                IsActive = true
+                IsActive = true,
+                CreatedAt = DateTime.Now
             };
 
             _context.Users.Add(newUser);

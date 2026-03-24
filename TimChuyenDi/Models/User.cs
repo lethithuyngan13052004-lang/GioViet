@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 
 namespace TimChuyenDi.Models;
@@ -12,6 +12,8 @@ public partial class User
     public string Phone { get; set; } = null!;
 
     public string? Email { get; set; }
+    
+    public DateTime CreatedAt { get; set; }
 
     public string PasswordHash { get; set; } = null!;
 
@@ -29,6 +31,8 @@ public partial class User
     /// 1: Active, 0: Banned
     /// </summary>
     public bool? IsActive { get; set; }
+
+    public string? LockReason { get; set; }
 
     public virtual ICollection<Behaviorlog> Behaviorlogs { get; set; } = new List<Behaviorlog>();
 

@@ -38,15 +38,34 @@ namespace TimChuyenDi.Controllers
 
         // POST: Xử lý Khóa / Mở khóa tài khoản
         [HttpPost]
-        public IActionResult ToggleStatus(int userId)
+        public IActionResult ToggleStatus(int userId, string? lockReason)
         {
+            if (userId == 1)
+            {
+                TempData["ErrorMessage"] = "Không thể khoá tài khoản Admin tối cao!";
+                return RedirectToAction("Index");
+            }
+
             var user = _context.Users.Find(userId);
 
-            // Kiểm tra user có tồn tại và KHÔNG PHẢI là Admin (tránh tự khóa mình)
+            // Kiểm tra user có tồn tại và KHÔNG PHẢI là Admin (tránh tự khóa mình, role = 0)
             if (user != null && user.Role != 0)
             {
-                // Đảo ngược trạng thái (Đang 1 thành 0, đang 0 thành 1)
-                user.IsActive = !user.IsActive;
+                if (user.IsActive == true)
+                {
+                    // Khóa
+                    user.IsActive = false;
+                    user.LockReason = string.IsNullOrEmpty(lockReason) ? "Vi phạm chính sách hệ thống" : lockReason;
+                    TempData["SuccessMessage"] = "Đã khoá tài khoản thành công.";
+                }
+                else
+                {
+                    // Mở khóa
+                    user.IsActive = true;
+                    user.LockReason = null;
+                    TempData["SuccessMessage"] = "Đã mở khoá tài khoản thành công.";
+                }
+                
                 _context.SaveChanges();
             }
 

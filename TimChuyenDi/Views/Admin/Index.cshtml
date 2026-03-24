@@ -1,4 +1,4 @@
-﻿@model IEnumerable<TimChuyenDi.Models.User>
+@model IEnumerable<TimChuyenDi.Models.User>
 @{
     ViewData["Title"] = "Quản lý Người dùng";
 }
@@ -6,6 +6,22 @@
 <div class="d-flex justify-content-between align-items-center mt-4 mb-3">
     <h4><i class="bi bi-people-fill"></i> Quản lý Người dùng Hệ thống</h4>
 </div>
+
+@if (TempData["SuccessMessage"] != null)
+{
+    <div class="alert alert-success alert-dismissible fade show shadow-sm" role="alert">
+        <i class="bi bi-check-circle-fill me-2"></i><strong>Thành công!</strong> @TempData["SuccessMessage"]
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+}
+
+@if (TempData["ErrorMessage"] != null)
+{
+    <div class="alert alert-danger alert-dismissible fade show shadow-sm" role="alert">
+        <i class="bi bi-exclamation-triangle-fill me-2"></i><strong>Lỗi!</strong> @TempData["ErrorMessage"]
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+}
 
 <div class="card shadow-sm mb-4 border-0 bg-light">
     <div class="card-body">
@@ -33,9 +49,11 @@
                         <th>ID</th>
                         <th>Họ và Tên</th>
                         <th>Số điện thoại</th>
+                        <th>Email</th>
                         <th>Vai trò</th>
                         <th>Ngày tạo</th>
                         <th>Trạng thái</th>
+                        <th>Lý do khóa</th>
                         <th>Thao tác</th>
                     </tr>
                 </thead>
@@ -46,6 +64,13 @@
                             <td>@item.UserId</td>
                             <td class="fw-bold">@item.Name</td>
                             <td>@item.Phone</td>
+
+                            <!-- ✅ Email -->
+                            <td>
+                                @(string.IsNullOrEmpty(item.Email) ? "—" : item.Email)
+                            </td>
+
+                            <!-- ✅ Role -->
                             <td>
                                 @if (item.Role == 1)
                                 {
@@ -60,7 +85,13 @@
                                     <span class="badge bg-success">Khách hàng</span>
                                 }
                             </td>
-							<!-- <td>(item.CreatedAt.HasValue ? item.CreatedAt.Value.ToString("dd/MM/yyyy") : "")</td> -->
+
+                            <!-- ✅ CreatedAt -->
+                            <td>
+                                @(item.CreatedAt.ToString("dd/MM/yyyy HH:mm"))
+                            </td>
+
+                            <!-- ✅ Status -->
                             <td>
                                 @if (item.IsActive == true)
                                 {
@@ -68,28 +99,50 @@
                                 }
                                 else
                                 {
-
                                     <span class="badge bg-secondary">Đã khóa</span>
                                 }
                             </td>
+
+                            <!-- ✅ Lý do khóa -->
                             <td>
-                                @if (item.Role != 0)
+                                @if (item.IsActive != true && !string.IsNullOrEmpty(item.LockReason))
                                 {
-                                    <form asp-action="ToggleStatus" method="post" class="d-inline">
-                                        <input type="hidden" name="userId" value="@item.UserId" />
-                                        @if (item.IsActive == true)
-                                        {
-                                            <button type="submit" class="btn btn-sm btn-outline-danger" onclick="return confirm('Bạn có chắc muốn khóa tài khoản này không?');">Khóa</button>
-                                        }
-                                        else
-                                        {
-                                            <button type="submit" class="btn btn-sm btn-success">Mở khóa</button>
-                                        }
-                                    </form>
+                                    <span class="text-danger small">@item.LockReason</span>
                                 }
                                 else
                                 {
-                                    <span class="text-muted small">Quyền tối cao</span>
+                                    <span class="text-muted">—</span>
+                                }
+                            </td>
+
+                            <!-- ✅ Action -->
+                            <td>
+                                @if (item.UserId == 1)
+                                {
+                                    <span class="text-muted fw-bold small"><i class="bi bi-shield-lock"></i> Người quản trị</span>
+                                }
+                                else if (item.Role != 0)
+                                {
+                                    @if (item.IsActive == true)
+                                    {
+                                        <button type="button" class="btn btn-sm btn-outline-danger" 
+                                                onclick="openLockModal(@item.UserId, '@item.Name')">
+                                            <i class="bi bi-lock-fill"></i> Khóa
+                                        </button>
+                                    }
+                                    else
+                                    {
+                                        <form asp-action="ToggleStatus" method="post" class="d-inline">
+                                            <input type="hidden" name="userId" value="@item.UserId" />
+                                            <button type="submit" class="btn btn-sm btn-success" onclick="return confirm('Xác nhận mở khóa tài khoản này?');">
+                                                <i class="bi bi-unlock-fill"></i> Mở khóa
+                                            </button>
+                                        </form>
+                                    }
+                                }
+                                else
+                                {
+                                    <span class="text-muted fw-bold small"><i class="bi bi-shield-lock"></i> Hệ thống</span>
                                 }
                             </td>
                         </tr>
@@ -99,3 +152,43 @@
         </div>
     </div>
 </div>
+
+<!-- Modal Khóa Tài Khoản -->
+<div class="modal fade" id="lockAccountModal" tabindex="-1" aria-labelledby="lockAccountModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <form asp-action="ToggleStatus" method="post">
+            <div class="modal-content">
+                <div class="modal-header bg-danger text-white">
+                    <h5 class="modal-title" id="lockAccountModalLabel"><i class="bi bi-exclamation-triangle-fill"></i> Khóa Tài Khoản</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <p>Bạn đang thao tác khóa tài khoản của: <strong id="lockUserName" class="text-danger"></strong></p>
+                    <input type="hidden" name="userId" id="lockUserId" value="" />
+                    
+                    <div class="mb-3">
+                        <label for="lockReason" class="form-label fw-bold">Lý do khóa <span class="text-danger">*</span></label>
+                        <textarea class="form-control" id="lockReason" name="lockReason" rows="3" required placeholder="Nhập lý do chi tiết để thông báo cho người dùng..."></textarea>
+                        <div class="invalid-feedback">Vui lòng nhập lý do khóa.</div>
+                    </div>
+                </div>
+                <div class="modal-footer d-flex justify-content-between">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Hủy</button>
+                    <button type="submit" class="btn btn-danger fw-bold"><i class="bi bi-lock-fill"></i> Xác nhận khóa</button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        function openLockModal(userId, userName) {
+            document.getElementById('lockUserId').value = userId;
+            document.getElementById('lockUserName').innerText = userName;
+            document.getElementById('lockReason').value = ''; // Reset
+            var modal = new bootstrap.Modal(document.getElementById('lockAccountModal'));
+            modal.show();
+        }
+    </script>
+}
