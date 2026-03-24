@@ -31,8 +31,21 @@
                             <div class="input-group mt-1">
                                 <input type="text" id="SearchStationName" class="form-control" placeholder="Nhập tên trạm hoặc địa chỉ trạm" onkeypress="if(event.key === 'Enter') loadStations();" />
                                 <button class="btn btn-success fw-bold" type="button" onclick="loadStations()"><i class="bi bi-funnel-fill"></i> Lọc</button>
+                                <button class="btn fw-bold btn-reset-search" type="button" onclick="resetSearch()"><i class="bi bi-x-circle"></i> Hủy</button>
                             </div>
                         </div>
+                        <style>
+                            .btn-reset-search {
+                                background-color: #fff;
+                                color: #dc3545;
+                                border: 1px solid #ced4da;
+                            }
+                            .btn-reset-search:hover {
+                                background-color: #dc3545;
+                                color: #fff;
+                                border-color: #dc3545;
+                            }
+                        </style>
                         <div class="col-12">
                             <select id="SearchProvinceId" class="form-select">
                                 <option value="">-- Tất cả Tỉnh/Thành --</option>
@@ -43,12 +56,12 @@
                             </select>
                         </div>
                         <div class="col-6">
-                            <select id="SearchDistrictId" class="form-select">
+                            <select id="SearchDistrictId" class="form-select" disabled>
                                 <option value="">-- Tất cả Quận/Huyện --</option>
                             </select>
                         </div>
                         <div class="col-6">
-                            <select id="SearchWardId" class="form-select">
+                            <select id="SearchWardId" class="form-select" disabled>
                                 <option value="">-- Tất cả Phường/Xã --</option>
                             </select>
                         </div>
@@ -99,13 +112,13 @@
                         </div>
                         <div class="mb-3">
                             <label class="form-label fw-bold">Quận/Huyện</label>
-                            <select id="DistrictId" class="form-select" onchange="loadWards()">
+                            <select id="DistrictId" class="form-select" onchange="loadWards()" disabled>
                                 <option value="">-- Chọn Huyện --</option>
                             </select>
                         </div>
                         <div class="mb-3">
                             <label class="form-label fw-bold">Phường/Xã</label>
-                            <select id="WardId" class="form-select">
+                            <select id="WardId" class="form-select" disabled>
                                 <option value="">-- Chọn Phường/Xã --</option>
                             </select>
                         </div>
@@ -399,6 +412,14 @@
             });
     }
 
+    function resetSearch() {
+        $('#SearchStationName').val('');
+        $('#SearchProvinceId').val('').trigger('change.select2');
+        $('#SearchDistrictId').html('<option value="">-- Tất cả Quận/Huyện --</option>').val('').prop('disabled', true).trigger('change.select2');
+        $('#SearchWardId').html('<option value="">-- Tất cả Phường/Xã --</option>').val('').prop('disabled', true).trigger('change.select2');
+        loadStations();
+    }
+
     function editStation(s) {
         document.getElementById('formTitle').innerHTML = '<i class="bi bi-pencil-square"></i> Sửa Thông Tin Trạm';
         document.getElementById('btnDelete').style.display = 'inline-block';
@@ -437,6 +458,8 @@
         document.getElementById('formTitle').innerHTML = '<i class="bi bi-geo-alt-fill"></i> Thêm Trạm Mới';
         document.getElementById('DistrictId').innerHTML = '<option value="">-- Chọn Huyện --</option>';
         document.getElementById('WardId').innerHTML = '<option value="">-- Chọn Phường/Xã --</option>';
+        $('#DistrictId').prop('disabled', true);
+        $('#WardId').prop('disabled', true);
         initSelect2();
         document.getElementById('searchStatus').innerHTML = "";
         
@@ -455,6 +478,8 @@
         if (!pId) {
             document.getElementById('DistrictId').innerHTML = '<option value="">-- Chọn Huyện --</option>';
             document.getElementById('WardId').innerHTML = '<option value="">-- Chọn Phường/Xã --</option>';
+            $('#DistrictId').prop('disabled', true);
+            $('#WardId').prop('disabled', true);
             initSelect2();
             return;
         }
@@ -464,6 +489,8 @@
         data.forEach(d => { html += `<option value="${d.id}">${d.name}</option>`; });
         document.getElementById('DistrictId').innerHTML = html;
         document.getElementById('WardId').innerHTML = '<option value="">-- Chọn Phường/Xã --</option>';
+        $('#DistrictId').prop('disabled', false);
+        $('#WardId').prop('disabled', true);
         initSelect2();
     }
 
@@ -475,6 +502,7 @@
     async function loadWardsAsync(dId) {
         if (!dId) {
             document.getElementById('WardId').innerHTML = '<option value="">-- Chọn Phường/Xã --</option>';
+            $('#WardId').prop('disabled', true);
             initSelect2();
             return;
         }
@@ -483,6 +511,7 @@
         let html = '<option value="">-- Chọn Phường/Xã --</option>';
         data.forEach(w => { html += `<option value="${w.id}">${w.name}</option>`; });
         document.getElementById('WardId').innerHTML = html;
+        $('#WardId').prop('disabled', false);
         initSelect2();
     }
 
@@ -491,6 +520,8 @@
         if (!pId) {
             document.getElementById('SearchDistrictId').innerHTML = '<option value="">-- Tất cả Quận/Huyện --</option>';
             document.getElementById('SearchWardId').innerHTML = '<option value="">-- Tất cả Phường/Xã --</option>';
+            $('#SearchDistrictId').prop('disabled', true);
+            $('#SearchWardId').prop('disabled', true);
             initSelect2();
             return;
         }
@@ -500,6 +531,8 @@
         data.forEach(d => { html += `<option value="${d.id}">${d.name}</option>`; });
         document.getElementById('SearchDistrictId').innerHTML = html;
         document.getElementById('SearchWardId').innerHTML = '<option value="">-- Tất cả Phường/Xã --</option>';
+        $('#SearchDistrictId').prop('disabled', false);
+        $('#SearchWardId').prop('disabled', true);
         initSelect2();
     }
 
@@ -507,6 +540,7 @@
         var dId = document.getElementById('SearchDistrictId').value;
         if (!dId) {
             document.getElementById('SearchWardId').innerHTML = '<option value="">-- Tất cả Phường/Xã --</option>';
+            $('#SearchWardId').prop('disabled', true);
             initSelect2();
             return;
         }
@@ -515,6 +549,7 @@
         let html = '<option value="">-- Tất cả Phường/Xã --</option>';
         data.forEach(w => { html += `<option value="${w.id}">${w.name}</option>`; });
         document.getElementById('SearchWardId').innerHTML = html;
+        $('#SearchWardId').prop('disabled', false);
         initSelect2();
     }
 
