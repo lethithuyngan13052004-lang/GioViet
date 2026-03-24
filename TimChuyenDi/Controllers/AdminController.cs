@@ -109,28 +109,57 @@ namespace TimChuyenDi.Controllers
             return View();
         }
 
-        // API GET: Lấy danh sách tất cả các trạm để vẽ lên Map
+        // API GET: Lấy danh sách tất cả các trạm để vẽ lên Map, hỗ trợ tìm kiếm
         [HttpGet]
-        public IActionResult GetStations()
+        public IActionResult GetStations(string searchName = null, int? provinceId = null, int? districtId = null, int? wardId = null)
         {
-            var stations = _context.Stations
+            var query = _context.Stations
                 .Include(s => s.Province)
                 .Include(s => s.District)
                 .Include(s => s.Ward)
-                .Select(s => new
-                {
-                    id = s.StationId,
-                    name = s.StationName,
-                    address = s.Address,
-                    lat = s.Latitude,
-                    lng = s.Longitude,
-                    provinceId = s.ProvinceId,
-                    districtId = s.DistrictId,
-                    wardId = s.WardId,
-                    provinceName = s.Province != null ? s.Province.ProvinceName : "",
-                    districtName = s.District != null ? s.District.DistrictName : "",
-                    wardName = s.Ward != null ? s.Ward.WardName : ""
-                }).ToList();
+                .AsQueryable();
+
+            if (provinceId.HasValue && provinceId.Value > 0)
+            {
+                query = query.Where(s => s.ProvinceId == provinceId.Value);
+            }
+
+            if (districtId.HasValue && districtId.Value > 0)
+            {
+                query = query.Where(s => s.DistrictId == districtId.Value);
+            }
+
+            if (wardId.HasValue && wardId.Value > 0)
+            {
+                query = query.Where(s => s.WardId == wardId.Value);
+            }
+
+            var stationsList = query.ToList();
+
+            if (!string.IsNullOrEmpty(searchName))
+            {
+                var normalizedSearch = NormalizeAddressName(searchName);
+                stationsList = stationsList.Where(s => 
+                    (s.StationName != null && NormalizeAddressName(s.StationName).Contains(normalizedSearch)) || 
+                    (s.StationName != null && s.StationName.ToLower().Contains(searchName.ToLower())) ||
+                    (s.Address != null && NormalizeAddressName(s.Address).Contains(normalizedSearch))
+                ).ToList();
+            }
+
+            var stations = stationsList.Select(s => new
+            {
+                id = s.StationId,
+                name = s.StationName,
+                address = s.Address,
+                lat = s.Latitude,
+                lng = s.Longitude,
+                provinceId = s.ProvinceId,
+                districtId = s.DistrictId,
+                wardId = s.WardId,
+                provinceName = s.Province != null ? s.Province.ProvinceName : "",
+                districtName = s.District != null ? s.District.DistrictName : "",
+                wardName = s.Ward != null ? s.Ward.WardName : ""
+            }).ToList();
 
             return Json(stations);
         }

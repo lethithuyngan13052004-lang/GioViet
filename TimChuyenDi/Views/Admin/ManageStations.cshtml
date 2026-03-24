@@ -18,12 +18,49 @@
 
     <div class="row">
         <!-- CỘT TRÁI: FORM VÀ TÌM KIẾM -->
-        <div class="col-md-4 mb-3">
-            <div class="card shadow-sm border-0 h-100">
-                <div class="card-header bg-primary text-white">
+        <div class="col-md-4 mb-3 d-flex flex-column" style="height: 85vh;">
+            
+            <!-- Tìm kiếm Trạm đã lưu -->
+            <div class="card shadow-sm border-0 mb-3" style="flex-shrink: 0;">
+                <div class="card-header bg-success text-white">
+                    <h5 class="mb-0 fw-bold"><i class="bi bi-search"></i> Lọc & Tìm Kiếm Trạm</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row g-2">
+                        <div class="col-12">
+                            <div class="input-group mt-1">
+                                <input type="text" id="SearchStationName" class="form-control" placeholder="Nhập tên trạm hoặc địa chỉ trạm" onkeypress="if(event.key === 'Enter') loadStations();" />
+                                <button class="btn btn-success fw-bold" type="button" onclick="loadStations()"><i class="bi bi-funnel-fill"></i> Lọc</button>
+                            </div>
+                        </div>
+                        <div class="col-12">
+                            <select id="SearchProvinceId" class="form-select">
+                                <option value="">-- Tất cả Tỉnh/Thành --</option>
+                                @foreach (var p in provinces)
+                                {
+                                    <option value="@p.ProvinceId">@p.ProvinceName</option>
+                                }
+                            </select>
+                        </div>
+                        <div class="col-6">
+                            <select id="SearchDistrictId" class="form-select">
+                                <option value="">-- Tất cả Quận/Huyện --</option>
+                            </select>
+                        </div>
+                        <div class="col-6">
+                            <select id="SearchWardId" class="form-select">
+                                <option value="">-- Tất cả Phường/Xã --</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card shadow-sm border-0 flex-grow-1 d-flex flex-column" style="min-height: 0;">
+                <div class="card-header bg-primary text-white" style="flex-shrink: 0;">
                     <h5 class="mb-0 fw-bold" id="formTitle"><i class="bi bi-geo-alt-fill"></i> Thêm Trạm Mới</h5>
                 </div>
-                <div class="card-body overflow-auto" style="max-height: 80vh;">
+                <div class="card-body overflow-auto">
                     
                     <!-- Search Address -->
                     <div class="mb-4 p-3 bg-light rounded border">
@@ -121,7 +158,7 @@
         var tempMarker = null;
 
         function initSelect2() {
-            $('#ProvinceId, #DistrictId, #WardId').select2({
+            $('#ProvinceId, #DistrictId, #WardId, #SearchProvinceId, #SearchDistrictId, #SearchWardId').select2({
                 theme: 'bootstrap-5',
                 width: '100%',
                 language: {
@@ -143,6 +180,20 @@
         $(document).ready(function () {
             initSelect2();
             
+            $('#SearchProvinceId').on('change', function() {
+                loadSearchDistricts();
+                loadStations();
+            });
+
+            $('#SearchDistrictId').on('change', function() {
+                loadSearchWards();
+                loadStations();
+            });
+
+            $('#SearchWardId').on('change', function() {
+                loadStations();
+            });
+
             // Khởi tạo map tại Việt Nam
             map = L.map('stationMap').setView([16.0544, 108.2022], 6);
 
@@ -294,12 +345,29 @@
     }
 
     function loadStations() {
+        var searchName = $('#SearchStationName').val() || '';
+        var searchProvinceId = $('#SearchProvinceId').val() || '';
+        var searchDistrictId = $('#SearchDistrictId').val() || '';
+        var searchWardId = $('#SearchWardId').val() || '';
+        var url = '/Admin/GetStations?searchName=' + encodeURIComponent(searchName) 
+                + '&provinceId=' + searchProvinceId 
+                + '&districtId=' + searchDistrictId 
+                + '&wardId=' + searchWardId;
+        
         markers.clearLayers();
-        fetch('/Admin/GetStations')
+        fetch(url)
             .then(res => res.json())
             .then(data => {
+                var bounds = [];
+                var isFiltering = searchName !== '' || searchProvinceId !== '';
+
+                if (isFiltering && data.length === 0) {
+                    showToast("Không tìm thấy trạm nào phù hợp", true);
+                }
+
                 data.forEach(s => {
                     if (s.lat && s.lng) {
+                        bounds.push([s.lat, s.lng]);
                         // Custom icon cho trạm đã lưu
                         var customIcon = L.icon({
                             iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-green.png',
@@ -324,6 +392,10 @@
                         markers.addLayer(m);
                     }
                 });
+
+                if (isFiltering && bounds.length > 0) {
+                    map.fitBounds(bounds, { padding: [50, 50], maxZoom: 16 });
+                }
             });
     }
 
@@ -411,6 +483,38 @@
         let html = '<option value="">-- Chọn Phường/Xã --</option>';
         data.forEach(w => { html += `<option value="${w.id}">${w.name}</option>`; });
         document.getElementById('WardId').innerHTML = html;
+        initSelect2();
+    }
+
+    async function loadSearchDistricts() {
+        var pId = document.getElementById('SearchProvinceId').value;
+        if (!pId) {
+            document.getElementById('SearchDistrictId').innerHTML = '<option value="">-- Tất cả Quận/Huyện --</option>';
+            document.getElementById('SearchWardId').innerHTML = '<option value="">-- Tất cả Phường/Xã --</option>';
+            initSelect2();
+            return;
+        }
+        var res = await fetch(`/Home/GetDistricts?provinceId=${pId}`);
+        var data = await res.json();
+        let html = '<option value="">-- Tất cả Quận/Huyện --</option>';
+        data.forEach(d => { html += `<option value="${d.id}">${d.name}</option>`; });
+        document.getElementById('SearchDistrictId').innerHTML = html;
+        document.getElementById('SearchWardId').innerHTML = '<option value="">-- Tất cả Phường/Xã --</option>';
+        initSelect2();
+    }
+
+    async function loadSearchWards() {
+        var dId = document.getElementById('SearchDistrictId').value;
+        if (!dId) {
+            document.getElementById('SearchWardId').innerHTML = '<option value="">-- Tất cả Phường/Xã --</option>';
+            initSelect2();
+            return;
+        }
+        var res = await fetch(`/Home/GetWards?districtId=${dId}`);
+        var data = await res.json();
+        let html = '<option value="">-- Tất cả Phường/Xã --</option>';
+        data.forEach(w => { html += `<option value="${w.id}">${w.name}</option>`; });
+        document.getElementById('SearchWardId').innerHTML = html;
         initSelect2();
     }
 

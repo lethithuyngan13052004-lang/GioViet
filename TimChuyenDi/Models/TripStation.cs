@@ -14,7 +14,7 @@ public partial class TripStation
     public int StopOrder { get; set; }
 
     public DateTime? EstArrivalTime { get; set; }
-
+    public DateTime? ArrivalTime { get; set; }
     public virtual Station Station { get; set; } = null!;
 
     public virtual Trip Trip { get; set; } = null!;
