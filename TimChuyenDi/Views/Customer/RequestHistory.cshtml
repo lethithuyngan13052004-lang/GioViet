@@ -1,4 +1,4 @@
-﻿@model IEnumerable<TimChuyenDi.Models.Shiprequest>
+@model IEnumerable<TimChuyenDi.Models.Shiprequest>
 @{
     ViewData["Title"] = "Lịch sử Gửi hàng";
 }
@@ -29,7 +29,7 @@
                     @foreach (var item in Model)
                     {
                         <tr>
-                            <td class="fw-bold text-secondary">#@item.ReqId</td>
+                            <td class="fw-bold text-secondary">#@item.Id</td>
                             <td class="fw-bold">
                                 @item.Trip.FromStationNavigation.Province <i class="bi bi-arrow-right"></i> @item.Trip.ToStationNavigation.Province<br />
                                 <small class="text-muted fw-normal">Đi: @item.Trip.StartTime.ToString("dd/MM/yyyy HH:mm")</small>
@@ -38,8 +38,8 @@
                                 @item.Trip.Driver.Name<br />
                                 <small>@item.Trip.Driver.Phone</small>
                             </td>
-                            <td class="text-danger fw-bold">@item.Weight kg</td>
-                            <td class="text-success fw-bold">@item.TotalPrice.ToString("N0") đ</td>
+                            <td class="text-danger fw-bold">@(item.Cargodetails.FirstOrDefault()?.Weight ?? 0) kg</td>
+                            <td class="text-success fw-bold">@(item.TotalPrice.HasValue ? item.TotalPrice.Value.ToString("N0") : "0") đ</td>
                             <td>
                                 @if (item.Status == 0)
                                 {
@@ -76,7 +76,7 @@
                                 @if (item.Status == 0)
                                 {
                                     <form asp-action="CancelRequest" method="post" class="d-inline">
-                                        <input type="hidden" name="reqId" value="@item.ReqId" />
+                                        <input type="hidden" name="reqId" value="@item.Id" />
                                         <button type="submit" class="btn btn-sm btn-outline-danger" onclick="return confirm('Bạn có chắc chắn muốn hủy đơn gửi hàng này không?');">Hủy đơn</button>
                                     </form>
                                 }
@@ -88,7 +88,7 @@
                             </td>
 
                             <td>
-                                <a asp-action="RequestDetail" asp-controller="Customer" asp-route-id="@item.ReqId" class="btn btn-outline-primary btn-sm mt-2">
+                                <a asp-action="RequestDetail" asp-controller="Customer" asp-route-id="@item.Id" class="btn btn-outline-primary btn-sm mt-2">
                                     <i class="bi bi-eye"></i> Xem chi tiết
                                 </a>
                             </td>

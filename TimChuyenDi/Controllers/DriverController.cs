@@ -1,4 +1,4 @@
-﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -26,7 +26,7 @@ namespace TimChuyenDi.Controllers
 
             // Nối bảng sâu: Đơn hàng -> Chuyến xe -> Trạm -> Tỉnh
             var requests = _context.Shiprequests
-                .Include(r => r.Customer)
+                .Include(r => r.User)
                 .Include(r => r.Trip)
                     .ThenInclude(t => t.FromStationNavigation)
                         .ThenInclude(s => s.Province)
@@ -46,7 +46,8 @@ namespace TimChuyenDi.Controllers
         {
             var request = _context.Shiprequests
                                   .Include(r => r.Trip)
-                                  .FirstOrDefault(r => r.ReqId == reqId);
+                                  .Include(r => r.Cargodetails)
+                                  .FirstOrDefault(r => r.Id == reqId);
 
             if (request != null)
             {
@@ -54,11 +55,10 @@ namespace TimChuyenDi.Controllers
                 if (request.Status == 0 && (status == 1 || status == 2))
                 {
                     request.Status = status;
-                    request.RespondedAt = DateTime.Now;
 
                     if (status == 1) // Nếu nhận đơn -> Trừ sức chứa của xe
                     {
-                        request.Trip.AvaiCapacityKg -= request.Weight;
+                        request.Trip.AvaiCapacityKg -= (int)(request.Cargodetails.FirstOrDefault()?.Weight ?? 0);
                         // Nếu sau này khách có nhập thể tích (Size), bro có thể trừ tiếp AvaiCapacityM3 ở đây
                     }
                     _context.SaveChanges();
@@ -253,8 +253,9 @@ namespace TimChuyenDi.Controllers
             var driverId = int.Parse(User.FindFirstValue("UserId"));
 
             var requestDetail = _context.Shiprequests
-                .Include(r => r.Customer)
-                .Include(r => r.CargoType) // Thêm bảng Loại hàng hóa
+                .Include(r => r.User)
+                .Include(r => r.Cargodetails)
+                .Include(r => r.Shippingroutes)
                 .Include(r => r.Trip)
                     .ThenInclude(t => t.FromStationNavigation)
                         .ThenInclude(s => s.Province)
@@ -263,7 +264,7 @@ namespace TimChuyenDi.Controllers
                         .ThenInclude(s => s.Province)
                 .Include(r => r.Trip)
                     .ThenInclude(t => t.Vehicle)
-                .FirstOrDefault(r => r.ReqId == id && r.Trip.DriverId == driverId);
+                .FirstOrDefault(r => r.Id == id && r.Trip.DriverId == driverId);
 
             if (requestDetail == null) return NotFound("Không tìm thấy đơn hàng!");
 

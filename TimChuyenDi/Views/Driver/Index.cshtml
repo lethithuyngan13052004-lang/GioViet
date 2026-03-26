@@ -1,4 +1,4 @@
-﻿@model IEnumerable<TimChuyenDi.Models.Shiprequest>
+@model IEnumerable<TimChuyenDi.Models.Shiprequest>
 @{
     ViewData["Title"] = "Quản lý Yêu cầu Ghép hàng";
 }
@@ -30,15 +30,15 @@
                     {
                         <tr>
                             <td>
-                                <strong>@item.Customer.Name</strong><br />
-                                <small class="text-muted"><i class="bi bi-telephone"></i> @item.Customer.Phone</small>
+                                <strong>@item.User.Name</strong><br />
+                                <small class="text-muted"><i class="bi bi-telephone"></i> @item.User.Phone</small>
                             </td>
                             <td>
                                 @item.Trip.FromStationNavigation.Province <i class="bi bi-arrow-right"></i> @item.Trip.ToStationNavigation.Province<br />
                                 <small class="text-primary">Khởi hành: @item.Trip.StartTime.ToString("dd/MM/yyyy HH:mm")</small>
                             </td>
-                            <td class="text-danger fw-bold">@item.Weight kg</td>
-                            <td class="text-success fw-bold">@item.TotalPrice.ToString("N0") đ</td>
+                            <td class="text-danger fw-bold">@(item.Cargodetails.FirstOrDefault()?.Weight ?? 0) kg</td>
+                            <td class="text-success fw-bold">@(item.TotalPrice.HasValue ? item.TotalPrice.Value.ToString("N0") : "0") đ</td>
                             <td>
                                 @if (item.Status == 0)
                                 {
@@ -59,12 +59,12 @@
                                 @if (item.Status == 0)
                                 {
                                     <form asp-action="UpdateRequestStatus" method="post" class="d-inline">
-                                        <input type="hidden" name="reqId" value="@item.ReqId" />
+                                        <input type="hidden" name="reqId" value="@item.Id" />
                                         <input type="hidden" name="status" value="1" />
                                         <button type="submit" class="btn btn-sm btn-success mb-1">Nhận đơn</button>
                                     </form>
                                     <form asp-action="UpdateRequestStatus" method="post" class="d-inline">
-                                        <input type="hidden" name="reqId" value="@item.ReqId" />
+                                        <input type="hidden" name="reqId" value="@item.Id" />
                                         <input type="hidden" name="status" value="2" />
                                         <button type="submit" class="btn btn-sm btn-outline-danger mb-1">Từ chối</button>
                                     </form>
@@ -72,7 +72,7 @@
                                 else if (item.Status == 1)
                                 {
                                     <form asp-action="UpdateRequestStatus" method="post" class="d-inline">
-                                        <input type="hidden" name="reqId" value="@item.ReqId" />
+                                        <input type="hidden" name="reqId" value="@item.Id" />
                                         <input type="hidden" name="status" value="3" />
                                         <button type="submit" class="btn btn-sm btn-info text-dark mb-1">Bắt đầu giao</button>
                                     </form>
@@ -80,7 +80,7 @@
                                 else if (item.Status == 3)
                                 {
                                     <form asp-action="UpdateRequestStatus" method="post" class="d-inline">
-                                        <input type="hidden" name="reqId" value="@item.ReqId" />
+                                        <input type="hidden" name="reqId" value="@item.Id" />
                                         <input type="hidden" name="status" value="4" />
                                         <button type="submit" class="btn btn-sm btn-primary mb-1">Hoàn thành</button>
                                     </form>
@@ -92,7 +92,7 @@
                             </td>
 
                             <td>
-                                <a asp-action="RequestDetail" asp-controller="Driver" asp-route-id="@item.ReqId" class="btn btn-outline-primary btn-sm mt-1">
+                                <a asp-action="RequestDetail" asp-controller="Driver" asp-route-id="@item.Id" class="btn btn-outline-primary btn-sm mt-1">
                                     <i class="bi bi-eye"></i> Xem chi tiết
                                 </a>
                             </td>

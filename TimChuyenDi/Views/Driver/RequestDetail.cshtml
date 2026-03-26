@@ -1,7 +1,7 @@
-﻿@model TimChuyenDi.Models.Shiprequest
+@model TimChuyenDi.Models.Shiprequest
 
 @{
-    ViewData["Title"] = "Chi tiết đơn hàng #" + Model.ReqId;
+    ViewData["Title"] = "Chi tiết đơn hàng #" + Model.Id;
 
     string badgeClass = Model.Status switch
     {
@@ -32,7 +32,7 @@
     <div class="card shadow-sm border-0 rounded-4 overflow-hidden">
         <div class="card-header bg-light p-4 border-bottom d-flex justify-content-between align-items-center">
             <div>
-                <h5 class="mb-1 text-primary">Mã đơn: #@Model.ReqId</h5>
+                <h5 class="mb-1 text-primary">Mã đơn: #@Model.Id</h5>
                 <small class="text-muted">
                     Ngày khách đặt: @Model.CreatedAt.ToString("dd/MM/yyyy HH:mm")
                 </small>
@@ -47,29 +47,29 @@
 
                     <div class="mb-4 bg-light p-3 rounded-3 border-start border-4 border-primary">
                         <label class="text-muted fw-bold small">👤 THÔNG TIN NGƯỜI GỬI (KHÁCH HÀNG)</label>
-                        <p class="fs-6 fw-bold text-dark mb-1">@Model.Customer.Name</p>
-                        <p class="fs-6 text-dark mb-0"><i class="bi bi-telephone-fill text-success me-2"></i>@Model.Customer.Phone</p>
+                        <p class="fs-6 fw-bold text-dark mb-1">@Model.User.Name</p>
+                        <p class="fs-6 text-dark mb-0"><i class="bi bi-telephone-fill text-success me-2"></i>@Model.User.Phone</p>
                     </div>
 
                     <div class="mb-3">
                         <label class="text-muted fw-bold small">📍 ĐỊA CHỈ ĐẾN LẤY HÀNG</label>
-                        <p class="fs-6 mb-0"><strong>@Model.PickupAddress</strong>, @Model.Trip.FromStationNavigation.Province</p>
+                        <p class="fs-6 mb-0"><strong>@(Model.Shippingroutes.FirstOrDefault()?.PickupAddress)</strong>, @Model.Trip.FromStationNavigation.Province</p>
                     </div>
 
                     <div class="mb-3">
                         <label class="text-muted fw-bold small">🚩 ĐỊA CHỈ TRẢ HÀNG</label>
-                        <p class="fs-6 mb-0"><strong>@Model.DeliveryAddress</strong>, @Model.Trip.ToStationNavigation.Province</p>
+                        <p class="fs-6 mb-0"><strong>@(Model.Shippingroutes.FirstOrDefault()?.DeliveryAddress)</strong>, @Model.Trip.ToStationNavigation.Province</p>
                     </div>
 
                     <div class="mb-3 bg-light p-3 rounded-3 border-start border-4 border-info">
                         <label class="text-muted fw-bold small">👤 THÔNG TIN NGƯỜI NHẬN</label>
-                        <p class="fs-6 fw-bold text-dark mb-0">@Model.ReceiverInfo</p>
+                        <p class="fs-6 fw-bold text-dark mb-0">@(Model.Shippingroutes.FirstOrDefault()?.ReceiverName)</p>
                     </div>
 
-                    @if (!string.IsNullOrEmpty(Model.Description))
+                    @if (!string.IsNullOrEmpty(Model.Cargodetails.FirstOrDefault()?.Description))
                     {
                         <div class="alert alert-warning border-0 shadow-sm mt-3">
-                            <i class="bi bi-exclamation-triangle-fill text-warning me-2"></i><strong>Khách ghi chú:</strong> @Model.Description
+                            <i class="bi bi-exclamation-triangle-fill text-warning me-2"></i><strong>Khách ghi chú:</strong> @(Model.Cargodetails.FirstOrDefault()?.Description)
                         </div>
                     }
                 </div>
@@ -80,7 +80,7 @@
                     <ul class="list-group list-group-flush mb-4">
                         <li class="list-group-item bg-transparent px-0 d-flex justify-content-between">
                             <span class="text-muted">Khối lượng kiện hàng:</span>
-                            <span class="fw-bold text-danger fs-5">@Model.Weight kg</span>
+                            <span class="fw-bold text-danger fs-5">@(Model.Cargodetails.FirstOrDefault()?.Weight) kg</span>
                         </li>
                         <li class="list-group-item bg-transparent px-0 d-flex justify-content-between">
                             <span class="text-muted">Thuộc chuyến xe:</span>
@@ -90,12 +90,12 @@
 
                     <div class="bg-success bg-opacity-10 p-4 rounded-4 text-center border border-success border-opacity-25 mb-4">
                         <span class="text-muted fw-bold d-block mb-1">SỐ TIỀN THU KHÁCH</span>
-                        <h2 class="fw-bold text-success mb-0">@Model.TotalPrice.ToString("N0") <span class="fs-5">VNĐ</span></h2>
+                        <h2 class="fw-bold text-success mb-0">@(Model.TotalPrice.HasValue ? Model.TotalPrice.Value.ToString("N0") : "0") <span class="fs-5">VNĐ</span></h2>
                     </div>
 
                     <div class="d-grid gap-2">
                         <form asp-action="UpdateRequestStatus" asp-controller="Driver" method="post" class="d-grid gap-2">
-                            <input type="hidden" name="reqId" value="@Model.ReqId" />
+                            <input type="hidden" name="reqId" value="@Model.Id" />
 
                             @if (Model.Status == 0) // Đang chờ xác nhận
                             {

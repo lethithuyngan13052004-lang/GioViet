@@ -1,7 +1,7 @@
-﻿@model TimChuyenDi.Models.Shiprequest
+@model TimChuyenDi.Models.Shiprequest
 
 @{
-    ViewData["Title"] = "Chi tiết đơn hàng #" + Model.ReqId;
+    ViewData["Title"] = "Chi tiết đơn hàng #" + Model.Id;
 
     // Xử lý màu sắc trạng thái
     string badgeClass = Model.Status switch
@@ -26,7 +26,7 @@
 
 <div class="container mt-5 mb-5">
     <div class="d-flex justify-content-between align-items-center mb-4">
-        <h3 class="fw-bold text-primary"><i class="bi bi-receipt-cutoff me-2"></i>Chi tiết đơn hàng #@Model.ReqId</h3>
+        <h3 class="fw-bold text-primary"><i class="bi bi-receipt-cutoff me-2"></i>Chi tiết đơn hàng #@Model.Id</h3>
         <a asp-action="RequestHistory" class="btn btn-outline-secondary"><i class="bi bi-arrow-left"></i> Quay lại</a>
     </div>
 
@@ -45,23 +45,23 @@
 
                     <div class="mb-3">
                         <label class="text-muted fw-bold small">📍 ĐỊA CHỈ LẤY HÀNG (@Model.Trip.FromStationNavigation.Province)</label>
-                        <p class="fs-6 mb-0">@Model.PickupAddress</p>
+                        <p class="fs-6 mb-0">@(Model.Shippingroutes.FirstOrDefault()?.PickupAddress)</p>
                     </div>
 
                     <div class="mb-3">
-                        <label class="text-muted fw-bold small">🚩 ĐỊA CHỈ GIAO HÀNG (@Model.Trip.ToStationNavigation.Province)</label>
-                        <p class="fs-6 mb-0">@Model.DeliveryAddress</p>
+                        <label class="text-muted fw-bold small">🚩 ĐỊA CHỈ GIAO HÀNG (@Model.Trip?.ToStationNavigation.Province)</label>
+                        <p class="fs-6 mb-0">@(Model.Shippingroutes.FirstOrDefault()?.DeliveryAddress)</p>
                     </div>
 
                     <div class="mb-3 bg-light p-3 rounded-3">
                         <label class="text-muted fw-bold small">👤 NGƯỜI NHẬN</label>
-                        <p class="fs-6 fw-bold text-dark mb-0">@Model.ReceiverInfo</p>
+                        <p class="fs-6 fw-bold text-dark mb-0">@(Model.Shippingroutes.FirstOrDefault()?.ReceiverName)</p>
                     </div>
 
-                    @if (!string.IsNullOrEmpty(Model.Description))
+                    @if (!string.IsNullOrEmpty(Model.Cargodetails.FirstOrDefault()?.Description))
                     {
                         <div class="alert alert-warning border-0 shadow-sm mt-3">
-                            <i class="bi bi-journal-text me-2"></i><strong>Ghi chú:</strong> @Model.Description
+                            <i class="bi bi-journal-text me-2"></i><strong>Ghi chú:</strong> @(Model.Cargodetails.FirstOrDefault()?.Description)
                         </div>
                     }
                 </div>
@@ -84,19 +84,19 @@
                         </li>
                         <li class="list-group-item bg-transparent px-0 d-flex justify-content-between">
                             <span class="text-muted">Khối lượng gửi:</span>
-                            <span class="fw-bold text-dark">@Model.Weight kg</span>
+                            <span class="fw-bold text-dark">@(Model.Cargodetails.FirstOrDefault()?.Weight) kg</span>
                         </li>
                     </ul>
 
                     <div class="bg-primary bg-opacity-10 p-4 rounded-4 text-center border border-primary border-opacity-25">
                         <span class="text-muted fw-bold d-block mb-1">TỔNG CƯỚC PHÍ</span>
-                        <h2 class="fw-bold text-primary mb-0">@Model.TotalPrice.ToString("N0") <span class="fs-5">VNĐ</span></h2>
+                        <h2 class="fw-bold text-primary mb-0">@(Model.TotalPrice.HasValue ? Model.TotalPrice.Value.ToString("N0") : "0") <span class="fs-5">VNĐ</span></h2>
                     </div>
 
                     @if (Model.Status == 0)
                     {
                         <form asp-action="CancelRequest" asp-controller="Customer" method="post" class="mt-4 d-grid">
-                            <input type="hidden" name="reqId" value="@Model.ReqId" />
+                            <input type="hidden" name="reqId" value="@Model.Id" />
                             <button type="submit" class="btn btn-outline-danger" onclick="return confirm('Bạn có chắc chắn muốn hủy đơn hàng này?');">
                                 <i class="bi bi-x-circle me-1"></i> Hủy đơn hàng này
                             </button>

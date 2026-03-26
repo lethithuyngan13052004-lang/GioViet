@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using Microsoft.EntityFrameworkCore;
 using Pomelo.EntityFrameworkCore.MySql.Scaffolding.Internal;
@@ -35,6 +35,10 @@ public partial class TimchuyendiContext : DbContext
     public virtual DbSet<RequestTripMatch> RequestTripMatches { get; set; }
 
     public virtual DbSet<Shiprequest> Shiprequests { get; set; }
+
+    public virtual DbSet<Cargodetail> Cargodetails { get; set; }
+
+    public virtual DbSet<Shippingroute> Shippingroutes { get; set; }
 
     public virtual DbSet<Station> Stations { get; set; }
 
@@ -310,56 +314,87 @@ public partial class TimchuyendiContext : DbContext
 
         modelBuilder.Entity<Shiprequest>(entity =>
         {
-            entity.HasKey(e => e.ReqId).HasName("PRIMARY");
+            entity.HasKey(e => e.Id).HasName("PRIMARY");
 
-            entity.ToTable("shiprequests");
+            entity.ToTable("shiprequest");
 
-            entity.HasIndex(e => e.CargoTypeId, "CargoTypeId");
-
-            entity.HasIndex(e => e.CustomerId, "CustomerId");
+            entity.HasIndex(e => e.UserId, "UserId");
 
             entity.HasIndex(e => e.TripId, "TripId");
 
-            entity.Property(e => e.ReqId).HasColumnType("int(11)");
-            entity.Property(e => e.BasePrice).HasPrecision(18, 2);
-            entity.Property(e => e.CargoTypeId).HasColumnType("int(11)");
+            entity.Property(e => e.Id).HasColumnType("int(11)");
             entity.Property(e => e.CreatedAt)
                 .HasDefaultValueSql("current_timestamp()")
                 .HasColumnType("datetime");
-            entity.Property(e => e.CustomerId).HasColumnType("int(11)");
-            entity.Property(e => e.DeliveryAddress).HasMaxLength(255);
-            entity.Property(e => e.DeliveryFee).HasPrecision(18, 2);
-            entity.Property(e => e.DeliveryLat).HasPrecision(10, 8);
-            entity.Property(e => e.DeliveryLng).HasPrecision(11, 8);
-            entity.Property(e => e.Description).HasColumnType("text");
-            entity.Property(e => e.PickupAddress).HasMaxLength(255);
-            entity.Property(e => e.PickupFee).HasPrecision(18, 2);
-            entity.Property(e => e.PickupLat).HasPrecision(10, 8);
-            entity.Property(e => e.PickupLng).HasPrecision(11, 8);
-            entity.Property(e => e.ReceiverInfo).HasMaxLength(255);
-            entity.Property(e => e.RespondedAt).HasColumnType("datetime");
-            entity.Property(e => e.Size).HasMaxLength(100);
+            entity.Property(e => e.Note).HasColumnType("text");
             entity.Property(e => e.Status)
+                .HasDefaultValueSql("'0'")
                 .HasComment("0: Pending, 1: Accepted, 2: Rejected, 3: Shipping, 4: Done")
                 .HasColumnType("int(11)");
-            entity.Property(e => e.TotalPrice).HasPrecision(18, 2);
+            entity.Property(e => e.TotalPrice)
+                .HasDefaultValueSql("'0.00'")
+                .HasPrecision(18, 2);
             entity.Property(e => e.TripId).HasColumnType("int(11)");
-            entity.Property(e => e.Weight).HasColumnType("int(11)");
+            entity.Property(e => e.UserId).HasColumnType("int(11)");
 
-            entity.HasOne(d => d.CargoType).WithMany(p => p.Shiprequests)
-                .HasForeignKey(d => d.CargoTypeId)
+            entity.HasOne(d => d.User).WithMany(p => p.Shiprequests)
+                .HasForeignKey(d => d.UserId)
                 .OnDelete(DeleteBehavior.ClientSetNull)
-                .HasConstraintName("shiprequests_ibfk_3");
-
-            entity.HasOne(d => d.Customer).WithMany(p => p.Shiprequests)
-                .HasForeignKey(d => d.CustomerId)
-                .OnDelete(DeleteBehavior.ClientSetNull)
-                .HasConstraintName("shiprequests_ibfk_1");
+                .HasConstraintName("shiprequest_ibfk_1");
 
             entity.HasOne(d => d.Trip).WithMany(p => p.Shiprequests)
                 .HasForeignKey(d => d.TripId)
+                .OnDelete(DeleteBehavior.SetNull)
+                .HasConstraintName("shiprequest_ibfk_2");
+        });
+
+        modelBuilder.Entity<Cargodetail>(entity =>
+        {
+            entity.HasKey(e => e.Id).HasName("PRIMARY");
+
+            entity.ToTable("cargodetail");
+
+            entity.HasIndex(e => e.RequestId, "RequestId");
+
+            entity.Property(e => e.Id).HasColumnType("int(11)");
+            entity.Property(e => e.Description).HasColumnType("text");
+            entity.Property(e => e.Height).HasPrecision(10, 2);
+            entity.Property(e => e.Length).HasPrecision(10, 2);
+            entity.Property(e => e.RequestId).HasColumnType("int(11)");
+            entity.Property(e => e.Weight).HasPrecision(10, 2);
+            entity.Property(e => e.Width).HasPrecision(10, 2);
+
+            entity.HasOne(d => d.Request).WithMany(p => p.Cargodetails)
+                .HasForeignKey(d => d.RequestId)
                 .OnDelete(DeleteBehavior.ClientSetNull)
-                .HasConstraintName("shiprequests_ibfk_2");
+                .HasConstraintName("cargodetail_ibfk_1");
+        });
+
+        modelBuilder.Entity<Shippingroute>(entity =>
+        {
+            entity.HasKey(e => e.Id).HasName("PRIMARY");
+
+            entity.ToTable("shippingroute");
+
+            entity.HasIndex(e => e.RequestId, "RequestId");
+
+            entity.Property(e => e.Id).HasColumnType("int(11)");
+            entity.Property(e => e.DeliveryAddress).HasMaxLength(500);
+            entity.Property(e => e.FromStationId).HasColumnType("int(11)");
+            entity.Property(e => e.Lat).HasPrecision(10, 8);
+            entity.Property(e => e.Lng).HasPrecision(11, 8);
+            entity.Property(e => e.PickupAddress).HasMaxLength(500);
+            entity.Property(e => e.PickupType).HasColumnType("int(11)");
+            entity.Property(e => e.ReceiverName).HasMaxLength(100);
+            entity.Property(e => e.ReceiverPhone).HasMaxLength(15);
+            entity.Property(e => e.RequestId).HasColumnType("int(11)");
+            entity.Property(e => e.SenderPhone).HasMaxLength(15);
+            entity.Property(e => e.ToStationId).HasColumnType("int(11)");
+
+            entity.HasOne(d => d.Request).WithMany(p => p.Shippingroutes)
+                .HasForeignKey(d => d.RequestId)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("shippingroute_ibfk_1");
         });
 
         modelBuilder.Entity<Station>(entity =>

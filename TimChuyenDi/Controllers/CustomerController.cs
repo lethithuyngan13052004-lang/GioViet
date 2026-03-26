@@ -1,4 +1,4 @@
-﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.EntityFrameworkCore;
@@ -29,8 +29,9 @@ namespace TimChuyenDi.Controllers
             var requests = _context.Shiprequests
                 .Include(r => r.Trip).ThenInclude(t => t.FromStationNavigation).ThenInclude(s => s.Province)
                 .Include(r => r.Trip).ThenInclude(t => t.ToStationNavigation).ThenInclude(s => s.Province)
-                .Include(r => r.CargoType)
-                .Where(r => r.CustomerId == customerId)
+                .Include(r => r.Cargodetails)
+                .Include(r => r.Shippingroutes)
+                .Where(r => r.UserId == customerId)
                 .OrderByDescending(r => r.CreatedAt)
                 .ToList();
 
@@ -87,7 +88,7 @@ namespace TimChuyenDi.Controllers
         }
 
         [HttpPost]
-        public IActionResult BookTrip(int TripId, int CargoTypeId, string ReceiverInfo, int Weight, string Size, string Description, string PickupAddress, string DeliveryAddress)
+        public IActionResult BookTrip(int TripId, int CargoTypeId, string ReceiverInfo, decimal Weight, decimal Length, decimal Width, decimal Height, string Description, string PickupAddress, string DeliveryAddress, string PackageName, int Quantity = 1, decimal EstimatedValue = 0, string Note = "")
         {
             var trip = _context.Trips.Find(TripId);
             var cargoType = _context.Cargotypes.Find(CargoTypeId);
@@ -98,29 +99,46 @@ namespace TimChuyenDi.Controllers
                 return RedirectToAction("BookTrip", new { id = TripId });
             }
 
-            var customerId = int.Parse(User.FindFirstValue("UserId"));
+            var customerIdStr = User.FindFirstValue("UserId");
+            if (string.IsNullOrEmpty(customerIdStr)) return RedirectToAction("Login", "Auth");
+            int customerId = int.Parse(customerIdStr);
 
-            // Thuật toán tính giá siêu việt
+            // Thuật toán tính giá: (Khối lượng * Giá gốc) * Hệ số loại hàng
             decimal basePrice = Weight * trip.BasePricePerKg;
             decimal totalPrice = basePrice * cargoType.PriceMultiplier;
 
+            // Gộp thông tin chi tiết vào Description nếu schema chưa có trường riêng
+            string fullDescription = $"[Kiện: {PackageName}] [SL: {Quantity}] [Giá trị: {EstimatedValue:N0}đ] {Description}";
+
             var request = new Shiprequest
             {
-                CustomerId = customerId,
+                UserId = customerId,
                 TripId = TripId,
-                CargoTypeId = CargoTypeId,
-                ReceiverInfo = ReceiverInfo,
-                Weight = Weight,
-                Size = Size,
-                Description = Description,
-                PickupAddress = PickupAddress,
-                DeliveryAddress = DeliveryAddress,
-                BasePrice = basePrice,
-                PickupFee = 0,
-                DeliveryFee = 0,
                 TotalPrice = totalPrice,
                 Status = 0,
-                CreatedAt = DateTime.Now
+                Note = Note, // Lưu ghi chú từ form
+                CreatedAt = DateTime.Now,
+                Cargodetails = new List<Cargodetail>
+                {
+                    new Cargodetail
+                    {
+                        Weight = Weight,
+                        Length = Length,
+                        Width = Width,
+                        Height = Height,
+                        Description = fullDescription
+                    }
+                },
+                Shippingroutes = new List<Shippingroute>
+                {
+                    new Shippingroute
+                    {
+                        ReceiverName = ReceiverInfo,
+                        PickupAddress = PickupAddress,
+                        DeliveryAddress = DeliveryAddress,
+                        PickupType = 1
+                    }
+                }
             };
 
             _context.Shiprequests.Add(request);
@@ -192,8 +210,9 @@ namespace TimChuyenDi.Controllers
                 .Include(r => r.Trip).ThenInclude(t => t.FromStationNavigation).ThenInclude(s => s.Province)
                 .Include(r => r.Trip).ThenInclude(t => t.ToStationNavigation).ThenInclude(s => s.Province)
                 .Include(r => r.Trip).ThenInclude(t => t.Driver)
-                .Include(r => r.CargoType)
-                .Where(r => r.CustomerId == customerId)
+                .Include(r => r.Cargodetails)
+                .Include(r => r.Shippingroutes)
+                .Where(r => r.UserId == customerId)
                 .OrderByDescending(r => r.CreatedAt)
                 .ToList();
 
@@ -210,8 +229,9 @@ namespace TimChuyenDi.Controllers
                 .Include(r => r.Trip).ThenInclude(t => t.ToStationNavigation).ThenInclude(s => s.Province)
                 .Include(r => r.Trip).ThenInclude(t => t.Driver)
                 .Include(r => r.Trip).ThenInclude(t => t.Vehicle)
-                .Include(r => r.CargoType)
-                .FirstOrDefault(r => r.ReqId == id && r.CustomerId == customerId);
+                .Include(r => r.Cargodetails)
+                .Include(r => r.Shippingroutes)
+                .FirstOrDefault(r => r.Id == id && r.UserId == customerId);
 
             if (requestDetail == null) return NotFound("Không tìm thấy đơn hàng!");
 
@@ -222,7 +242,7 @@ namespace TimChuyenDi.Controllers
         public IActionResult CancelRequest(int reqId)
         {
             var customerId = int.Parse(User.FindFirstValue("UserId"));
-            var request = _context.Shiprequests.FirstOrDefault(r => r.ReqId == reqId && r.CustomerId == customerId);
+            var request = _context.Shiprequests.FirstOrDefault(r => r.Id == reqId && r.UserId == customerId);
 
             if (request != null && request.Status == 0)
             {
@@ -242,7 +262,7 @@ namespace TimChuyenDi.Controllers
             var customerId = int.Parse(User.FindFirstValue("UserId"));
             var request = _context.Shiprequests
                                .Include(r => r.Trip).ThenInclude(t => t.Driver)
-                               .FirstOrDefault(r => r.ReqId == reqId && r.CustomerId == customerId);
+                               .FirstOrDefault(r => r.Id == reqId && r.UserId == customerId);
 
             if (request == null || request.Status != 4)
                 return NotFound("Đơn hàng chưa hoàn thành hoặc không tồn tại!");
