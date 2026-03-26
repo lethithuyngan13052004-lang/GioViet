@@ -89,29 +89,39 @@ namespace TimChuyenDi.Controllers
         // GET: Quản lý danh sách phương tiện
         public IActionResult ManageVehicles()
         {
-            var vehicles = _context.Vehicles.OrderByDescending(v => v.VehicleId).ToList();
+            var vehicles = _context.Vehicles
+                .Include(v => v.Driver)
+                .Include(v => v.VehicleType)
+                .OrderBy(v => v.Status) // Chờ duyệt (0) lên trước
+                .ThenByDescending(v => v.VehicleId)
+                .ToList();
             return View(vehicles);
         }
 
-        // POST: Xử lý thêm xe mới
+        // POST: Duyệt phương tiện
         [HttpPost]
-        public IActionResult AddVehicle(string plateNumber, int maxCapacityKg)
+        public IActionResult ApproveVehicle(int id)
         {
-            // Kiểm tra dữ liệu đầu vào không được rỗng và tải trọng phải > 0
-            if (!string.IsNullOrEmpty(plateNumber) && maxCapacityKg > 0)
+            var vehicle = _context.Vehicles.Find(id);
+            if (vehicle != null && vehicle.Status != 1)
             {
-                // Kiểm tra xem biển số đã tồn tại chưa để tránh trùng lặp
-                var exists = _context.Vehicles.Any(v => v.PlateNumber == plateNumber);
-                if (!exists)
-                {
-                    var newVehicle = new Vehicle
-                    {
-                        PlateNumber = plateNumber,
-                        CapacityKg = maxCapacityKg
-                    };
-                    _context.Vehicles.Add(newVehicle);
-                    _context.SaveChanges();
-                }
+                vehicle.Status = 1; // 1 = Đã duyệt
+                _context.SaveChanges();
+                TempData["SuccessMessage"] = $"Đã duyệt xe biển số {vehicle.PlateNumber} thành công!";
+            }
+            return RedirectToAction("ManageVehicles");
+        }
+
+        // POST: Từ chối phương tiện
+        [HttpPost]
+        public IActionResult RejectVehicle(int id)
+        {
+            var vehicle = _context.Vehicles.Find(id);
+            if (vehicle != null && vehicle.Status != 2)
+            {
+                vehicle.Status = 2; // 2 = Từ chối
+                _context.SaveChanges();
+                TempData["SuccessMessage"] = $"Đã từ chối xe biển số {vehicle.PlateNumber}!";
             }
             return RedirectToAction("ManageVehicles");
         }

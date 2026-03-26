@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 
 namespace TimChuyenDi.Models;
@@ -16,6 +16,13 @@ public partial class Vehicle
     public int CapacityM3 { get; set; }
 
     public int VehicleTypeId { get; set; }
+
+    /// <summary>
+    /// 0: Pending, 1: Approved, 2: Rejected
+    /// </summary>
+    public int Status { get; set; }
+    
+    public string? VehicleImage { get; set; }
 
     public virtual User Driver { get; set; } = null!;
 

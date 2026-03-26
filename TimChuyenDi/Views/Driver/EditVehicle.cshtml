@@ -1,0 +1,72 @@
+@model TimChuyenDi.Models.Vehicle
+@{
+    ViewData["Title"] = "Cập nhật thông tin xe";
+}
+
+<div class="mt-4 mb-3">
+    <a asp-action="ManageVehicles" class="btn btn-outline-secondary btn-sm"><i class="bi bi-arrow-left"></i> Quay lại</a>
+</div>
+
+<div class="card shadow-sm border-0 bg-light p-4" style="max-width: 800px; margin: 0 auto;">
+    <h4 class="text-primary mb-4 fw-bold"><i class="bi bi-truck-front"></i> Cập Nhật Phương Tiện</h4>
+    
+    @if (Model.Status == 2)
+    {
+        <div class="alert alert-danger fst-italic shadow-sm">
+            <i class="bi bi-x-octagon-fill"></i> Xe này đang bị Admin từ chối. Nếu bạn chỉnh sửa thông tin, xe sẽ được gửi yêu cầu duyệt lại!
+        </div>
+    }
+    else if (Model.Status == 1)
+    {
+        <div class="alert alert-warning fst-italic shadow-sm text-dark">
+            <i class="bi bi-exclamation-triangle-fill"></i> Xe này đã được duyệt. <strong>Lưu ý:</strong> Bất kỳ chỉnh sửa nào thay đổi thông tin hồ sơ cũng sẽ đưa trạng thái xe về "Chờ duyệt" và bạn không thể dùng xe này ghép chuyến cho đến khi Admin duyệt lại.
+        </div>
+    }
+
+    <form asp-action="EditVehicle" method="post" enctype="multipart/form-data">
+        <input type="hidden" asp-for="VehicleId" />
+        <input type="hidden" asp-for="DriverId" />
+        
+        <div class="row g-3">
+            <div class="col-md-6 mb-3">
+                <label class="form-label fw-bold">Biển số xe</label>
+                <input asp-for="PlateNumber" class="form-control" required />
+            </div>
+
+            <div class="col-md-6 mb-3">
+                <label class="form-label fw-bold">Loại xe</label>
+                <select asp-for="VehicleTypeId" class="form-select" asp-items="ViewBag.VehicleTypes" required></select>
+            </div>
+
+            <div class="col-md-6 mb-3">
+                <label class="form-label fw-bold">Trọng tải (Kg)</label>
+                <div class="input-group">
+                    <input asp-for="CapacityKg" type="number" class="form-control" min="1" required />
+                    <span class="input-group-text bg-white">Kg</span>
+                </div>
+            </div>
+
+            <div class="col-12 mb-4">
+                <label class="form-label fw-bold d-block">Ảnh giấy đăng ký xe hiện tại</label>
+                @if (!string.IsNullOrEmpty(Model.VehicleImage))
+                {
+                    <img src="@Model.VehicleImage" alt="Giấy đăng ký xe" class="img-thumbnail mb-2" style="max-height: 200px;" />
+                }
+                else
+                {
+                    <div class="text-muted fst-italic mb-2">Chưa có ảnh giấy tờ xe! Hành vi này không hợp lệ, vui lòng bổ sung ngay.</div>
+                }
+                
+                <label class="form-label fw-bold mt-3">Thay đổi ảnh (Tùy chọn)</label>
+                <input type="file" name="imageFile" class="form-control" accept="image/*" />
+                <div class="form-text text-muted">Nếu không muốn đổi ảnh, vui lòng để trống.</div>
+            </div>
+
+            <div class="col-12 text-end">
+                <button type="submit" class="btn btn-primary fw-bold px-4 py-2" onclick="return confirm('Bạn có chắc muốn lưu thay đổi? Thao tác này sẽ đưa trạng thái xe về Chờ duyệt.');">
+                    <i class="bi bi-save"></i> Cập Nhật & Xin Duyệt Lại
+                </button>
+            </div>
+        </div>
+    </form>
+</div>

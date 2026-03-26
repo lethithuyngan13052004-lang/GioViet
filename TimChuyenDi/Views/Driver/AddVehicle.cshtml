@@ -1,0 +1,65 @@
+@model TimChuyenDi.Models.Vehicle
+@{
+    ViewData["Title"] = "Thêm xe mới";
+}
+
+<div class="card shadow-lg border-0 rounded-4 overflow-hidden" style="max-width: 850px; margin: 0 auto;">
+    
+    <!-- Header -->
+    <div class="p-4 text-white" style="background: linear-gradient(135deg, #4e73df, #1cc88a);">
+        <h4 class="fw-bold mb-1">
+            <i class="bi bi-truck-front"></i> Khai báo Phương tiện
+        </h4>
+        <p class="mb-0 small opacity-75">
+            Điền thông tin chính xác để được xét duyệt nhanh chóng
+        </p>
+    </div>
+
+    <!-- Body -->
+    <div class="p-4 bg-white">
+        <form asp-action="AddVehicle" method="post" enctype="multipart/form-data">
+            <div class="row g-3">
+
+                <div class="col-md-6">
+                    <label class="form-label fw-semibold">Biển số xe</label>
+                    <input asp-for="PlateNumber" class="form-control rounded-3 shadow-sm"
+                           placeholder="VD: 51H-123.45" required />
+                </div>
+
+                <div class="col-md-6">
+                    <label class="form-label fw-semibold">Loại xe</label>
+                    <select asp-for="VehicleTypeId" class="form-select rounded-3 shadow-sm"
+                            asp-items="ViewBag.VehicleTypes" required>
+                        <option value="">-- Chọn loại xe --</option>
+                    </select>
+                </div>
+
+                <div class="col-md-6">
+                    <label class="form-label fw-semibold">Trọng tải (Kg)</label>
+                    <div class="input-group shadow-sm">
+                        <input asp-for="CapacityKg" type="number" class="form-control"
+                               min="1" placeholder="VD: 1500" required />
+                        <span class="input-group-text bg-light">Kg</span>
+                    </div>
+                </div>
+
+                <div class="col-12">
+                    <label class="form-label fw-semibold">Ảnh giấy đăng ký xe</label>
+                    <input type="file" name="imageFile" class="form-control rounded-3 shadow-sm"
+                           accept="image/*" required />
+                    <div class="form-text text-danger fst-italic">
+                        <i class="bi bi-info-circle"></i> Ảnh phải rõ nét để xác thực
+                    </div>
+                </div>
+
+                <div class="col-12 text-end mt-4">
+                    <button type="submit" class="btn text-white fw-bold px-4 py-2 rounded-3"
+                            style="background: linear-gradient(135deg, #4e73df, #1cc88a); border: none;">
+                        <i class="bi bi-cloud-arrow-up"></i> Gửi duyệt
+                    </button>
+                </div>
+
+            </div>
+        </form>
+    </div>
+</div>

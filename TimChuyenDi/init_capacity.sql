@@ -1,0 +1,37 @@
+CREATE TABLE IF NOT EXISTS `vehicle_capacity_config` (
+  `Id` int(11) NOT NULL AUTO_INCREMENT,
+  `VehicleTypeId` int(11) NOT NULL,
+  `MinWeight` int(11) NOT NULL,
+  `MaxWeight` int(11) NOT NULL,
+  `EstimatedVolume` float NOT NULL,
+  PRIMARY KEY (`Id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+INSERT IGNORE INTO `vehicle_capacity_config` (`Id`, `VehicleTypeId`, `MinWeight`, `MaxWeight`, `EstimatedVolume`) VALUES
+(1, 1, 0, 500, 1.2),
+(2, 1, 501, 1000, 3.5),
+(3, 1, 1001, 2000, 7),
+(4, 1, 2001, 3500, 12),
+(5, 1, 3501, 5000, 18),
+(6, 1, 5001, 8000, 28),
+(7, 2, 0, 500, 1),
+(8, 2, 501, 1000, 3),
+(9, 2, 1001, 2000, 6),
+(10, 2, 2001, 3500, 10),
+(11, 2, 3501, 5000, 15),
+(12, 2, 5001, 8000, 24),
+(13, 3, 0, 500, 0.8),
+(14, 3, 501, 1000, 2.5),
+(15, 3, 1001, 2000, 5),
+(16, 3, 2001, 3500, 8),
+(17, 3, 3501, 5000, 12),
+(18, 3, 5001, 8000, 20),
+(19, 4, 0, 500, 1.1),
+(20, 4, 501, 1000, 3.2),
+(21, 4, 1001, 2000, 6.5),
+(22, 4, 2001, 3500, 11),
+(23, 4, 3501, 5000, 17),
+(24, 4, 5001, 8000, 26),
+(25, 5, 0, 2000, 5),
+(26, 5, 2001, 5000, 10),
+(27, 5, 5001, 10000, 20);
