@@ -50,6 +50,8 @@ public partial class TimchuyendiContext : DbContext
 
     public virtual DbSet<Vehicle> Vehicles { get; set; }
 
+    public virtual DbSet<VehicleCapacityConfig> VehicleCapacityConfigs { get; set; }
+
     public virtual DbSet<VehicleType> VehicleTypes { get; set; }
 
     public virtual DbSet<Ward> Wards { get; set; }
@@ -634,6 +636,19 @@ public partial class TimchuyendiContext : DbContext
                 .HasForeignKey(d => d.DistrictId)
                 .OnDelete(DeleteBehavior.ClientSetNull)
                 .HasConstraintName("wards_ibfk_1");
+        });
+
+        modelBuilder.Entity<VehicleCapacityConfig>(entity =>
+        {
+            entity.HasKey(e => e.Id).HasName("PRIMARY");
+
+            entity.ToTable("vehicle_capacity_config");
+
+            entity.Property(e => e.Id).HasColumnType("int(11)");
+            entity.Property(e => e.EstimatedVolume).HasColumnType("float");
+            entity.Property(e => e.MaxWeight).HasColumnType("int(11)");
+            entity.Property(e => e.MinWeight).HasColumnType("int(11)");
+            entity.Property(e => e.VehicleTypeId).HasColumnType("int(11)");
         });
 
         OnModelCreatingPartial(modelBuilder);

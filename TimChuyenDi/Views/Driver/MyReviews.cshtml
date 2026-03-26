@@ -1,4 +1,4 @@
-﻿@model IEnumerable<TimChuyenDi.Models.Rating>
+@model IEnumerable<TimChuyenDi.Models.Rating>
 @{
     ViewData["Title"] = "Đánh giá của khách hàng";
 }
@@ -6,7 +6,7 @@
 <div class="mt-4 mb-4 d-flex justify-content-between align-items-center">
     <h4><i class="bi bi-star-fill text-warning"></i> Nhận Xét Từ Khách Hàng</h4>
     <div class="text-end">
-        <span class="fs-5">Điểm trung bình: <strong class="text-danger">@ViewBag.AverageScore / 5</strong> ⭐</span><br />
+        <span class="fs-5">Điểm trung bình: <strong class="text-danger">@(ViewBag.AverageScore > 0 ? ViewBag.AverageScore + " / 5" : "-")</strong> ⭐</span><br />
         <small class="text-muted">(Dựa trên @ViewBag.TotalReviews lượt đánh giá)</small>
     </div>
 </div>
@@ -15,7 +15,7 @@
     @if (!Model.Any())
     {
         <div class="col-12 text-center text-muted mt-5">
-            <p>Bạn chưa có đánh giá nào. Hãy hoàn thành tốt các chuyến đi để nhận "mưa" lời khen nhé!</p>
+            <p>Bạn chưa nhận được đánh giá nào. Cứ yên tâm chạy chuyến đầu tiên, khách hàng sẽ sớm dành lời khen cho bạn!</p>
         </div>
     }
 

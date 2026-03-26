@@ -1,53 +1,106 @@
-﻿@model IEnumerable<TimChuyenDi.Models.Vehicle>
+@model IEnumerable<TimChuyenDi.Models.Vehicle>
 @{
-    ViewData["Title"] = "Quản lý Phương tiện";
+    ViewData["Title"] = "Duyệt Phương tiện";
 }
 
-<h4 class="mt-4 mb-4"><i class="bi bi-truck-front-fill"></i> Quản lý Phương Tiện Vận Tải</h4>
+<h4 class="mt-4 mb-4"><i class="bi bi-truck-front-fill"></i> Xét Duyệt Phương Tiện Vận Tải</h4>
+
+@if (TempData["SuccessMessage"] != null)
+{
+    <div class="alert alert-success alert-dismissible fade show shadow-sm" role="alert">
+        <i class="bi bi-check-circle-fill me-2"></i> @TempData["SuccessMessage"]
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+}
 
 <div class="row">
-    <div class="col-md-4 mb-4">
-        <div class="card shadow-sm border-primary">
-            <div class="card-header bg-primary text-white fw-bold">
-                Thêm Xe Mới
-            </div>
-            <div class="card-body bg-light">
-                <form asp-action="AddVehicle" method="post">
-                    <div class="mb-3">
-                        <label class="form-label fw-bold">Biển số xe</label>
-                        <input type="text" name="plateNumber" class="form-control" required placeholder="VD: 29C-123.45" />
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label fw-bold">Trọng tải tối đa (kg)</label>
-                        <input type="number" name="maxCapacityKg" class="form-control" required placeholder="VD: 5000" />
-                    </div>
-                    <div class="d-grid">
-                        <button type="submit" class="btn btn-primary fw-bold">Lưu Phương Tiện</button>
-                    </div>
-                </form>
-            </div>
-        </div>
-    </div>
-
-    <div class="col-md-8">
+    <div class="col-12">
         <div class="card shadow-sm border-0">
             <div class="card-body p-0">
                 <div class="table-responsive">
                     <table class="table table-hover align-middle mb-0">
                         <thead class="table-dark">
                             <tr>
-                                <th>Mã xe</th>
+                                <th class="ps-3">Mã xe</th>
+                                <th>Hình ảnh</th>
                                 <th>Biển kiểm soát</th>
-                                <th>Trọng tải tối đa</th>
+                                <th>Tài xế</th>
+                                <th>Loại xe</th>
+                                <th>Trọng tải / Thể tích</th>
+                                <th>Trạng thái</th>
+                                <th class="text-end pe-3">Thao tác</th>
                             </tr>
                         </thead>
                         <tbody>
+                            @if (!Model.Any())
+                            {
+                                <tr>
+                                    <td colspan="8" class="text-center text-muted py-4">Chưa có phương tiện nào trên hệ thống.</td>
+                                </tr>
+                            }
                             @foreach (var item in Model)
                             {
                                 <tr>
-                                    <td class="text-muted">#@item.VehicleId</td>
+                                    <td class="text-muted ps-3">#@item.VehicleId</td>
+                                    <td>
+                                        @if (!string.IsNullOrEmpty(item.VehicleImage))
+                                        {
+                                            <a href="javascript:void(0)" class="badge bg-info text-dark text-decoration-none p-2 shadow-sm" onclick="openImageViewer('@item.VehicleImage', 'Giấy tờ xe biển số @item.PlateNumber')">
+                                                <i class="bi bi-image me-1"></i> Xem Giấy Tờ
+                                            </a>
+                                        }
+                                        else
+                                        {
+                                            <div class="bg-light text-muted d-flex align-items-center justify-content-center rounded" style="width: 80px; height: 60px;">
+                                                <i class="bi bi-image"></i>
+                                            </div>
+                                        }
+                                    </td>
                                     <td class="fw-bold"><span class="badge bg-secondary fs-6">@item.PlateNumber</span></td>
-                                    <td class="text-danger fw-bold">@item.CapacityKg kg</td>
+                                    <td>
+                                        <div class="fw-bold text-dark">@item.Driver?.Name</div>
+                                        <div class="small text-muted"><i class="bi bi-telephone"></i> @item.Driver?.Phone</div>
+                                    </td>
+                                    <td>@item.VehicleType?.TypeName</td>
+                                    <td>
+                                        <div class="text-danger fw-bold">@item.CapacityKg.ToString("N0") kg</div>
+                                        <div class="small text-muted">@item.CapacityM3 M³</div>
+                                    </td>
+                                    <td>
+                                        @if (item.Status == 1)
+                                        {
+                                            <span class="badge bg-success"><i class="bi bi-check-circle"></i> Đã duyệt</span>
+                                        }
+                                        else if (item.Status == 2)
+                                        {
+                                            <span class="badge bg-danger"><i class="bi bi-x-circle"></i> Bị từ chối</span>
+                                        }
+                                        else
+                                        {
+                                            <span class="badge bg-warning text-dark"><i class="bi bi-hourglass-split"></i> Chờ duyệt</span>
+                                        }
+                                    </td>
+                                    <td class="text-end pe-3">
+                                        @if (item.Status == 0)
+                                        {
+                                            <div class="btn-group" role="group">
+                                                <form asp-action="ApproveVehicle" asp-route-id="@item.VehicleId" method="post" class="d-inline">
+                                                    <button type="submit" class="btn btn-sm btn-success shadow-sm" title="Duyệt xe" onclick="return confirm('Xác nhận duyệt xe biển số @item.PlateNumber để tài xế có thể nhận chuyến?');">
+                                                        <i class="bi bi-check2-circle"></i> Duyệt
+                                                    </button>
+                                                </form>
+                                                <form asp-action="RejectVehicle" asp-route-id="@item.VehicleId" method="post" class="d-inline ms-1">
+                                                    <button type="submit" class="btn btn-sm btn-outline-danger shadow-sm" title="Từ chối xe" onclick="return confirm('Bạn có chắc muốn từ chối xe @item.PlateNumber không?');">
+                                                        <i class="bi bi-x-circle"></i>
+                                                    </button>
+                                                </form>
+                                            </div>
+                                        }
+                                        else
+                                        {
+                                            <span class="text-muted small"><i>Đã xử lý</i></span>
+                                        }
+                                    </td>
                                 </tr>
                             }
                         </tbody>
@@ -57,3 +110,125 @@
         </div>
     </div>
 </div>
+
+<!-- Modal Trình Xem Ảnh Toàn Màn Hình -->
+<div class="modal fade" id="imageViewerModal" tabindex="-1" aria-labelledby="imageViewerTitle" aria-hidden="true">
+    <div class="modal-dialog modal-fullscreen">
+        <div class="modal-content bg-dark">
+            <div class="modal-header border-bottom-0 pb-0">
+                <h5 class="modal-title text-light fw-bold" id="imageViewerTitle">
+                    <i class="bi bi-file-earmark-image"></i> Giấy tờ xe
+                </h5>
+                <div class="d-flex align-items-center">
+                    <a id="downloadImageBtn" href="#" download class="btn btn-primary me-3 fw-bold rounded-pill px-4 shadow">
+                        <i class="bi bi-download me-1"></i> Tải ảnh về
+                    </a>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Đóng tính năng xem" title="Đóng cửa sổ"></button>
+                </div>
+            </div>
+            
+            <div class="modal-body d-flex justify-content-center align-items-center position-relative overflow-hidden" id="imageContainer" style="cursor: grab;">
+                <img id="fullSizeImage" src="" alt="View" style="max-height: 90vh; max-width: 90vw; object-fit: contain; transition: transform 0.15s ease-out; transform-origin: center center;" />
+                
+                <!-- Bảng điều khiển Zoom nổi -->
+                <div class="position-absolute bottom-0 end-0 p-3 mb-3 me-3">
+                    <div class="btn-group bg-white rounded-pill shadow-lg p-1">
+                        <button type="button" class="btn btn-light rounded-circle ms-1" onclick="zoomImage(0.2)" title="Phóng to">
+                            <i class="bi bi-zoom-in fs-5"></i>
+                        </button>
+                        <button type="button" class="btn btn-light rounded-circle mx-1" onclick="resetZoom()" title="Về mặc định">
+                            <i class="bi bi-aspect-ratio fs-5"></i>
+                        </button>
+                        <button type="button" class="btn btn-light rounded-circle me-1" onclick="zoomImage(-0.2)" title="Thu nhỏ">
+                            <i class="bi bi-zoom-out fs-5"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        let currentScale = 1;
+        const imageElement = document.getElementById('fullSizeImage');
+        const container = document.getElementById('imageContainer');
+        
+        let isDragging = false;
+        let startX, startY, translateX = 0, translateY = 0;
+
+        function openImageViewer(imageUrl, title) {
+            imageElement.src = imageUrl;
+            
+            // Xử lý link tải ảnh về
+            const downloadBtn = document.getElementById('downloadImageBtn');
+            downloadBtn.href = imageUrl;
+            // Tách tên file từ URL để làm tên file tải về
+            const fileName = imageUrl.substring(imageUrl.lastIndexOf('/') + 1);
+            downloadBtn.setAttribute("download", fileName);
+            
+            document.getElementById('imageViewerTitle').innerHTML = `<i class="bi bi-file-earmark-image"></i> ${title}`;
+            
+            resetZoom();
+            
+            // Hiện Modal Bootstrap
+            var imageModal = new bootstrap.Modal(document.getElementById('imageViewerModal'));
+            imageModal.show();
+        }
+
+        function zoomImage(step) {
+            currentScale += step;
+            if(currentScale < 0.2) currentScale = 0.2;
+            if(currentScale > 10) currentScale = 10;
+            updateTransform();
+        }
+
+        function resetZoom() {
+            currentScale = 1;
+            translateX = 0;
+            translateY = 0;
+            updateTransform();
+        }
+
+        function updateTransform() {
+            imageElement.style.transform = `translate(${translateX}px, ${translateY}px) scale(${currentScale})`;
+        }
+
+        // 1. Phóng to thu nhỏ bằng con lăn chuột (Scroll Wheel)
+        container.addEventListener('wheel', function(e) {
+            e.preventDefault(); // Chống cuộn trang ngầm
+            if(e.deltaY < 0) {
+                zoomImage(0.1); 
+            } else {
+                zoomImage(-0.1); 
+            }
+        }, { passive: false });
+
+        // 2. Kéo thả ảnh khi đã zoom to (Pan / Drag)
+        imageElement.addEventListener('mousedown', function(e) {
+            e.preventDefault();
+            isDragging = true;
+            startX = e.clientX - translateX;
+            startY = e.clientY - translateY;
+            container.style.cursor = 'grabbing';
+            imageElement.style.transition = 'none'; // Tắt hiệu ứng chuyển để kéo mượt
+        });
+
+        document.addEventListener('mouseup', function() {
+            if (isDragging) {
+                isDragging = false;
+                container.style.cursor = 'grab';
+                imageElement.style.transition = 'transform 0.15s ease-out';
+            }
+        });
+
+        document.addEventListener('mousemove', function(e) {
+            if (!isDragging) return;
+            e.preventDefault();
+            translateX = e.clientX - startX;
+            translateY = e.clientY - startY;
+            updateTransform();
+        });
+    </script>
+}

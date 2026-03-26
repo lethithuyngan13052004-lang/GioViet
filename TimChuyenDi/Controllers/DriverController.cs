@@ -11,10 +11,12 @@ namespace TimChuyenDi.Controllers
     public class DriverController : Controller
     {
         private readonly TimchuyendiContext _context;
+        private readonly IWebHostEnvironment _env;
 
-        public DriverController(TimchuyendiContext context)
+        public DriverController(TimchuyendiContext context, IWebHostEnvironment env)
         {
             _context = context;
+            _env = env;
         }
 
         // GET: Trang chủ của Tài xế - Hiển thị danh sách khách gửi hàng
@@ -103,8 +105,8 @@ namespace TimChuyenDi.Controllers
 
             ViewBag.Stations = new SelectList(stationList, "StationId", "DisplayName");
 
-            // Chỉ hiển thị xe của ông tài xế đang đăng nhập
-            var myVehicles = _context.Vehicles.Where(v => v.DriverId == driverId).ToList();
+            // Chỉ hiển thị xe của ông tài xế đang đăng nhập và ĐÃ ĐƯỢC DUYỆT (Status = 1)
+            var myVehicles = _context.Vehicles.Where(v => v.DriverId == driverId && v.Status == 1).ToList();
             ViewBag.Vehicles = new SelectList(myVehicles, "VehicleId", "PlateNumber");
 
             return View();
@@ -116,8 +118,8 @@ namespace TimChuyenDi.Controllers
         {
             var driverId = int.Parse(User.FindFirstValue("UserId"));
 
-            // Lấy thông tin Xe để "hút" sức chứa tối đa ném vào chuyến đi
-            var vehicle = _context.Vehicles.FirstOrDefault(v => v.VehicleId == model.VehicleId && v.DriverId == driverId);
+            // Lấy thông tin Xe để "hút" sức chứa tối đa ném vào chuyến đi (phải được duyệt)
+            var vehicle = _context.Vehicles.FirstOrDefault(v => v.VehicleId == model.VehicleId && v.DriverId == driverId && v.Status == 1);
 
             if (vehicle != null)
             {
@@ -185,7 +187,7 @@ namespace TimChuyenDi.Controllers
             }).ToList();
 
             ViewBag.Stations = new SelectList(stationList, "StationId", "DisplayName");
-            ViewBag.Vehicles = new SelectList(_context.Vehicles.Where(v => v.DriverId == driverId).ToList(), "VehicleId", "PlateNumber");
+            ViewBag.Vehicles = new SelectList(_context.Vehicles.Where(v => v.DriverId == driverId && v.Status == 1).ToList(), "VehicleId", "PlateNumber");
 
             return View(trip);
         }
@@ -269,6 +271,227 @@ namespace TimChuyenDi.Controllers
             if (requestDetail == null) return NotFound("Không tìm thấy đơn hàng!");
 
             return View(requestDetail);
+        }
+
+        // ==================================================
+        // QUẢN LÝ XE CỦA TÀI XẾ
+        // ==================================================
+
+        // GET: Danh sách xe của tài xế
+        [HttpGet]
+        public IActionResult ManageVehicles()
+        {
+            var driverId = int.Parse(User.FindFirstValue("UserId"));
+            var vehicles = _context.Vehicles
+                .Include(v => v.VehicleType)
+                .Where(v => v.DriverId == driverId)
+                .OrderByDescending(v => v.VehicleId)
+                .ToList();
+
+            return View(vehicles);
+        }
+
+        // GET: Form Thêm xe mới
+        [HttpGet]
+        public IActionResult AddVehicle()
+        {
+            ViewBag.VehicleTypes = new SelectList(_context.VehicleTypes.ToList(), "VehicleTypeId", "TypeName");
+            return View();
+        }
+
+        // POST: Lưu thông tin xe mới
+        [HttpPost, ActionName("AddVehicle")]
+        public async Task<IActionResult> AddVehiclePost()
+        {
+            try 
+            {
+                var PlateNumber = Request.Form["PlateNumber"].ToString();
+                int CapacityKg = int.Parse(Request.Form["CapacityKg"].ToString());
+                int VehicleTypeId = int.Parse(Request.Form["VehicleTypeId"].ToString());
+                var imageFile = Request.Form.Files.FirstOrDefault(f => f.Name == "imageFile");
+
+                var driverId = int.Parse(User.FindFirstValue("UserId"));
+                
+                var model = new Vehicle 
+                {
+                    DriverId = driverId,
+                    Status = 0, // Chờ duyệt
+                    PlateNumber = PlateNumber,
+                    CapacityKg = CapacityKg,
+                    VehicleTypeId = VehicleTypeId
+                };
+
+                if (imageFile != null && imageFile.Length > 0)
+                {
+                    // Ensure directory exists
+                    string uploadFolder = Path.Combine(_env.WebRootPath, "uploads", "vehicles");
+                    if (!Directory.Exists(uploadFolder))
+                    {
+                        Directory.CreateDirectory(uploadFolder);
+                    }
+
+                    // Generate unique file name
+                    string uniqueFileName = Guid.NewGuid().ToString() + "_" + Path.GetFileName(imageFile.FileName);
+                    string filePath = Path.Combine(uploadFolder, uniqueFileName);
+
+                    using (var fileStream = new FileStream(filePath, FileMode.Create))
+                    {
+                        await imageFile.CopyToAsync(fileStream);
+                    }
+
+                    model.VehicleImage = "/uploads/vehicles/" + uniqueFileName;
+                }
+
+                var capacityConfig = await _context.VehicleCapacityConfigs
+                    .FirstOrDefaultAsync(c => c.VehicleTypeId == VehicleTypeId 
+                                           && CapacityKg >= c.MinWeight 
+                                           && CapacityKg <= c.MaxWeight);
+                                           
+                if (capacityConfig != null)
+                {
+                    model.CapacityM3 = (int)Math.Round(capacityConfig.EstimatedVolume);
+                }
+                else
+                {
+                    model.CapacityM3 = 0;
+                }
+
+                _context.Vehicles.Add(model);
+                await _context.SaveChangesAsync();
+
+                TempData["Success"] = "Thêm xe thành công. Đang chờ Admin duyệt!";
+            }
+            catch (Exception ex)
+            {
+                TempData["Error"] = "Đã xảy ra lỗi, vui lòng báo lại quản trị viên!";
+            }
+            return RedirectToAction("ManageVehicles");
+        }
+
+        // GET: Form Sửa thông tin xe
+        [HttpGet]
+        public IActionResult EditVehicle(int id)
+        {
+            var driverId = int.Parse(User.FindFirstValue("UserId"));
+            var vehicle = _context.Vehicles.FirstOrDefault(v => v.VehicleId == id && v.DriverId == driverId);
+
+            if (vehicle == null) return NotFound();
+
+            ViewBag.VehicleTypes = new SelectList(_context.VehicleTypes.ToList(), "VehicleTypeId", "TypeName");
+            return View(vehicle);
+        }
+
+        // POST: Lưu thông tin sửa xe
+        [HttpPost, ActionName("EditVehicle")]
+        public async Task<IActionResult> EditVehiclePost()
+        {
+            try
+            {
+                int VehicleId = int.Parse(Request.Form["VehicleId"].ToString());
+                string PlateNumber = Request.Form["PlateNumber"].ToString();
+                int CapacityKg = int.Parse(Request.Form["CapacityKg"].ToString());
+                int VehicleTypeId = int.Parse(Request.Form["VehicleTypeId"].ToString());
+                var imageFile = Request.Form.Files.FirstOrDefault(f => f.Name == "imageFile");
+
+                var driverId = int.Parse(User.FindFirstValue("UserId"));
+                var vehicle = _context.Vehicles.FirstOrDefault(v => v.VehicleId == VehicleId && v.DriverId == driverId);
+
+                if (vehicle != null)
+                {
+                    vehicle.PlateNumber = PlateNumber;
+                    vehicle.CapacityKg = CapacityKg;
+
+                    var capacityConfig = await _context.VehicleCapacityConfigs
+                        .FirstOrDefaultAsync(c => c.VehicleTypeId == VehicleTypeId 
+                                               && CapacityKg >= c.MinWeight 
+                                               && CapacityKg <= c.MaxWeight);
+                                               
+                    if (capacityConfig != null)
+                    {
+                        vehicle.CapacityM3 = (int)Math.Round(capacityConfig.EstimatedVolume);
+                    }
+                    else
+                    {
+                        vehicle.CapacityM3 = 0;
+                    }
+
+                    vehicle.VehicleTypeId = VehicleTypeId;
+                    vehicle.Status = 0; // Sửa xong lại chờ duyệt
+
+                    if (imageFile != null && imageFile.Length > 0)
+                    {
+                        string uploadFolder = Path.Combine(_env.WebRootPath, "uploads", "vehicles");
+                        if (!Directory.Exists(uploadFolder))
+                        {
+                            Directory.CreateDirectory(uploadFolder);
+                        }
+
+                        string uniqueFileName = Guid.NewGuid().ToString() + "_" + Path.GetFileName(imageFile.FileName);
+                        string filePath = Path.Combine(uploadFolder, uniqueFileName);
+
+                        using (var fileStream = new FileStream(filePath, FileMode.Create))
+                        {
+                            await imageFile.CopyToAsync(fileStream);
+                        }
+
+                        // Xóa file cũ (tuỳ chọn)
+                        if (!string.IsNullOrEmpty(vehicle.VehicleImage))
+                        {
+                            var oldFilePath = Path.Combine(_env.WebRootPath, vehicle.VehicleImage.TrimStart('/'));
+                            if (System.IO.File.Exists(oldFilePath))
+                            {
+                                System.IO.File.Delete(oldFilePath);
+                            }
+                        }
+
+                        vehicle.VehicleImage = "/uploads/vehicles/" + uniqueFileName;
+                    }
+
+                    await _context.SaveChangesAsync();
+                    TempData["Success"] = "Cập nhật thông tin xe thành công. Xe của bạn cần được Admin duyệt lại!";
+                }
+            }
+            catch (Exception ex)
+            {
+                TempData["Error"] = "Đã xảy ra lỗi khi sửa, vui lòng báo quản trị viên!";
+            }
+
+            return RedirectToAction("ManageVehicles");
+        }
+
+        // POST: Xóa xe
+        [HttpPost]
+        public IActionResult DeleteVehicle(int id)
+        {
+            var driverId = int.Parse(User.FindFirstValue("UserId"));
+            var vehicle = _context.Vehicles
+                .Include(v => v.Trips)
+                .FirstOrDefault(v => v.VehicleId == id && v.DriverId == driverId);
+
+            if (vehicle != null)
+            {
+                if (vehicle.Trips.Any())
+                {
+                    TempData["Error"] = "Không thể xóa xe này vì đã có lịch sử chuyến đi gắn với nó!";
+                }
+                else
+                {
+                    if (!string.IsNullOrEmpty(vehicle.VehicleImage))
+                    {
+                        var filepath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", vehicle.VehicleImage.TrimStart('/'));
+                        if (System.IO.File.Exists(filepath))
+                        {
+                            System.IO.File.Delete(filepath);
+                        }
+                    }
+
+                    _context.Vehicles.Remove(vehicle);
+                    _context.SaveChanges();
+                    TempData["Success"] = "Đã xóa xe thành công!";
+                }
+            }
+
+            return RedirectToAction("ManageVehicles");
         }
     }
 }

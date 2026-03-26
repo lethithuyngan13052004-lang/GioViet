@@ -1,4 +1,4 @@
-﻿@model IEnumerable<TimChuyenDi.Models.Rating>
+@model IEnumerable<TimChuyenDi.Models.Rating>
 @{
     ViewData["Title"] = "Đánh giá Tài xế " + ViewBag.DriverName;
 }
@@ -13,7 +13,7 @@
                 <p class="text-muted mb-0">Hệ thống ghi nhận đánh giá minh bạch từ những khách hàng đã sử dụng dịch vụ.</p>
             </div>
             <div class="text-end">
-                <span class="fs-4 fw-bold text-danger">@ViewBag.AverageScore / 5 ⭐</span><br />
+                <span class="fs-4 fw-bold text-danger">@(ViewBag.AverageScore > 0 ? ViewBag.AverageScore + " / 5" : "-") ⭐</span><br />
                 <small class="text-muted">(@ViewBag.TotalReviews lượt đánh giá)</small>
             </div>
         </div>
