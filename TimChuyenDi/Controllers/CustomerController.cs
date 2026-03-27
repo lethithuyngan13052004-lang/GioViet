@@ -90,7 +90,9 @@ namespace TimChuyenDi.Controllers
         [HttpPost]
         public IActionResult BookTrip(int TripId, int CargoTypeId, string ReceiverInfo, decimal Weight, decimal Length, decimal Width, decimal Height, string Description, string PickupAddress, string DeliveryAddress, string PackageName, int Quantity = 1, decimal EstimatedValue = 0, string Note = "")
         {
-            var trip = _context.Trips.Find(TripId);
+            var trip = _context.Trips
+                .Include(t => t.RouteTypeNavigation)
+                .FirstOrDefault(t => t.TripId == TripId);
             var cargoType = _context.Cargotypes.Find(CargoTypeId);
 
             if (trip == null || Weight <= 0 || Weight > trip.AvaiCapacityKg || cargoType == null)
@@ -103,9 +105,15 @@ namespace TimChuyenDi.Controllers
             if (string.IsNullOrEmpty(customerIdStr)) return RedirectToAction("Login", "Auth");
             int customerId = int.Parse(customerIdStr);
 
-            // Thuật toán tính giá: (Khối lượng * Giá gốc) * Hệ số loại hàng
-            decimal basePrice = Weight * trip.BasePricePerKg;
-            decimal totalPrice = basePrice * cargoType.PriceMultiplier;
+            var pricePerKmConfig = _context.SystemConfigs.FirstOrDefault(c => c.KeyName == "PricePerKm");
+            decimal pricePerKm = pricePerKmConfig?.Value ?? 0;
+
+            // Thuật toán tính giá: (BasePrice + Distance * PricePerKm) * TripTypeMultiplier * CargoTypeMultiplier
+            decimal tripTypeMultiplier = trip.RouteTypeNavigation?.Multiplier ?? 1.0m;
+            decimal cargoTypeMultiplier = cargoType.PriceMultiplier;
+            decimal distance = trip.Distance ?? 0m;
+            
+            decimal totalPrice = (trip.BasePrice + distance * pricePerKm) * tripTypeMultiplier * cargoTypeMultiplier;
 
             // Gộp thông tin chi tiết vào Description nếu schema chưa có trường riêng
             string fullDescription = $"[Kiện: {PackageName}] [SL: {Quantity}] [Giá trị: {EstimatedValue:N0}đ] {Description}";

@@ -1,4 +1,4 @@
-﻿using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using TimChuyenDi.Services;
 using TimChuyenDi.Models; // Khai báo để dùng ApplicationDbContext
@@ -55,7 +55,7 @@ namespace TimChuyenDi.Controllers
                 foreach (var t in trips)
                 {
                     // Thêm chữ "Mã chuyến xe" rõ ràng để AI lấy dữ liệu ghép vào Link
-                    dbContextInfo += $"- Mã chuyến xe: {t.TripId} | Tuyến: {t.FromStationNavigation.Province} đi {t.ToStationNavigation.Province} | Giá cước: {t.BasePricePerKg}đ/kg | Khởi hành: {t.StartTime:dd/MM/yyyy HH:mm} | Tài xế: {t.Driver.Name} | Chỗ trống: {t.AvaiCapacityKg}kg.\n";
+                    dbContextInfo += $"- Mã chuyến xe: {t.TripId} | Tuyến: {t.FromStationNavigation.Province} đi {t.ToStationNavigation.Province} | Giá mở đầu: {t.BasePrice}đ | Khởi hành: {t.StartTime:dd/MM/yyyy HH:mm} | Tài xế: {t.Driver.Name} | Chỗ trống: {t.AvaiCapacityKg}kg.\n";
                 }
             }
 

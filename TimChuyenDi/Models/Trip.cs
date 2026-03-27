@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 
 namespace TimChuyenDi.Models;
@@ -24,13 +24,13 @@ public partial class Trip
 
     public DateTime? ArrivalTime { get; set; }
 
-    public decimal BasePricePerKg { get; set; }
-
     public int AvaiCapacityKg { get; set; }
 
-    public decimal BasePricePerM3 { get; set; }
-
     public int AvaiCapacityM3 { get; set; }
+
+    public decimal BasePrice { get; set; }
+
+    public decimal? Distance { get; set; }
 
     public virtual User Driver { get; set; } = null!;
 
@@ -45,6 +45,8 @@ public partial class Trip
     public virtual ICollection<TripStation> TripStations { get; set; } = new List<TripStation>();
 
     public virtual Vehicle Vehicle { get; set; } = null!;
+
+    public virtual TripType RouteTypeNavigation { get; set; } = null!;
 
     public virtual ICollection<User> Users { get; set; } = new List<User>();
 }

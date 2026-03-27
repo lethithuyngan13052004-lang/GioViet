@@ -132,8 +132,8 @@ namespace TimChuyenDi.Controllers
                     ToStation = model.ToStation,
                     StartTime = model.StartTime,
                     ArrivalTime = model.ArrivalTime,
-                    BasePricePerKg = model.BasePricePerKg,
-                    BasePricePerM3 = model.BasePricePerM3,
+                    BasePrice = model.BasePrice,
+                    Distance = model.Distance,
                     AvaiCapacityKg = vehicle.CapacityKg, // Bắt tự động từ bảng Vehicles
                     AvaiCapacityM3 = vehicle.CapacityM3  // Bắt tự động từ bảng Vehicles
                 };
@@ -208,8 +208,8 @@ namespace TimChuyenDi.Controllers
                 trip.StartTime = updatedTrip.StartTime;
                 trip.ArrivalTime = updatedTrip.ArrivalTime;
                 trip.AvaiCapacityKg = updatedTrip.AvaiCapacityKg;
-                trip.BasePricePerKg = updatedTrip.BasePricePerKg;
-                trip.BasePricePerM3 = updatedTrip.BasePricePerM3;
+                trip.BasePrice = updatedTrip.BasePrice;
+                trip.Distance = updatedTrip.Distance;
 
                 _context.SaveChanges();
                 TempData["Success"] = "Cập nhật chuyến xe thành công!";
@@ -312,6 +312,13 @@ namespace TimChuyenDi.Controllers
 
                 var driverId = int.Parse(User.FindFirstValue("UserId"));
                 
+                // Kiểm tra trùng lặp biển số
+                if (_context.Vehicles.Any(v => v.PlateNumber == PlateNumber))
+                {
+                    TempData["Error"] = $"Biển số xe {PlateNumber} đã tồn tại trong hệ thống. Vui lòng kiểm tra lại!";
+                    return RedirectToAction("ManageVehicles");
+                }
+
                 var model = new Vehicle 
                 {
                     DriverId = driverId,
@@ -363,7 +370,8 @@ namespace TimChuyenDi.Controllers
             }
             catch (Exception ex)
             {
-                TempData["Error"] = "Đã xảy ra lỗi, vui lòng báo lại quản trị viên!";
+                var innerMsg = ex.InnerException != null ? " - " + ex.InnerException.Message : "";
+                TempData["Error"] = $"Hệ thống gặp lỗi: {ex.Message}{innerMsg}";
             }
             return RedirectToAction("ManageVehicles");
         }
@@ -394,6 +402,14 @@ namespace TimChuyenDi.Controllers
                 var imageFile = Request.Form.Files.FirstOrDefault(f => f.Name == "imageFile");
 
                 var driverId = int.Parse(User.FindFirstValue("UserId"));
+                
+                // Kiểm tra trùng lặp biển số với xe khác
+                if (_context.Vehicles.Any(v => v.PlateNumber == PlateNumber && v.VehicleId != VehicleId))
+                {
+                    TempData["Error"] = $"Biển số xe {PlateNumber} đã tồn tại ở một xe khác. Vui lòng kiểm tra lại!";
+                    return RedirectToAction("ManageVehicles");
+                }
+
                 var vehicle = _context.Vehicles.FirstOrDefault(v => v.VehicleId == VehicleId && v.DriverId == driverId);
 
                 if (vehicle != null)
@@ -453,7 +469,8 @@ namespace TimChuyenDi.Controllers
             }
             catch (Exception ex)
             {
-                TempData["Error"] = "Đã xảy ra lỗi khi sửa, vui lòng báo quản trị viên!";
+                var innerMsg = ex.InnerException != null ? " - " + ex.InnerException.Message : "";
+                TempData["Error"] = $"Hệ thống gặp lỗi: {ex.Message}{innerMsg}";
             }
 
             return RedirectToAction("ManageVehicles");

@@ -56,6 +56,10 @@ public partial class TimchuyendiContext : DbContext
 
     public virtual DbSet<Ward> Wards { get; set; }
 
+    public virtual DbSet<SystemConfig> SystemConfigs { get; set; }
+
+    public virtual DbSet<TripType> TripTypes { get; set; }
+
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
 #warning To protect potentially sensitive information in your connection string, you should move it out of source code. You can avoid scaffolding the connection string by using the Name= syntax to read it from configuration - see https://go.microsoft.com/fwlink/?linkid=2131148. For more guidance on storing connection strings, see https://go.microsoft.com/fwlink/?LinkId=723263.
         => optionsBuilder.UseMySql("server=localhost;database=timchuyendi;uid=root", Microsoft.EntityFrameworkCore.ServerVersion.Parse("10.4.32-mariadb"));
@@ -452,13 +456,13 @@ public partial class TimchuyendiContext : DbContext
             entity.Property(e => e.ArrivalTime).HasColumnType("datetime");
             entity.Property(e => e.AvaiCapacityKg).HasColumnType("int(11)");
             entity.Property(e => e.AvaiCapacityM3).HasColumnType("int(11)");
-            entity.Property(e => e.BasePricePerKg).HasPrecision(18, 2);
-            entity.Property(e => e.BasePricePerM3).HasPrecision(18, 2);
+            entity.Property(e => e.BasePrice).HasPrecision(18, 2).HasDefaultValueSql("'0.00'").HasComment("Giá mở đầu do tài xế nhập");
+            entity.Property(e => e.Distance).HasPrecision(10, 2).HasComment("Khoảng cách (km)");
             entity.Property(e => e.DriverId).HasColumnType("int(11)");
             entity.Property(e => e.FromStation).HasColumnType("int(11)");
             entity.Property(e => e.RouteType)
                 .HasDefaultValueSql("'1'")
-                .HasComment("1: Direct, 2: Multi-stop")
+                .HasComment("1: Direct, 2: Shared")
                 .HasColumnType("int(11)");
             entity.Property(e => e.StartTime).HasColumnType("datetime");
             entity.Property(e => e.ToStation).HasColumnType("int(11)");
@@ -483,6 +487,11 @@ public partial class TimchuyendiContext : DbContext
                 .HasForeignKey(d => d.VehicleId)
                 .OnDelete(DeleteBehavior.ClientSetNull)
                 .HasConstraintName("trips_ibfk_2");
+
+            entity.HasOne(d => d.RouteTypeNavigation).WithMany(p => p.Trips)
+                .HasForeignKey(d => d.RouteType)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("trips_ibfk_5");
         });
 
         modelBuilder.Entity<TripStation>(entity =>
@@ -649,6 +658,23 @@ public partial class TimchuyendiContext : DbContext
             entity.Property(e => e.MaxWeight).HasColumnType("int(11)");
             entity.Property(e => e.MinWeight).HasColumnType("int(11)");
             entity.Property(e => e.VehicleTypeId).HasColumnType("int(11)");
+        });
+
+        modelBuilder.Entity<SystemConfig>(entity =>
+        {
+            entity.HasKey(e => e.KeyName).HasName("PRIMARY");
+            entity.ToTable("system_config");
+            entity.Property(e => e.KeyName).HasMaxLength(50);
+            entity.Property(e => e.Value).HasPrecision(10, 2);
+        });
+
+        modelBuilder.Entity<TripType>(entity =>
+        {
+            entity.HasKey(e => e.IdType).HasName("PRIMARY");
+            entity.ToTable("trip_types");
+            entity.Property(e => e.IdType).HasColumnType("int(11)");
+            entity.Property(e => e.Type).HasMaxLength(50);
+            entity.Property(e => e.Multiplier).HasPrecision(10, 2);
         });
 
         OnModelCreatingPartial(modelBuilder);

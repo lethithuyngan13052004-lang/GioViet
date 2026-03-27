@@ -1,4 +1,4 @@
-﻿@model IEnumerable<TimChuyenDi.Models.Trip>
+@model IEnumerable<TimChuyenDi.Models.Trip>
 @{
     ViewData["Title"] = "Tuyến xe đã lưu";
 }
@@ -23,7 +23,7 @@
                     <p class="mb-1"><strong>Tài xế:</strong> @item.Driver.Name</p>
                     <p class="mb-1"><strong>Biển số xe:</strong> @item.Vehicle.PlateNumber</p>
                     <p class="mb-1"><strong>Lịch trình:</strong> @item.StartTime.ToString("dd/MM/yyyy HH:mm")</p>
-                    <p class="mb-0"><strong>Giá cước:</strong> <span class="text-success fw-bold">@item.BasePricePerKg.ToString("N0") VNĐ/kg</span></p>
+                    <p class="mb-0"><strong>Giá mở đầu:</strong> <span class="text-success fw-bold">@item.BasePrice.ToString("N0") VNĐ</span></p>
                 </div>
                 <div class="card-footer bg-white text-end">
                     <a asp-controller="Customer" asp-action="BookTrip" asp-route-id="@item.TripId" class="btn btn-warning btn-sm">Gửi yêu cầu ghép hàng</a>
