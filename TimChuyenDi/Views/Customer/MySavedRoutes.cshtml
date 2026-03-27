@@ -17,7 +17,7 @@
         <div class="col-md-6 mb-3">
             <div class="card border-success h-100 shadow-sm">
                 <div class="card-header bg-success text-white fw-bold">
-                    @item.FromStationNavigation.Province <i class="bi bi-arrow-right"></i> @item.ToStationNavigation.Province
+                    @(item.FromStationNavigation?.Province?.ProvinceName ?? "N/A") <i class="bi bi-arrow-right"></i> @(item.ToStationNavigation?.Province?.ProvinceName ?? "N/A")
                 </div>
                 <div class="card-body">
                     <p class="mb-1"><strong>Tài xế:</strong> @item.Driver.Name</p>

@@ -1,4 +1,4 @@
-﻿@{
+@{
     ViewData["Title"] = "Bản đồ vị trí";
 }
 
@@ -58,85 +58,105 @@
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
 <script>
-    var map, marker;
+    var map, marker, stationMarkers = [];
 
     document.addEventListener("DOMContentLoaded", function () {
-    // Khởi tạo map tại Hà Nội làm mặc định
-    map = L.map('myMap').setView([21.028511, 105.804817], 13);
+        // Khởi tạo map tại Hà Nội làm mặc định
+        map = L.map('myMap').setView([21.028511, 105.804817], 12);
 
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-    attribution: '&copy; OpenStreetMap contributors'
-    }).addTo(map);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '&copy; OpenStreetMap contributors'
+        }).addTo(map);
 
-    marker = L.marker([21.028511, 105.804817]).addTo(map);
+        marker = L.marker([21.028511, 105.804817]).addTo(map);
 
-    // Click vào map để chọn vị trí thủ công
-    map.on('click', function(e) {
-    updateUI(e.latlng.lat, e.latlng.lng);
+        // Click vào map để chọn vị trí thủ công
+        map.on('click', function(e) {
+            updateUI(e.latlng.lat, e.latlng.lng);
+        });
+
+        // Tải danh sách trạm từ API
+        loadStations();
     });
-    });
+
+    async function loadStations() {
+        try {
+            const response = await fetch('/Home/GetStationsApi');
+            const stations = await response.json();
+            
+            stations.forEach(s => {
+                if (s.lat && s.lng) {
+                    const sMarker = L.marker([s.lat, s.lng], {
+                        icon: L.icon({
+                            iconUrl: 'https://cdn-icons-png.flaticon.com/512/3448/3448339.png', // Icon trạm xe
+                            iconSize: [30, 30],
+                            iconAnchor: [15, 30]
+                        })
+                    }).addTo(map)
+                    .bindPopup(`<b>${s.name}</b><br>${s.address}<br><a href='/Customer/CreateRequest' class='btn btn-sm btn-primary mt-2 text-white'>Đặt đơn tại đây</a>`);
+                    stationMarkers.push(sMarker);
+                }
+            });
+        } catch (error) {
+            console.error('Lỗi tải trạm:', error);
+        }
+    }
 
     // --- HÀM 1: TÌM KIẾM THEO ĐỊA CHỈ CHỮ (GEOCODING) ---
     async function searchAddress() {
-    var addr = document.getElementById('addressInput').value;
-    var status = document.getElementById('searchStatus');
-        
-    if (!addr) return alert("Vui lòng nhập địa chỉ!");
-    status.innerHTML = "⌛ Đang tìm vị trí...";
+        var addr = document.getElementById('addressInput').value;
+        var status = document.getElementById('searchStatus');
+            
+        if (!addr) return alert("Vui lòng nhập địa chỉ!");
+        status.innerHTML = "⌛ Đang tìm vị trí...";
 
-    try {
-    // Gọi API Nominatim miễn phí của OpenStreetMap
-    var res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(addr)}`);
-    var data = await res.json();
+        try {
+            var res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(addr)}`);
+            var data = await res.json();
 
-    if (data && data.length > 0) {
-    var lat = data[0].lat;
-    var lon = data[0].lon;
+            if (data && data.length > 0) {
+                var lat = data[0].lat;
+                var lon = data[0].lon;
                 
-    // Cập nhật giao diện và bản đồ
-    updateUI(lat, lon);
-    map.setView([lat, lon], 16); // Phóng to vào vị trí tìm thấy
+                updateUI(lat, lon);
+                map.setView([lat, lon], 15);
                 
-    marker.bindPopup("<b>Tìm thấy:</b><br>" + data[0].display_name).openPopup();
-    status.innerHTML = "✅ Đã tìm thấy!";
-    } else {
-    status.innerHTML = "❌ Không tìm thấy địa chỉ này!";
-    }
-    } catch (e) {
-    status.innerHTML = "❌ Lỗi kết nối API!";
-    console.error(e);
-    }
+                marker.bindPopup("<b>Tìm thấy:</b><br>" + data[0].display_name).openPopup();
+                status.innerHTML = "✅ Đã tìm thấy!";
+            } else {
+                status.innerHTML = "❌ Không tìm thấy địa chỉ này!";
+            }
+        } catch (e) {
+            status.innerHTML = "❌ Lỗi kết nối API!";
+        }
     }
 
     // --- HÀM 2: LẤY VỊ TRÍ GPS CỦA TÔI ---
     function getLocation() {
-    if (navigator.geolocation) {
-    alert("Vui lòng chọn 'Cho phép' trên trình duyệt để lấy vị trí hiện tại.");
-    navigator.geolocation.getCurrentPosition(function (p) {
-    var lat = p.coords.latitude;
-    var lng = p.coords.longitude;
+        if (navigator.geolocation) {
+            navigator.geolocation.getCurrentPosition(function (p) {
+                var lat = p.coords.latitude;
+                var lng = p.coords.longitude;
                 
-    updateUI(lat, lng);
-    map.setView([lat, lng], 17);
-    marker.bindPopup("<b>Vị trí GPS của bạn!</b>").openPopup();
-    }, function (e) {
-    alert("Lỗi GPS: " + e.message);
-    });
-    } else {
-    alert("Trình duyệt không hỗ trợ định vị GPS.");
-    }
+                updateUI(lat, lng);
+                map.setView([lat, lng], 16);
+                marker.bindPopup("<b>Vị trí hiện tại của bạn</b>").openPopup();
+            }, function (e) {
+                alert("Lỗi GPS: " + e.message);
+            });
+        } else {
+            alert("Trình duyệt không hỗ trợ định vị GPS.");
+        }
     }
 
     // --- HÀM 3: CẬP NHẬT UI CHUNG ---
     function updateUI(lat, lng) {
-    var l = parseFloat(lat).toFixed(6);
-    var g = parseFloat(lng).toFixed(6);
-        
-    document.getElementById('latInput').value = l;
-    document.getElementById('lngInput').value = g;
-        
-    // Di chuyển cái ghim
-    marker.setLatLng([l, g]);
+        var l = parseFloat(lat).toFixed(6);
+        var g = parseFloat(lng).toFixed(6);
+            
+        document.getElementById('latInput').value = l;
+        document.getElementById('lngInput').value = g;
+        marker.setLatLng([l, g]);
     }
 
     function confirmLocation() {

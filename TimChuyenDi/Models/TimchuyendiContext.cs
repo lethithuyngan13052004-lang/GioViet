@@ -387,10 +387,13 @@ public partial class TimchuyendiContext : DbContext
             entity.Property(e => e.Id).HasColumnType("int(11)");
             entity.Property(e => e.DeliveryAddress).HasMaxLength(500);
             entity.Property(e => e.FromStationId).HasColumnType("int(11)");
+            entity.Property(e => e.FromProvinceId).HasColumnType("int(11)");
+            entity.Property(e => e.ToProvinceId).HasColumnType("int(11)");
             entity.Property(e => e.Lat).HasPrecision(10, 8);
             entity.Property(e => e.Lng).HasPrecision(11, 8);
             entity.Property(e => e.PickupAddress).HasMaxLength(500);
             entity.Property(e => e.PickupType).HasColumnType("int(11)");
+            entity.Property(e => e.DeliveryType).HasColumnType("int(11)");
             entity.Property(e => e.ReceiverName).HasMaxLength(100);
             entity.Property(e => e.ReceiverPhone).HasMaxLength(15);
             entity.Property(e => e.RequestId).HasColumnType("int(11)");
