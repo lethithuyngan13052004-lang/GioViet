@@ -3,100 +3,113 @@
     ViewData["Title"] = "Lịch sử Gửi hàng";
 }
 
-<h4 class="mt-4 mb-4"><i class="bi bi-clock-history"></i> Lịch Sử Yêu Cầu Gửi Hàng</h4>
+<style>
+    .order-card {
+        border-radius: 20px;
+        border: none;
+        background: white;
+        transition: all 0.3s ease;
+        margin-bottom: 20px;
+        border: 1px solid #f0f0f0;
+    }
+    .order-card:hover {
+        box-shadow: 0 10px 25px rgba(0,0,0,0.05);
+        transform: translateY(-3px);
+    }
+    .status-dot {
+        height: 10px;
+        width: 10px;
+        border-radius: 50%;
+        display: inline-block;
+        margin-right: 5px;
+    }
+</style>
 
-<div class="card shadow-sm border-0">
-    <div class="card-body p-0">
-        <div class="table-responsive">
-            <table class="table table-hover align-middle mb-0">
-                <thead class="table-dark">
-                    <tr>
-                        <th>Mã đơn</th>
-                        <th>Tuyến đường</th>
-                        <th>Tài xế</th>
-                        <th>Khối lượng</th>
-                        <th>Tổng tiền</th>
-                        <th>Trạng thái</th>
-                        <th>Thao tác</th>
-                        <th></th>
-                    </tr>
-                </thead>
-                <tbody>
-                    @if (!Model.Any())
-                    {
-                        <tr><td colspan="7" class="text-center py-4 text-muted">Bạn chưa có lịch sử gửi hàng nào.</td></tr>
-                    }
-                    @foreach (var item in Model)
-                    {
-                        <tr>
-                            <td class="fw-bold text-secondary">#@item.Id</td>
-                            <td class="fw-bold">
-                                @item.Trip.FromStationNavigation.Province <i class="bi bi-arrow-right"></i> @item.Trip.ToStationNavigation.Province<br />
-                                <small class="text-muted fw-normal">Đi: @item.Trip.StartTime.ToString("dd/MM/yyyy HH:mm")</small>
-                            </td>
-                            <td>
-                                @item.Trip.Driver.Name<br />
-                                <small>@item.Trip.Driver.Phone</small>
-                            </td>
-                            <td class="text-danger fw-bold">@(item.Cargodetails.FirstOrDefault()?.Weight ?? 0) kg</td>
-                            <td class="text-success fw-bold">@(item.TotalPrice.HasValue ? item.TotalPrice.Value.ToString("N0") : "0") đ</td>
-                            <td>
+<div class="container py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h3 class="fw-bold text-dark mb-0">
+            <i class="bi bi-clock-history text-primary me-2"></i>Lịch sử yêu cầu
+        </h3>
+        <a asp-controller="Customer" asp-action="CreateRequest" class="btn btn-primary rounded-pill px-4 shadow-sm">
+            <i class="bi bi-plus-lg me-1"></i> Tạo đơn mới
+        </a>
+    </div>
+
+    <div class="row">
+        @if (!Model.Any())
+        {
+            <div class="col-12 text-center py-5">
+                <div class="bg-light rounded-circle p-4 d-inline-block mb-3">
+                    <i class="bi bi-folder2-open text-muted fs-1"></i>
+                </div>
+                <h5 class="text-muted">Bạn chưa có đơn hàng nào</h5>
+                <p class="text-muted mb-4">Hãy tạo đơn hàng đầu tiên của bạn ngay hôm nay!</p>
+                <a asp-controller="Customer" asp-action="CreateRequest" class="btn btn-outline-primary rounded-pill px-4">Bắt đầu ngay</a>
+            </div>
+        }
+        else
+        {
+            @foreach (var item in Model)
+            {
+                <div class="col-lg-6">
+                    <div class="card order-card shadow-sm p-3">
+                        <div class="d-flex justify-content-between align-items-start mb-3 border-bottom pb-2">
+                            <div>
+                                <span class="badge bg-light text-secondary border rounded-pill mb-1">#@item.Id</span>
+                                <div class="text-muted small">@item.CreatedAt.ToString("dd/MM/yyyy HH:mm")</div>
+                            </div>
+                            <div>
+                                @if (item.Status == 0) { <span class="badge bg-warning text-dark rounded-pill shadow-sm"><i class="status-dot bg-dark"></i>Chờ xác nhận</span> }
+                                else if (item.Status == 1) { <span class="badge bg-primary rounded-pill shadow-sm"><i class="status-dot bg-white"></i>Đã xác nhận</span> }
+                                else if (item.Status == 2) { <span class="badge bg-danger rounded-pill shadow-sm"><i class="status-dot bg-white"></i>Bị từ chối</span> }
+                                else if (item.Status == 3) { <span class="badge bg-info text-dark rounded-pill shadow-sm"><i class="status-dot bg-dark"></i>Đang giao</span> }
+                                else if (item.Status == 4) { <span class="badge bg-success rounded-pill shadow-sm"><i class="status-dot bg-white"></i>Đã giao</span> }
+                                else { <span class="badge bg-secondary rounded-pill shadow-sm"><i class="status-dot bg-white"></i>Đã hủy</span> }
+                            </div>
+                        </div>
+
+                        <div class="row align-items-center">
+                            <div class="col-sm-7">
+                                <div class="d-flex align-items-center mb-2">
+                                    <div class="bg-primary bg-opacity-10 p-2 rounded-circle me-3">
+                                        <i class="bi bi-geo-alt-fill text-primary"></i>
+                                    </div>
+                                    <div class="fw-bold">
+                                        @if (item.Trip != null)
+                                        {
+                                            @item.Trip.FromStationNavigation.Province.ProvinceName <i class="bi bi-arrow-right mx-1"></i> @item.Trip.ToStationNavigation.Province.ProvinceName
+                                        }
+                                        else
+                                        {
+                                            <span class="text-primary small">Đang chờ ghép chuyến...</span>
+                                        }
+                                    </div>
+                                </div>
+                                <div class="small text-muted mb-2">
+                                    <i class="bi bi-box-seam me-1"></i> @(item.Cargodetails.FirstOrDefault()?.Weight ?? 0) kg - @(item.Cargodetails.FirstOrDefault()?.Description?.Split(']').LastOrDefault()?.Trim() ?? "Kiện hàng")
+                                </div>
+                                <div class="fw-bold text-success fs-5">
+                                    @(item.TotalPrice.HasValue ? item.TotalPrice.Value.ToString("N0") : "0") <small>VNĐ</small>
+                                </div>
+                            </div>
+                            <div class="col-sm-5 text-end mt-3 mt-sm-0">
+                                <a asp-action="RequestDetail" asp-controller="Customer" asp-route-id="@item.Id" class="btn btn-outline-primary rounded-pill btn-sm px-4 w-100 mb-2">Chi tiết</a>
                                 @if (item.Status == 0)
                                 {
-                                    <span class="badge bg-warning text-dark">Chờ xác nhận</span>
-                                }
-                                else if (item.Status == 1)
-                                {
-
-                                    <span class="badge bg-primary">Đã xác nhận</span>
-                                }
-                                else if (item.Status == 2)
-                                {
-
-                                    <span class="badge bg-danger">Bị từ chối</span>
-                                }
-                                else if (item.Status == 3)
-                                {
-
-                                    <span class="badge bg-info text-dark">Đang giao</span>
-                                }
-                                else if (item.Status == 4)
-                                {
-
-                                    <span class="badge bg-success">Đã giao hoàn tất</span>
-                                }
-                                else if (item.Status == 5)
-                                {
-
-                                    <span class="badge bg-secondary">Đã hủy</span>
-                                }
-                            </td>
-                            <td>
-
-                                @if (item.Status == 0)
-                                {
-                                    <form asp-action="CancelRequest" method="post" class="d-inline">
+                                    <form asp-action="CancelRequest" method="post">
                                         <input type="hidden" name="reqId" value="@item.Id" />
-                                        <button type="submit" class="btn btn-sm btn-outline-danger" onclick="return confirm('Bạn có chắc chắn muốn hủy đơn gửi hàng này không?');">Hủy đơn</button>
+                                        <button type="submit" class="btn btn-link text-danger btn-sm p-0 w-100" onclick="return confirm('Bạn có chắc chắn muốn hủy đơn này?');">Hủy đơn</button>
                                     </form>
                                 }
                                 else if (item.Status == 4)
                                 {
-                                    <a asp-controller="Customer" asp-action="RateTrip" asp-route-tripId="@item.TripId" class="btn btn-sm btn-warning">Đánh giá</a>
+                                    <a asp-controller="Customer" asp-action="RateTrip" asp-route-reqId="@item.Id" class="btn btn-warning btn-sm rounded-pill px-4 w-100">Đánh giá</a>
                                 }
-
-                            </td>
-
-                            <td>
-                                <a asp-action="RequestDetail" asp-controller="Customer" asp-route-id="@item.Id" class="btn btn-outline-primary btn-sm mt-2">
-                                    <i class="bi bi-eye"></i> Xem chi tiết
-                                </a>
-                            </td>
-
-                        </tr>
-                    }
-                </tbody>
-            </table>
-        </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            }
+        }
     </div>
 </div>

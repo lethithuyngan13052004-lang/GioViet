@@ -11,7 +11,10 @@ public partial class Shippingroute
 
     public string? SenderPhone { get; set; }
 
+    public int? FromProvinceId { get; set; }
+    public int? ToProvinceId { get; set; }
     public int PickupType { get; set; }
+    public int DeliveryType { get; set; }
 
     public string? PickupAddress { get; set; }
 

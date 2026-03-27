@@ -493,5 +493,42 @@ namespace TimChuyenDi.Controllers
 
             return RedirectToAction("ManageVehicles");
         }
+
+        // GET: Chấp nhận 1 đơn hàng tự do cho 1 chuyến xe của mình (Ghép chuyến)
+        [HttpGet]
+        public async Task<IActionResult> AcceptGenericOrder(int requestId, int tripId)
+        {
+            var userIdStr = User.FindFirstValue("UserId");
+            if (string.IsNullOrEmpty(userIdStr)) return RedirectToAction("Login", "Auth");
+            int driverId = int.Parse(userIdStr);
+
+            var request = _context.Shiprequests
+                .Include(r => r.Cargodetails)
+                .FirstOrDefault(r => r.Id == requestId && (r.Status == 0 || r.Status == null) && r.TripId == null);
+            
+            var trip = _context.Trips.FirstOrDefault(t => t.TripId == tripId && t.DriverId == driverId);
+
+            if (request != null && trip != null)
+            {
+                request.TripId = tripId;
+                request.Status = 1; // Đã xác nhận
+                
+                var cargo = request.Cargodetails.FirstOrDefault();
+                if (cargo != null)
+                {
+                    request.TotalPrice = cargo.Weight * trip.BasePricePerKg;
+                    trip.AvaiCapacityKg -= (int)(cargo.Weight ?? 0);
+                }
+
+                await _context.SaveChangesAsync();
+                TempData["Success"] = $"Đã ghép đơn hàng #{requestId} vào chuyến xe của bạn thành công!";
+            }
+            else
+            {
+                TempData["Error"] = "Không thể nhận đơn hàng này. Có thể đơn đã được người khác nhận hoặc không hợp lệ.";
+            }
+
+            return RedirectToAction("Index");
+        }
     }
 }

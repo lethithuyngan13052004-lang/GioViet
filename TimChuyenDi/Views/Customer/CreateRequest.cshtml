@@ -1,0 +1,288 @@
+@{
+    ViewData["Title"] = "Tạo Đơn Vận Chuyển";
+}
+
+<div class="container py-5 mobile-container">
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+            <div class="card border-0 shadow-lg rounded-4 overflow-hidden">
+                <!-- Header -->
+                <div class="card-header bg-primary text-white p-4 border-0">
+                    <div class="d-flex align-items-center">
+                        <div class="bg-white rounded-circle p-2 me-3">
+                            <i class="bi bi-box-seam text-primary fs-4"></i>
+                        </div>
+                        <div>
+                            <h2 class="h4 mb-0 fw-bold">Tạo Đơn Vận Chuyển Mới</h2>
+                            <p class="small mb-0 opacity-75">Cung cấp thông tin chi tiết để tìm chuyến xe phù hợp nhất</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card-body p-4 p-md-5 bg-light">
+                    <form asp-action="CreateRequest" asp-controller="Customer" method="post" id="createRequestForm" enctype="multipart/form-data">
+                        <!-- Step 1: Địa điểm & Thời gian -->
+                        <div class="mb-5">
+                            <h5 class="fw-bold text-primary mb-4 d-flex align-items-center">
+                                <span class="badge bg-primary rounded-circle me-2">1</span> Thông tin giao nhận
+                            </h5>
+                            <div class="row g-3">
+                                <div class="col-md-6">
+                                    <label class="form-label fw-bold text-dark small">TỈNH XUẤT PHÁT</label>
+                                    <select name="fromProvinceId" id="fromProv" class="form-select border shadow-sm py-2 px-3 rounded-pill" asp-items="ViewBag.Provinces" required>
+                                        <option value="">-- Chọn Tỉnh --</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label fw-bold text-dark small">TỈNH ĐÍCH</label>
+                                    <select name="toProvinceId" id="toProv" class="form-select border shadow-sm py-2 px-3 rounded-pill" asp-items="ViewBag.Provinces" required>
+                                        <option value="">-- Chọn Tỉnh --</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label fw-bold text-dark small">HÌNH THỨC LẤY HÀNG</label>
+                                    <select name="PickupType" id="pickupType" class="form-select border shadow-sm py-2 px-3 rounded-pill" required>
+                                        <option value="1">Lấy hàng tại nhà</option>
+                                        <option value="2">Gửi tại kho/bến xe</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label fw-bold text-dark small">NGÀY MONG MUỐN</label>
+                                    <input type="date" name="startDate" class="form-control border shadow-sm py-2 px-3 rounded-pill" value="@ViewBag.CurrentDate" required id="requestDate"/>
+                                </div>
+
+                                <div class="col-md-12" id="pickupAddressSection">
+                                    <label class="form-label fw-bold text-dark small">ĐỊA CHỈ LẤY HÀNG <span class="text-danger">*</span></label>
+                                    <input type="text" name="PickupAddress" id="pickupAddrInput" class="form-control border shadow-sm py-2 px-3 rounded-pill" placeholder="Số nhà, tên đường, phường/xã..." required />
+                                </div>
+                                <div class="col-md-12 d-none" id="pickupStationSection">
+                                    <label class="form-label fw-bold text-dark small">KHO/BẾN XE GỬI <span class="text-danger">*</span></label>
+                                    <select name="FromStationId" id="fromStation" class="form-select border shadow-sm py-2 px-3 rounded-pill">
+                                        <option value="">-- Chọn kho/bến xe --</option>
+                                    </select>
+                                </div>
+
+                                <div class="col-md-6">
+                                    <label class="form-label fw-bold text-dark small">HÌNH THỨC NHẬN HÀNG</label>
+                                    <select name="DeliveryType" id="deliveryType" class="form-select border shadow-sm py-2 px-3 rounded-pill" required>
+                                        <option value="1">Giao hàng tận nơi</option>
+                                        <option value="2">Nhận tại kho/bến xe</option>
+                                    </select>
+                                </div>
+
+                                <div class="col-md-12" id="deliveryAddressSection">
+                                    <label class="form-label fw-bold text-dark small">ĐỊA CHỈ GIAO HÀNG <span class="text-danger">*</span></label>
+                                    <input type="text" name="DeliveryAddress" id="deliveryAddrInput" class="form-control border shadow-sm py-2 px-3 rounded-pill" placeholder="Số nhà, tên đường, phường/xã..." required />
+                                </div>
+                                <div class="col-md-12 d-none" id="deliveryStationSection">
+                                    <label class="form-label fw-bold text-dark small">KHO/BẾN XE ĐẾN <span class="text-danger">*</span></label>
+                                    <select name="ToStationId" id="toStation" class="form-select border shadow-sm py-2 px-3 rounded-pill">
+                                        <option value="">-- Chọn kho/bến xe --</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Step 2: Thông tin liên hệ -->
+                        <div class="mb-5">
+                            <h5 class="fw-bold text-primary mb-4 d-flex align-items-center">
+                                <span class="badge bg-primary rounded-circle me-2">2</span> Thông tin liên hệ
+                            </h5>
+                            <div class="row g-3">
+                                <div class="col-md-6">
+                                    <label class="form-label fw-bold text-dark small">SỐ ĐIỆN THOẠI NGƯỜI GỬI</label>
+                                    <input type="tel" name="SenderPhone" class="form-control border shadow-sm py-2 px-3 rounded-pill" value="@ViewBag.UserPhone" placeholder="0xxx xxx xxx" required />
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label fw-bold text-dark small">TÊN NGƯỜI NHẬN</label>
+                                    <input type="text" name="ReceiverName" class="form-control border shadow-sm py-2 px-3 rounded-pill" placeholder="Họ tên người nhận" required />
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label fw-bold text-dark small">SỐ ĐIỆN THOẠI NGƯỜI NHẬN</label>
+                                    <input type="tel" name="ReceiverPhone" class="form-control border shadow-sm py-2 px-3 rounded-pill" placeholder="0xxx xxx xxx" required />
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label fw-bold text-dark small">GHI CHÚ ĐƠN HÀNG</label>
+                                    <input type="text" name="Note" class="form-control border shadow-sm py-2 px-3 rounded-pill" placeholder="Ghi chú thêm (nếu có)..." />
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Step 3: Kiện hàng -->
+                        <div class="mb-5">
+                            <h5 class="fw-bold text-primary mb-4 d-flex align-items-center">
+                                <span class="badge bg-primary rounded-circle me-2">3</span> Chi tiết kiện hàng
+                            </h5>
+                            <div class="row g-3">
+                                <div class="col-md-12">
+                                    <label class="form-label fw-semibold text-muted small text-uppercase">Tên hàng hóa / Mô tả</label>
+                                    <input type="text" name="Description" class="form-control border-0 shadow-sm py-2 px-3 rounded-3" placeholder="Thùng trái cây, Đồ nội thất..." required />
+                                </div>
+                                <div class="col-md-3 col-6">
+                                    <label class="form-label fw-semibold text-muted small text-uppercase">Dài (cm)</label>
+                                    <input type="number" id="len" name="Length" class="form-control border-0 shadow-sm py-2 px-3 rounded-3" placeholder="0" />
+                                </div>
+                                <div class="col-md-3 col-6">
+                                    <label class="form-label fw-semibold text-muted small text-uppercase">Rộng (cm)</label>
+                                    <input type="number" id="wid" name="Width" class="form-control border-0 shadow-sm py-2 px-3 rounded-3" placeholder="0" />
+                                </div>
+                                <div class="col-md-3 col-6">
+                                    <label class="form-label fw-semibold text-muted small text-uppercase">Cao (cm)</label>
+                                    <input type="number" id="hei" name="Height" class="form-control border-0 shadow-sm py-2 px-3 rounded-3" placeholder="0" />
+                                </div>
+                                <div class="col-md-3 col-6">
+                                    <label class="form-label fw-semibold text-muted small text-uppercase">Thể tích (m³)</label>
+                                    <input type="text" id="vol" class="form-control border-0 shadow-sm py-2 px-3 rounded-3 bg-white" readonly placeholder="0" />
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label fw-semibold text-muted small text-uppercase">Cân nặng (kg)</label>
+                                    <input type="number" name="Weight" class="form-control border-0 shadow-sm py-2 px-3 rounded-3" placeholder="0" required />
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label fw-semibold text-muted small text-uppercase">Loại hàng</label>
+                                    <select name="cargoTypeId" class="form-select border-0 shadow-sm py-2 px-3 rounded-3" asp-items="ViewBag.CargoTypes" required>
+                                        <option value="">-- Chọn loại --</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Footer Actions -->
+                        <div class="d-grid pt-3">
+                            <button type="submit" class="btn btn-primary btn-lg py-3 rounded-pill fw-bold shadow-sm transition-all hover-scale">
+                                <i class="bi bi-search me-2"></i> TÌM CHUYẾN VÀ ĐẶT NGAY
+                            </button>
+                            <p class="text-center text-muted small mt-3">
+                                <i class="bi bi-shield-check me-1"></i> Thông tin của bạn được bảo mật tuyệt đối
+                            </p>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    body {
+        background-color: #f0f2f5;
+    }
+    .mobile-container {
+        max-width: 900px;
+    }
+    .cursor-pointer { cursor: pointer; }
+    .transition-all { transition: all 0.3s ease; }
+    .hover-scale:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 10px 20px rgba(0,0,0,0.1) !important;
+    }
+    .upload-zone:hover {
+        background-color: #f8fbff;
+        border-style: solid;
+    }
+    .card {
+        border-radius: 20px !important;
+    }
+    .form-select, .form-control {
+        background-color: #fdfdfd;
+    }
+    .form-select:focus, .form-control:focus {
+        background-color: #fff;
+        box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.05) !important;
+    }
+    .badge {
+        width: 24px;
+        height: 24px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        padding: 0;
+        font-size: 13px;
+    }
+</style>
+
+@section Scripts {
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            const dateInput = document.getElementById('requestDate');
+            if(dateInput) {
+                const today = new Date().toISOString().split('T')[0];
+                dateInput.setAttribute('min', today);
+            }
+
+            const pickupType = document.getElementById('pickupType');
+            const pickupAddr = document.getElementById('pickupAddressSection');
+            const pickupStat = document.getElementById('pickupStationSection');
+            const fromProv = document.getElementById('fromProv');
+            const fromStationSelect = document.getElementById('fromStation');
+
+            const deliveryType = document.getElementById('deliveryType');
+            const deliveryAddr = document.getElementById('deliveryAddressSection');
+            const deliveryStat = document.getElementById('deliveryStationSection');
+            const toProv = document.getElementById('toProv');
+            const toStationSelect = document.getElementById('toStation');
+
+            pickupType.addEventListener('change', function() {
+                if (this.value == '2') {
+                    pickupAddr.classList.add('d-none');
+                    pickupStat.classList.remove('d-none');
+                    document.getElementById('pickupAddrInput').required = false;
+                    fromStationSelect.required = true;
+                    loadStations(fromProv.value, fromStationSelect);
+                } else {
+                    pickupAddr.classList.remove('d-none');
+                    pickupStat.classList.add('d-none');
+                    document.getElementById('pickupAddrInput').required = true;
+                    fromStationSelect.required = false;
+                }
+            });
+
+            deliveryType.addEventListener('change', function() {
+                if (this.value == '2') {
+                    deliveryAddr.classList.add('d-none');
+                    deliveryStat.classList.remove('d-none');
+                    document.getElementById('deliveryAddrInput').required = false;
+                    toStationSelect.required = true;
+                    loadStations(toProv.value, toStationSelect);
+                } else {
+                    deliveryAddr.classList.remove('d-none');
+                    deliveryStat.classList.add('d-none');
+                    document.getElementById('deliveryAddrInput').required = true;
+                    toStationSelect.required = false;
+                }
+            });
+
+            fromProv.addEventListener('change', function() {
+                if (pickupType.value == '2') loadStations(this.value, fromStationSelect);
+            });
+
+            toProv.addEventListener('change', function() {
+                if (deliveryType.value == '2') loadStations(this.value, toStationSelect);
+            });
+
+            function loadStations(provId, selectElem) {
+                if (!provId) return;
+                fetch(`/Customer/GetStations?provinceId=${provId}`)
+                    .then(r => r.json())
+                    .then(data => {
+                        selectElem.innerHTML = '<option value="">-- Chọn kho/bến xe --</option>';
+                        data.forEach(s => {
+                            selectElem.innerHTML += `<option value="${s.stationId}">${s.stationName}</option>`;
+                        });
+                    });
+            }
+
+            // Calculations
+            const ids = ['len', 'wid', 'hei'];
+            ids.forEach(id => {
+                document.getElementById(id).addEventListener('input', function() {
+                    let l = parseFloat(document.getElementById('len').value) || 0;
+                    let w = parseFloat(document.getElementById('wid').value) || 0;
+                    let h = parseFloat(document.getElementById('hei').value) || 0;
+                    let res = (l * w * h) / 1000000;
+                    document.getElementById('vol').value = res > 0 ? res.toFixed(4) : '0';
+                });
+            });
+        });
+    </script>
+}

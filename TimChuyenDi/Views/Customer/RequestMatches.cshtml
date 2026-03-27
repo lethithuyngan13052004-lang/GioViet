@@ -1,0 +1,110 @@
+@model IEnumerable<TimChuyenDi.Models.Trip>
+@{
+    ViewData["Title"] = "Chuyến xe phù hợp";
+}
+
+<div class="container py-5">
+    <!-- Success Banner -->
+    <div class="text-center mb-5 animate__animated animate__fadeInDown">
+        <div class="display-4 text-success mb-3">
+            <i class="bi bi-check-circle-fill"></i>
+        </div>
+        <h2 class="fw-bold text-dark">Tạo Đơn Thành Công!</h2>
+        <p class="lead text-muted">Đơn hàng <span class="text-primary fw-bold">#@ViewBag.RequestId</span> đã được lưu vào hệ thống.</p>
+        <div class="mt-4">
+            <a asp-action="RequestHistory" class="btn btn-outline-secondary rounded-pill px-4 me-2">
+                <i class="bi bi-list-ul me-1"></i> Xem lịch sử đơn
+            </a>
+            <a href="#matchingTrips" class="btn btn-primary rounded-pill px-4 shadow-sm">
+                <i class="bi bi-arrow-down-circle me-1"></i> Xem chuyến xe phù hợp
+            </a>
+        </div>
+    </div>
+
+    <!-- Matching Trips Section -->
+    <div id="matchingTrips" class="pt-4">
+        <div class="d-flex justify-content-between align-items-center mb-4 border-bottom pb-3">
+            <h4 class="fw-bold text-primary mb-0">
+                <i class="bi bi-stars me-2 text-warning"></i>Gợi ý chuyến xe cho bạn
+            </h4>
+            <span class="badge bg-light text-dark border p-2 rounded-pill">
+                Tìm thấy @Model.Count() kết quả
+            </span>
+        </div>
+
+        @if (Model != null && Model.Any())
+        {
+            <div class="row g-4">
+                @foreach (var item in Model)
+                {
+                    <div class="col-md-6">
+                        <div class="card h-100 border-0 shadow-sm rounded-4 overflow-hidden trip-match-card transition-all">
+                            <div class="card-header bg-primary bg-opacity-10 border-0 p-3">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <span class="fw-bold text-primary">
+                                        @item.FromStationNavigation.Province.ProvinceName <i class="bi bi-arrow-right mx-1"></i> @item.ToStationNavigation.Province.ProvinceName
+                                    </span>
+                                    <span class="badge bg-white text-success border border-success border-opacity-25 rounded-pill px-3">Xe đang trống</span>
+                                </div>
+                            </div>
+                            <div class="card-body p-4">
+                                <div class="row align-items-center">
+                                    <div class="col-8">
+                                        <p class="mb-2"><strong>Tài xế:</strong> @item.Driver.Name</p>
+                                        <p class="mb-2 text-muted small"><i class="bi bi-truck me-1"></i> @item.Vehicle.PlateNumber (@item.Vehicle.VehicleType.TypeName)</p>
+                                        <p class="mb-2 text-success fw-bold"><i class="bi bi-clock me-1"></i> @item.StartTime.ToString("dd/MM/yyyy HH:mm")</p>
+                                        <p class="mb-0"><strong>Giá cước:</strong> <span class="text-danger">@item.BasePricePerKg.ToString("N0") đ/kg</span></p>
+                                    </div>
+                                    <div class="col-4 text-center">
+                                        <div class="bg-light rounded-4 p-2 border border-dashed border-primary">
+                                            <small class="d-block text-muted">Còn trống</small>
+                                            <span class="h4 fw-bold text-primary mb-0">@item.AvaiCapacityKg</span><br/>
+                                            <small class="text-muted">kg</small>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="card-footer bg-white border-top-0 p-3 pt-0 text-end">
+                                <form asp-action="AssignTripToRequest" asp-controller="Customer" method="post" class="d-inline">
+                                    <input type="hidden" name="tripId" value="@item.TripId" />
+                                    <input type="hidden" name="requestId" value="@ViewBag.RequestId" />
+                                    <button type="submit" class="btn btn-primary w-100 rounded-pill py-2 fw-bold shadow-sm hover-scale">
+                                        ĐẶT CHUYẾN NÀY <i class="bi bi-chevron-right ms-1"></i>
+                                    </button>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                }
+            </div>
+        }
+        else
+        {
+            <div class="text-center py-5 bg-light rounded-4 border-2 border-dashed border-muted">
+                <i class="bi bi-emoji-smile-upside-down fs-1 text-muted"></i>
+                <h5 class="mt-3 fw-bold text-muted">Hết chuyến xe phù hợp hôm nay</h5>
+                <p class="text-muted mb-4 px-4">Đừng lo, đơn hàng của bạn đã được đăng công khai.<br/>Các tài xế khác sẽ chủ động liên hệ với bạn trong thời gian sớm nhất!</p>
+                <a asp-action="RequestHistory" class="btn btn-outline-primary rounded-pill px-5">QUẢN LÝ ĐƠN HÀNG</a>
+            </div>
+        }
+    </div>
+</div>
+
+<style>
+    .trip-match-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 15px 30px rgba(13, 110, 253, 0.1) !important;
+    }
+    .transition-all {
+        transition: all 0.3s ease;
+    }
+    .hover-scale {
+        transition: all 0.2s;
+    }
+    .hover-scale:hover {
+        transform: scale(1.02);
+    }
+    body {
+        background-color: #f8f9fa;
+    }
+</style>

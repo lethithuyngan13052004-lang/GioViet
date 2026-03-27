@@ -1,4 +1,4 @@
-﻿using System.Net.Http;
+using System.Net.Http;
 using System.Text;
 using System.Text.Json;
 using Microsoft.Extensions.Configuration;
@@ -29,7 +29,7 @@ namespace TimChuyenDi.Services
             string cleanApiKey = _apiKey.Trim();
 
             // 2. Lắp ráp URL theo cách an toàn nhất (Cộng chuỗi trực tiếp)
-            string url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=" + _apiKey.Trim();
+            string url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=" + _apiKey.Trim();
 
             // 3. Đóng gói câu hỏi chuẩn JSON
             var requestBody = new

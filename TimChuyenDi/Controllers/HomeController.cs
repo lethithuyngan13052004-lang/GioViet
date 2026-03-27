@@ -83,6 +83,13 @@ namespace TimChuyenDi.Controllers
             ViewBag.CurrentPage = page;
             ViewBag.TotalPages = totalPages;
 
+            // Lấy thêm danh sách trạm xe để hiển thị ở trang chủ
+            ViewBag.Stations = _context.Stations
+                .Include(s => s.Province)
+                .OrderBy(s => s.StationId)
+                .Take(4)
+                .ToList();
+
 
             // 🔥 CHECK LOGIN + ROLE TRƯỚC
             if (User.Identity.IsAuthenticated)
@@ -338,6 +345,22 @@ namespace TimChuyenDi.Controllers
                 .OrderBy(w => w.name)
                 .ToList();
             return Json(wards);
+        }
+        [HttpGet]
+        public IActionResult GetStationsApi()
+        {
+            var stations = _context.Stations
+                .Include(s => s.Province)
+                .Select(s => new {
+                    id = s.StationId,
+                    name = s.StationName,
+                    address = s.Address,
+                    lat = s.Latitude,
+                    lng = s.Longitude,
+                    province = s.Province.ProvinceName
+                })
+                .ToList();
+            return Json(stations);
         }
     } // Đóng class HomeController
 

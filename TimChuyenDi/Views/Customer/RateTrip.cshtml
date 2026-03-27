@@ -1,4 +1,4 @@
-﻿@model TimChuyenDi.Models.Trip
+@model TimChuyenDi.Models.Trip
 @{
     ViewData["Title"] = "Đánh giá dịch vụ";
 }
@@ -14,7 +14,7 @@
                 <p class="text-muted">Chuyến đi số: #@Model.TripId</p>
 
                 <form asp-action="RateTrip" method="post">
-                    <input type="hidden" name="tripId" value="@Model.TripId" />
+                    <input type="hidden" name="reqId" value="@ViewBag.RequestId" />
 
                     <div class="mb-4 mt-3">
                         <label class="form-label fw-bold">Mức độ hài lòng (1 - 5 sao):</label>
