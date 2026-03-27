@@ -1,4 +1,4 @@
-﻿@{
+@{
     ViewData["Title"] = "Đăng Chuyến Xe Mới";
 }
 
@@ -16,8 +16,8 @@
                             <select name="VehicleId" class="form-select" asp-items="ViewBag.Vehicles" required></select>
                         </div>
                         <div class="col-md-6">
-                            <label class="form-label">Giá cước cơ bản (VNĐ/kg)</label>
-                            <input type="number" step="0.01" name="BasePricePerKg" class="form-control" required placeholder="Ví dụ: 350.00" />
+                            <label class="form-label">Giá mở đầu (VNĐ)</label>
+                            <input type="number" step="1000" name="BasePrice" class="form-control" required placeholder="Ví dụ: 350000" />
                         </div>
                     </div>
 

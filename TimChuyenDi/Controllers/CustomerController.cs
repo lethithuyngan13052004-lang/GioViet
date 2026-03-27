@@ -407,7 +407,99 @@ namespace TimChuyenDi.Controllers
         }
 
         // ==========================================
+<<<<<<< HEAD
+        // 3. CHỨC NĂNG ĐẶT CHUYẾN XE
+        // ==========================================
+        [HttpGet]
+        public IActionResult BookTrip(int id)
+        {
+            var trip = _context.Trips
+                .Include(t => t.Driver)
+                .Include(t => t.Vehicle)
+                .Include(t => t.FromStationNavigation).ThenInclude(s => s.Province)
+                .Include(t => t.ToStationNavigation).ThenInclude(s => s.Province)
+                .FirstOrDefault(t => t.TripId == id);
+
+            if (trip == null) return NotFound();
+
+            ViewBag.CargoTypes = new SelectList(_context.Cargotypes.ToList(), "CargoTypeId", "TypeName");
+            return View(trip);
+        }
+
+        [HttpPost]
+        public IActionResult BookTrip(int TripId, int CargoTypeId, string ReceiverInfo, decimal Weight, decimal Length, decimal Width, decimal Height, string Description, string PickupAddress, string DeliveryAddress, string PackageName, int Quantity = 1, decimal EstimatedValue = 0, string Note = "")
+        {
+            var trip = _context.Trips
+                .Include(t => t.RouteTypeNavigation)
+                .FirstOrDefault(t => t.TripId == TripId);
+            var cargoType = _context.Cargotypes.Find(CargoTypeId);
+
+            if (trip == null || Weight <= 0 || Weight > trip.AvaiCapacityKg || cargoType == null)
+            {
+                TempData["Error"] = "Khối lượng không hợp lệ hoặc vượt quá chỗ trống của xe!";
+                return RedirectToAction("BookTrip", new { id = TripId });
+            }
+
+            var customerIdStr = User.FindFirstValue("UserId");
+            if (string.IsNullOrEmpty(customerIdStr)) return RedirectToAction("Login", "Auth");
+            int customerId = int.Parse(customerIdStr);
+
+            var pricePerKmConfig = _context.SystemConfigs.FirstOrDefault(c => c.KeyName == "PricePerKm");
+            decimal pricePerKm = pricePerKmConfig?.Value ?? 0;
+
+            // Thuật toán tính giá: (BasePrice + Distance * PricePerKm) * TripTypeMultiplier * CargoTypeMultiplier
+            decimal tripTypeMultiplier = trip.RouteTypeNavigation?.Multiplier ?? 1.0m;
+            decimal cargoTypeMultiplier = cargoType.PriceMultiplier;
+            decimal distance = trip.Distance ?? 0m;
+            
+            decimal totalPrice = (trip.BasePrice + distance * pricePerKm) * tripTypeMultiplier * cargoTypeMultiplier;
+
+            // Gộp thông tin chi tiết vào Description nếu schema chưa có trường riêng
+            string fullDescription = $"[Kiện: {PackageName}] [SL: {Quantity}] [Giá trị: {EstimatedValue:N0}đ] {Description}";
+
+            var request = new Shiprequest
+            {
+                UserId = customerId,
+                TripId = TripId,
+                TotalPrice = totalPrice,
+                Status = 0,
+                Note = Note, // Lưu ghi chú từ form
+                CreatedAt = DateTime.Now,
+                Cargodetails = new List<Cargodetail>
+                {
+                    new Cargodetail
+                    {
+                        Weight = Weight,
+                        Length = Length,
+                        Width = Width,
+                        Height = Height,
+                        Description = fullDescription
+                    }
+                },
+                Shippingroutes = new List<Shippingroute>
+                {
+                    new Shippingroute
+                    {
+                        ReceiverName = ReceiverInfo,
+                        PickupAddress = PickupAddress,
+                        DeliveryAddress = DeliveryAddress,
+                        PickupType = 1
+                    }
+                }
+            };
+
+            _context.Shiprequests.Add(request);
+            _context.SaveChanges();
+
+            TempData["SuccessMessage"] = "Gửi yêu cầu đặt xe thành công! Vui lòng chờ tài xế xác nhận.";
+            return RedirectToAction("RequestHistory");
+        }
+
+        // ==========================================
+        // 4. CHỨC NĂNG LƯU TUYẾN YÊU THÍCH
+=======
         // LƯU TUYẾN YÊU THÍCH
+>>>>>>> 436120f49f53790747860d5345472acf0dbc160e
         // ==========================================
         [HttpGet]
         public IActionResult SaveRoute(int id)

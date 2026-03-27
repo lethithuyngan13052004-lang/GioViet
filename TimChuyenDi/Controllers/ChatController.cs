@@ -45,6 +45,10 @@ namespace TimChuyenDi.Controllers
             {
                 if (roleClaim == "1") // QUẢN TRỊ VIÊN (ADMIN)
                 {
+<<<<<<< HEAD
+                    // Thêm chữ "Mã chuyến xe" rõ ràng để AI lấy dữ liệu ghép vào Link
+                    dbContextInfo += $"- Mã chuyến xe: {t.TripId} | Tuyến: {t.FromStationNavigation.Province} đi {t.ToStationNavigation.Province} | Giá mở đầu: {t.BasePrice}đ | Khởi hành: {t.StartTime:dd/MM/yyyy HH:mm} | Tài xế: {t.Driver.Name} | Chỗ trống: {t.AvaiCapacityKg}kg.\n";
+=======
                     int pendingVehicles = _context.Vehicles.Count(v => v.Status == 0);
                     int totalUsers = _context.Users.Count();
                     int activeTrips = _context.Trips.Count(t => t.StartTime > DateTime.Now);
@@ -153,6 +157,7 @@ Bạn là Trợ lý Điều phối Gió Việt, đang hỗ trợ KHÁCH HÀNG.
 Nhiệm vụ: Phân tích đơn hàng khách và gợi ý chuyến xe phù hợp.
 1. SO SÁNH: Chuyến xe có Lộ trình khớp Tỉnh và đủ Chỗ trống.
 2. NÚT ĐẶT XE: BẮT BUỘC chèn: <br/><a href='/Customer/BookTrip/[ID]' target='_blank' class='btn btn-sm btn-success fw-bold mt-2 mb-2'>🚐 Đặt chuyến [ID] ngay</a><br/>";
+>>>>>>> 436120f49f53790747860d5345472acf0dbc160e
                 }
             }
 

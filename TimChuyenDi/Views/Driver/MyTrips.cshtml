@@ -1,4 +1,4 @@
-﻿@model IEnumerable<TimChuyenDi.Models.Trip>
+@model IEnumerable<TimChuyenDi.Models.Trip>
 @{
     ViewData["Title"] = "Chuyến xe của tôi";
 }
@@ -44,7 +44,7 @@
                         -
                         @(item.ArrivalTime?.ToString("dd/MM/yyyy HH:mm") ?? "Chưa cập nhật")
                     </p>
-                    <p class="mb-1"><strong>Giá cước:</strong> <span class="text-success">@item.BasePricePerKg.ToString("N0") đ/kg</span></p>
+                    <p class="mb-1"><strong>Giá mở đầu:</strong> <span class="text-success">@item.BasePrice.ToString("N0") đ</span></p>
                     <p class="mb-0"><strong>Chỗ trống hiện tại:</strong> <span class="text-danger fw-bold">@item.AvaiCapacityKg kg</span></p>
                 </div>
             </div>

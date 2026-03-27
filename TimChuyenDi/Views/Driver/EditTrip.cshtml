@@ -1,4 +1,4 @@
-﻿@model TimChuyenDi.Models.Trip
+@model TimChuyenDi.Models.Trip
 @{
     ViewData["Title"] = "Sửa Chuyến Xe";
 }
@@ -34,11 +34,11 @@
                 </div>
 
                 <div class="col-md-6">
-                    <label class="form-label fw-semibold">Giá cước (VNĐ/kg)</label>
-                    <input type="number" step="0.01"
-                           name="BasePricePerKg"
+                    <label class="form-label fw-semibold">Giá mở đầu (VNĐ)</label>
+                    <input type="number" step="1000"
+                           name="BasePrice"
                            class="form-control rounded-3 shadow-sm"
-                           value="@Model.BasePricePerKg" required />
+                           value="@Model.BasePrice" required />
                 </div>
 
                 <!-- Điểm đi -->

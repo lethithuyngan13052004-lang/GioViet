@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Máy chủ: 127.0.0.1
--- Thời gian đã tạo: Th3 26, 2026 lúc 09:36 AM
+-- Thời gian đã tạo: Th3 27, 2026 lúc 09:40 AM
 -- Phiên bản máy phục vụ: 10.4.32-MariaDB
 -- Phiên bản PHP: 8.0.30
 
@@ -35,6 +35,22 @@ CREATE TABLE `behaviorlogs` (
   `Value` varchar(100) NOT NULL,
   `Confidence` float DEFAULT NULL,
   `CreatedAt` datetime NOT NULL DEFAULT current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+-- --------------------------------------------------------
+
+--
+-- Cấu trúc bảng cho bảng `cargodetail`
+--
+
+CREATE TABLE `cargodetail` (
+  `Id` int(11) NOT NULL,
+  `RequestId` int(11) NOT NULL,
+  `Weight` decimal(10,2) DEFAULT NULL,
+  `Length` decimal(10,2) DEFAULT NULL,
+  `Width` decimal(10,2) DEFAULT NULL,
+  `Height` decimal(10,2) DEFAULT NULL,
+  `Description` text DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 -- --------------------------------------------------------
@@ -955,6 +971,43 @@ CREATE TABLE `savedroutes` (
 -- --------------------------------------------------------
 
 --
+-- Cấu trúc bảng cho bảng `shippingroute`
+--
+
+CREATE TABLE `shippingroute` (
+  `Id` int(11) NOT NULL,
+  `RequestId` int(11) NOT NULL,
+  `SenderPhone` varchar(15) DEFAULT NULL,
+  `PickupType` int(11) NOT NULL,
+  `PickupAddress` varchar(500) DEFAULT NULL,
+  `Lat` decimal(10,8) DEFAULT NULL,
+  `Lng` decimal(11,8) DEFAULT NULL,
+  `FromStationId` int(11) DEFAULT NULL,
+  `ReceiverName` varchar(100) DEFAULT NULL,
+  `ReceiverPhone` varchar(15) DEFAULT NULL,
+  `ToStationId` int(11) DEFAULT NULL,
+  `DeliveryAddress` varchar(500) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+-- --------------------------------------------------------
+
+--
+-- Cấu trúc bảng cho bảng `shiprequest`
+--
+
+CREATE TABLE `shiprequest` (
+  `Id` int(11) NOT NULL,
+  `UserId` int(11) NOT NULL,
+  `TripId` int(11) DEFAULT NULL,
+  `Status` int(11) DEFAULT 0,
+  `TotalPrice` decimal(18,2) DEFAULT 0.00,
+  `Note` text DEFAULT NULL,
+  `CreatedAt` timestamp NOT NULL DEFAULT current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+-- --------------------------------------------------------
+
+--
 -- Cấu trúc bảng cho bảng `shiprequests`
 --
 
@@ -1032,7 +1085,209 @@ INSERT INTO `stations` (`StationId`, `StationName`, `Address`, `Latitude`, `Long
 (79, 'Trạm Mường Chọng', 'Bản Vị', 19.22215800, 105.08313100, 40, NULL, NULL),
 (80, 'Trạm Văn Hiến', 'Xã Đô Lương', 18.92497000, 105.35082800, 40, 427, 17617),
 (81, 'Trạm Văn Kiều', 'Xã Văn Kiều', 18.87941200, 105.49344200, 40, 417, 16843),
-(82, 'Trạm Đại Đồng', 'Giao Quốc lộ 46B - Võ Thúc Tông', 18.77886000, 105.33558800, 40, 430, NULL);
+(82, 'Trạm Đại Đồng', 'Giao Quốc lộ 46B - Võ Thúc Tông', 18.77886000, 105.33558800, 40, 430, NULL),
+(83, 'Trạm Sín Thầu', 'Quốc lộ 4H2', 22.37758500, 102.24647000, 11, NULL, NULL),
+(84, 'Trạm Mường Nhé', 'Quốc lộ 4H', 22.23381600, 102.41043100, 11, 96, NULL),
+(85, 'Trạm Mù Cả', 'Quốc lộ 4H', 22.46814700, 102.43240400, 12, NULL, NULL),
+(87, 'Trạm Mường Tè', 'Quốc lộ 4H', 22.38368300, 102.79159700, 12, NULL, NULL),
+(88, 'Trạm Thà Giang', 'Đường tỉnh 132', 22.75243800, 103.31199600, 12, NULL, NULL),
+(90, 'Trạm Bản Mới', 'Đường tỉnh 132', 22.72804000, 103.30004900, 12, NULL, NULL),
+(91, 'Trạm Sì Choang', 'Bản Sì Choang', 22.70422600, 103.31965700, 12, NULL, NULL),
+(93, 'Trạm Chung Chải', 'Đường tỉnh 132', 22.72457400, 103.35937500, 12, NULL, NULL),
+(94, 'Trạm Lèng Chư', 'Lèng Chư', 22.67118200, 103.36060300, 12, NULL, NULL),
+(95, 'Trạm Bản Lang', 'Bản Lang 2', 22.58544300, 103.37513500, 12, NULL, NULL),
+(96, 'Trạm Ma Ly Pho', 'Ma Ly Pho', 22.58957200, 103.24375400, 12, 109, 3574),
+(97, 'Trạm Tuần Giáo', 'Quốc lộ 6 - Quốc lộ 279', 21.59724400, 103.42914900, 11, 99, 3253),
+(98, 'Trạm Muòng Mùn', 'Quốc lộ 6', 21.74778900, 103.33576400, 11, NULL, NULL),
+(99, 'Trạm Na Lay', 'Na Lay', 22.04314900, 103.16520700, 11, 95, 3151),
+(100, 'Trạm Mường Chà', 'Quốc lộ 4H', 21.97869700, 102.84027100, 11, 97, NULL),
+(101, 'Trạm Na Pheo', 'Quốc lộ 12', 21.76230200, 103.09372100, 11, NULL, NULL),
+(102, 'Trạm Sìn Hồ', 'Quốc lộ 12', 22.35474300, 103.17757200, 12, 108, NULL),
+(103, 'Trạm Mường Pồn', 'Xã Mường Pồn', 21.53486200, 103.02017200, 11, NULL, NULL),
+(104, 'Trạm Mường Phăng', 'Quốc lộ 279', 21.48204600, 103.07702400, 11, NULL, NULL),
+(105, 'Trạm Mường Ảng', 'Mường Ảng', 21.52463700, 103.20899900, 11, 102, 3256),
+(106, 'Trạm 30/4', 'Đường 30 Tháng 4', 22.38230200, 103.48245600, 12, NULL, NULL),
+(107, 'Trạm Nà Ít', 'Bản Nà Ít', 22.31296900, 103.64955700, 12, NULL, NULL),
+(108, 'Trạm CT05', 'Đường Trần Thái Tông', 22.51438000, 103.93272400, 10, NULL, NULL),
+(109, 'Trạm Sapa', 'Sapa', 22.34516700, 103.85746700, 10, NULL, NULL),
+(110, 'Trạm Quỳnh Nhai', 'Quỳnh Nhai', 21.64817100, 103.60225900, 14, 118, NULL),
+(111, 'Trạm Mường Giôn', 'Quốc lộ 279', 21.77097300, 103.68621800, 14, NULL, NULL),
+(112, 'Trạm Khao Mang', 'Quốc lộ 32', 21.87552800, 103.91487100, 10, NULL, NULL),
+(113, 'Trạm Mù Cang Chải', 'Mù Cang Chải', 21.83822900, 104.10940800, 10, NULL, NULL),
+(114, 'Trạm Tân Uyên', 'Quốc lộ 32', 22.15370400, 103.77067600, 12, 111, 3598),
+(115, 'Trạm Mường Than', 'Quốc lộ 32', 22.02040800, 103.91452800, 12, NULL, NULL),
+(116, 'Trạm Nậm Xé', 'Quốc lộ 279', 22.03855800, 104.00756800, 10, NULL, NULL),
+(117, 'Trạm Văn Bàn', 'Quốc lộ 279', 22.07673500, 104.16618300, 10, NULL, NULL),
+(118, 'Trạm Văn Bàn', 'Quốc lộ 279', 22.15180100, 104.34574200, 10, NULL, NULL),
+(119, 'Trạm Mường Khương', 'Xã Mường Khương', 22.69976400, 104.10728600, 10, NULL, NULL),
+(120, 'Trạm Phong Hải', 'Phong Hải', 22.45339100, 104.14188400, 10, NULL, NULL),
+(121, 'Trạm Tân Trịnh', 'Đường Giải Phóng 11-11', 22.78294200, 104.16657900, 10, NULL, NULL),
+(122, 'Trạm Bản Lầu', 'Quốc lộ 4D', 22.57771900, 104.07228500, 10, NULL, NULL),
+(123, 'Trạm Si Ma Cai', 'Si Ma Cai', 22.67611500, 104.30763200, 10, NULL, NULL),
+(124, 'Trạm Lùng Phình', 'Xã Lùng Phình', 22.56434500, 104.32316100, 10, NULL, NULL),
+(125, 'Trạm Phố Lu', 'Phố Lu', 22.32258000, 104.16729600, 10, NULL, NULL),
+(126, 'Trạm Tân Trịnh', 'QL.2', 22.91484700, 104.86803900, 2, NULL, NULL),
+(127, 'Trạm Hương Canh', 'Quốc lộ 2', 21.27369900, 105.64178500, 25, NULL, NULL),
+(128, 'Trạm Thanh Lãng', 'Đường tỉnh 303', 21.23898200, 105.62084200, 25, NULL, NULL),
+(129, 'Trạm Bằng Thành', 'Xã Bằng Thành', 22.67990800, 105.71594200, 19, NULL, NULL),
+(130, 'Trạm Canh Tân', 'Xã Canh Tân', 22.55646600, 106.27964400, 4, NULL, NULL),
+(131, 'Trạm Phủ Thông', 'Quốc lộ 3', 22.29250600, 105.89511700, 19, NULL, NULL),
+(132, 'Trạm Nà Bản', 'Nà Bản', 21.97776700, 105.81377100, 19, NULL, NULL),
+(133, 'Trạm Nguyễn Tất Thành', 'Đường Nguyễn Tất Thành', 21.33468600, 105.38357600, 25, NULL, NULL),
+(134, 'Trạm Âu Lâu', 'Phường Âu Lâu', 21.61994300, 104.89536000, 10, NULL, NULL),
+(135, 'Trạm Nghĩa Tá', 'Xã Nghĩa Tá', 22.12548500, 105.48692200, 19, NULL, NULL),
+(136, 'Trạm Bình Gia', 'Vành đai 2 (Quốc lộ 279)', 21.98508200, 106.34491100, 20, 181, 6112),
+(137, 'Trạm Hữu Lũng', 'Xã Hữu Lũng', 21.50573400, 106.39879700, 20, 186, NULL),
+(138, 'Trạm Thuận Thành', 'Đi Thuận Thành', 21.16072000, 106.06681800, 27, NULL, NULL),
+(139, 'Trạm Như Quỳnh', 'Xã Như Quỳnh', 20.96996800, 105.98733100, 33, NULL, NULL),
+(140, 'Trạm Long Cốc', 'Xã Long Cốc', 21.07016000, 105.11349300, 25, NULL, NULL),
+(141, 'Trạm Chiềng Cơi', 'Phường Chiềng Cơi', 21.31574900, 103.86421900, 14, NULL, NULL),
+(142, 'Trạm Thượng Bằng La', 'Xã Thượng Bằng La', 21.41892300, 104.77830800, 10, NULL, NULL),
+(143, 'Trạm Yên Châu', 'Quốc lộ 6', 21.07298100, 104.24240200, 14, 124, 4075),
+(144, 'Trạm Hoành Bồ', 'ĐT.320', 21.04669900, 107.05352800, 22, NULL, NULL),
+(145, 'Trạm Đình Lập', 'Quốc lộ 31', 21.55232300, 107.11480600, 20, 189, 6613),
+(146, 'Trạm Đông Kinh', 'Phường Đông Kinh', 21.81241100, 106.76616700, 20, 178, 5980),
+(147, 'Trạm Nhị Chiểu', 'Phường Nhị Chiểu', 21.02975800, 106.60754300, 31, NULL, NULL),
+(148, 'Trạm Trần Phú', 'Xã Trần Phú', 21.01694300, 106.30541500, 31, NULL, NULL),
+(149, 'Trạm Gia Lộc', 'Xã Gia Lộc', 20.87076700, 106.29442800, 31, NULL, NULL),
+(150, 'Trạm Mỹ Đức', 'Mỹ Đức', 20.76897200, 106.60583500, 31, NULL, NULL),
+(151, 'Trạm Bình Hòa', 'Bình Hòa', 20.28464600, 106.45098600, 37, NULL, NULL),
+(152, 'Trạm Quỳnh An', 'Xã Quỳnh An', 20.59598200, 106.38232000, 33, NULL, NULL),
+(153, 'Trạm Cốc Ngang', 'Cốc Ngang', 20.77066900, 106.05272600, 33, NULL, NULL),
+(154, 'Trạm Quốc lộ 10', 'Quốc lộ 10', 20.44033800, 106.15582100, 36, 356, NULL),
+(155, 'Trạm Thung Nai', 'Xã Thung Nai', 20.75784400, 105.32213700, 25, NULL, NULL),
+(156, 'Trạm Quốc lộ 15', 'Quốc lộ 15', 20.40562100, 105.07219600, 38, NULL, NULL),
+(157, 'Trạm Trường Lâm', 'Xã Trường Lâm', 19.34894700, 105.70391200, 38, NULL, NULL),
+(158, 'Trạm Con Cuông', 'Xã Con Cuông', 19.08187500, 104.78654000, 40, 422, NULL),
+(159, 'Trạm Hưng Xá', 'Hưng Xá', 18.61671600, 105.61601300, 40, 431, NULL),
+(160, 'Trạm Sơn Kim 1', 'Xã Sơn Kim 1', 18.44227700, 105.28641800, 42, NULL, NULL),
+(161, 'Trạm Vũ Quang', 'Xã Vũ Quang', 18.33544300, 105.54460100, 42, 441, 18313),
+(162, 'Trạm Can Lộc', 'Xã Can Lộc', 18.46747900, 105.76210700, 42, 443, NULL),
+(163, 'Trạm Cẩm Xuyên', 'Xã Cẩm Xuyên', 18.23306300, 105.95463300, 42, 446, 18673),
+(164, 'Trạm Kì Xuân', 'Quốc lộ 1', 18.19132900, 106.18260300, 42, 447, NULL),
+(165, 'Trạm Hương Đô', 'Xã Hương Đô', 18.13541300, 105.72486900, 42, NULL, NULL),
+(166, 'Trạm Tuyên Sơn', 'Đường Hồ Chí Minh', 18.02566500, 105.86103800, 45, NULL, NULL),
+(167, 'Trạm Kỳ Thượng', 'Quốc lộ 12C', 17.99766100, 106.15779900, 42, NULL, NULL),
+(168, 'Trạm Quảng Trạch', 'Xã Quảng Trạch', 17.81828500, 106.44273800, 45, NULL, NULL),
+(169, 'Trạm Kim Phú', 'Xã Kim Phú', 17.73789400, 105.96176200, 45, NULL, NULL),
+(170, 'Trạm Tuyên Hóa', 'Xã Tuyên Hóa', 17.79144800, 106.23177200, 45, NULL, NULL),
+(171, 'Trạm Phong Nha', 'Xã Phong Nha', 17.58599900, 106.25924100, 45, NULL, NULL),
+(172, 'Trạm Hoàn Lão', 'Xã Hoàn Lão', 17.57462600, 106.53579700, 45, NULL, NULL),
+(173, 'Trạm Trường Sơn', 'Xã Trường Sơn', 17.23097700, 106.46111500, 45, NULL, NULL),
+(174, 'Trạm CT01-CT02', 'Đường cao tốc Bùng - Vạn Ninh', 17.36004600, 106.61634800, 45, NULL, NULL),
+(175, 'Trạm Huỳnh Lập', 'Đường Hồ Chí Minh nhánh Tây', 16.88668700, 106.57150300, 45, NULL, NULL),
+(176, 'Trạm Kim Ngân', 'Xã Kim Ngân', 17.10757200, 106.78522100, 45, NULL, NULL),
+(177, 'Trạm Hiếu Giang', 'Xã Hiếu Giang', 16.84791600, 107.08099400, 45, NULL, NULL),
+(178, 'Trạm Đa Krông', 'Đa Krông', 16.65168300, 106.81818100, 45, NULL, NULL),
+(179, 'Trạm Cam Lộ - La Sơn', 'Đường cao tốc Cam Lộ - La Sơn', 16.61353300, 107.22056100, 45, NULL, NULL),
+(180, 'Trạm A Ròng Trên', 'A Ròng Trên', 16.36208100, 107.01868400, 45, NULL, NULL),
+(181, 'Trạm Quốc lộ 49', 'Quốc lộ 49', 16.32782700, 107.42655700, 46, NULL, NULL),
+(182, 'Trạm Tỉnh lộ 14B', 'Tỉnh lộ 14B', 16.29907500, 107.71820300, 46, NULL, NULL),
+(183, 'Trạm Azứt', 'Azứt', 15.91277400, 107.53588100, 48, NULL, NULL),
+(184, 'Trạm Trường Chinh', 'Đường Trường Chinh', 16.04792700, 108.18185500, 48, NULL, NULL),
+(185, 'Trạm Quốc lộ 14', 'Quốc lộ 14', 15.76011800, 107.83303500, 48, NULL, NULL),
+(186, 'Trạm Đèo Lò Xo', 'Đèo Lò Xo', 15.29398000, 107.73639400, 48, NULL, NULL),
+(187, 'Trạm Hiệp Đức', 'Xã Hiệp Đức', 15.56704600, 108.11044800, 48, NULL, NULL),
+(188, 'Trạm Nghĩa Giang', 'Xã Nghĩa Giang', 15.10593100, 108.75228900, 51, NULL, NULL),
+(189, 'Trạm Quốc lộ 40B', 'Quốc lộ 40B', 15.12736300, 108.12692500, 48, NULL, NULL),
+(190, 'Trạm Lê Hữu Trác', 'Đường Lê Hữu Trác', 14.69485200, 107.68471900, 51, NULL, NULL),
+(191, 'Trạm Măng Đen', 'Đường Trần Phú', 14.59953100, 108.29086300, 51, NULL, NULL),
+(192, 'Trạm Thành Sơn Tây', 'Khu phố Thành Sơn Tây', 14.57520300, 109.01132200, 64, NULL, NULL),
+(193, 'Trạm Ia Băng', 'Xã Ia Băng', 13.87525400, 108.01106100, 64, NULL, NULL),
+(194, 'Trạm Bình An 1', 'Thôn Bình An 1', 13.78738700, 109.11483700, 64, NULL, NULL),
+(195, 'Trạm Đak Pơ', 'Đak Pơ', 13.97138500, 108.54492000, 64, NULL, NULL),
+(196, 'Trạm Phạm Văn Đồng', 'Đường Phạm Văn Đồng', 12.96627400, 108.23351000, 66, NULL, NULL),
+(197, 'Trạm Tây Hòa', 'Xã Tây Hòa', 13.00951100, 109.21319600, 66, NULL, NULL),
+(198, 'Trạm Ia Tul', 'Xã Ia Tul', 13.39319900, 108.45788700, 64, NULL, NULL),
+(199, 'Trạm 665', 'Đường tỉnh 665', 13.45908400, 107.69897400, 64, NULL, NULL),
+(200, 'Trạm RAI-72-KN-007', 'RAI-72-KN-007', 12.37029400, 107.90563200, 68, NULL, NULL),
+(201, 'Trạm Bon Rơm', 'Bon Rơm', 11.75022500, 108.31120100, 68, NULL, NULL),
+(202, 'Trạm Suối Hiệp', 'Xã Suối Hiệp', 12.21901000, 109.08573900, 56, NULL, NULL),
+(203, 'Trạm Hồng Sơn', 'Xã Hồng Sơn', 11.08514200, 108.16381400, 68, NULL, NULL),
+(204, 'Trạm Quang Trung', 'Quang Trung', 11.49798300, 107.47546400, 68, NULL, NULL),
+(205, 'Trạm Trường Sơn Đông', 'Đường Trường Sơn Đông', 12.74668700, 108.71966200, 66, NULL, NULL),
+(206, 'Trạm Nhân Cơ', 'Xã Nhân Cơ', 11.96831000, 107.64575400, 68, NULL, NULL),
+(207, 'Trạm Thanh Điền', 'Phường Thanh Điền', 11.27909100, 106.09835400, 72, NULL, NULL),
+(208, 'Trạm Phú Giáo', 'Xã Phú Giáo', 11.30149000, 106.86845600, 79, NULL, NULL),
+(209, 'Trạm Phú Hoà 1', 'Phú Hoà 1', 11.64594300, 106.61576600, 75, NULL, NULL),
+(210, 'Trạm Đức Thọ', 'Đức Thọ', 11.81260700, 107.25847700, 75, NULL, NULL),
+(211, 'Trạm Ấp 7', 'Ấp 7', 10.90411000, 107.42294300, 75, NULL, NULL),
+(212, 'Trạm Dầu Giây', 'Cầu Dầu Giây', 10.93760400, 107.16381500, 75, NULL, NULL),
+(213, 'Trạm Klong Trao 1', 'Klong Trao 1', 11.56566200, 108.07885400, 68, 679, NULL),
+(214, 'Trạm La Dạ', 'Xã La Dạ', 11.16993100, 107.81655200, 68, NULL, NULL),
+(215, 'Trạm Hiệp Lực', 'Hiệp Lực', 11.16858400, 107.34275900, 75, 736, NULL),
+(216, 'Trạm Tân Nghĩa', 'Tân Nghĩa', 10.81951500, 107.73690000, 68, NULL, NULL),
+(217, 'Trạm Hòa Hiệp', 'Xã Hòa Hiệp', 10.76152100, 107.49931700, 79, NULL, NULL),
+(218, 'Trạm Hồ Tràm', 'Xã Hồ Tràm', 10.51998800, 107.38807900, 79, NULL, NULL),
+(219, 'Trạm Hưng Long', 'Hưng Long', 10.69947000, 107.24250800, 79, NULL, NULL),
+(220, 'Trạm Xóm Gốc', 'Xóm Gốc', 10.75342800, 106.97333900, 75, NULL, NULL),
+(221, 'Trạm Tân Phước', 'Phường Tân Phước', 10.54833400, 107.06672400, 79, 767, NULL),
+(222, 'Trạm Bà Rịa', 'Phường Bà Rịa', 10.48164800, 107.17754400, 79, NULL, NULL),
+(223, 'Trạm Quốc lộ 56', 'Quốc lộ 56', 10.60177900, 107.23522300, 79, NULL, NULL),
+(224, 'Trạm Ấp 1A', 'Ấp 1A', 10.66857300, 107.02922600, 75, NULL, NULL),
+(225, 'Trạm Tân Lập', 'Tân Lập', 10.85252200, 107.23274300, 75, 739, NULL),
+(226, 'Trạm Hương Phước', 'Hương Phước', 10.89710900, 106.89808300, 75, NULL, NULL),
+(227, 'Trạm Chơn Thành', 'Phường Chơn Thành', 11.37315700, 106.62041800, 75, NULL, NULL),
+(228, 'Trạm Hưng Thuận', 'Xã Hưng Thuận', 11.16983900, 106.42128800, 72, NULL, NULL),
+(229, 'Trmj Quốc lộ 13', 'Quốc lộ 13', 11.14998900, 106.59815100, 79, NULL, NULL),
+(230, 'Trạm Quốc lộ N2', 'Quốc lộ N2', 10.87304100, 106.40153200, 72, NULL, NULL),
+(231, 'Trạm Phú Cường 1', 'Phú Cường 1', 10.98320600, 106.66578400, 79, NULL, NULL),
+(232, 'Trạm KCN Tân Kim', 'KCN Tân Kim', 10.63816000, 106.65972200, 72, NULL, NULL),
+(233, 'Trạm Lý Thường Kiệt', '1 Lý Thường Kiệt', 10.79126400, 106.65332000, 79, NULL, NULL),
+(234, 'Trạm Đất Mới', 'Xã Đất Mới', 8.76293800, 104.96612500, 96, NULL, NULL),
+(235, 'Trạm Lương Thế Trân', 'Xã Lương Thế Trân', 9.12807400, 105.13262900, 96, NULL, NULL),
+(236, 'Trạm Minh Hoà', 'Minh Hoà', 9.74277000, 105.01450800, 89, NULL, NULL),
+(237, 'Trạm Vĩnh Lộc', 'Xã Vĩnh Lộc', 9.59389000, 105.41276900, 96, NULL, NULL),
+(238, 'Trạm Hòa Bình', 'Xã Hòa Bình', 9.25935500, 105.56488000, 96, NULL, NULL),
+(239, 'Trạm Đại Hải', 'Xã Đại Hải', 9.75508500, 105.86425800, 92, NULL, NULL),
+(240, 'Trạm 934B', 'Đường tỉnh 934B', 9.53431900, 106.17633000, 92, NULL, NULL),
+(241, 'Trạm Thạnh An', 'Xã Thạnh An', 10.12258500, 105.34579800, 92, NULL, NULL),
+(242, 'Trạm Thuận An', 'Thuận An', 10.25119300, 104.80577000, 89, NULL, NULL),
+(243, 'Trạm Bà Nỉ', 'cầu Bà Nỉ', 10.57797500, 105.22051000, 89, NULL, NULL),
+(244, 'Trạm Mỹ Thọ', 'Mỹ Thọ', 10.45108400, 105.67919600, 87, NULL, NULL),
+(245, 'Trạm Mộc Hóa', 'Xã Mộc Hóa', 10.68592600, 105.98681800, 72, NULL, NULL),
+(246, 'Trạm Vĩnh Long', 'Vĩnh Long', 10.24849100, 105.92089900, 86, NULL, NULL),
+(247, 'Trạm 912', 'Đường tỉnh 912', 9.78083500, 106.19554100, 86, NULL, NULL),
+(248, 'Trạm Trung Thành', 'Xã Trung Thành', 10.05673200, 106.14060800, 86, NULL, NULL),
+(249, 'Trạm Duyên Hải', 'Duyên Hải', 9.61031300, 106.48942900, 86, NULL, NULL),
+(250, 'Trạm Hưng Mỹ', 'Xã Hưng Mỹ', 9.91340200, 106.36033800, 86, NULL, NULL),
+(251, 'Trạm Mỏ Cày', 'Mỏ Cày', 10.11928400, 106.31855600, 86, NULL, NULL),
+(252, 'Trạm Chợ Lách', 'Xã Chợ Lách', 10.24631000, 106.14208500, 86, NULL, NULL),
+(253, 'Trạm Võ Văn Kiệt', 'Võ Văn Kiệt', 10.65989900, 105.72503000, 87, NULL, NULL),
+(254, 'Trạm Nhị Quý', 'Phường Nhị Quý', 10.41828600, 106.14251600, 87, NULL, NULL),
+(255, 'Trạm Thủ Thừa', 'Xã Thủ Thừa', 10.58698900, 106.41305000, 72, NULL, NULL),
+(256, 'Trạm Vĩnh Bình', 'Vĩnh Bình', 10.35069400, 106.54625800, 87, NULL, NULL),
+(257, 'Trạm Ba Tri', 'Xã Ba Tri', 10.04530800, 106.57097800, 86, NULL, NULL),
+(258, 'Trạm Tân Long', 'Xã Tân Long', 10.68816400, 106.27022200, 72, NULL, NULL),
+(259, 'Trạm Nhật Tảo', 'Nhật Tảo', 10.00194100, 105.74974000, 92, 919, NULL),
+(260, 'Trạm Ấp 7', 'Ấp 7', 9.73547100, 105.34873300, 89, NULL, NULL),
+(261, 'Trạm Nhu Gia', 'Xã Nhu Gia', 9.47555900, 105.83625800, 92, NULL, NULL),
+(262, 'Trạm Quản Lộ – Phụng Hiệp', 'Đường Quản Lộ – Phụng Hiệp', 9.57575700, 105.61790200, 92, NULL, NULL),
+(263, 'Trạm Biển Bạch', 'Xã Biển Bạch', 9.47679000, 105.03838000, 96, NULL, NULL),
+(264, 'Trạm Quốc lộ 27', 'Quốc lộ 27', 12.08863700, 108.14564100, 68, 674, NULL),
+(265, 'Trạm Chuôr Tara', 'Chuôr Tara', 12.68451300, 108.17584500, 66, NULL, NULL),
+(266, 'Trạm Đường tỉnh 697', 'Đường tỉnh 697', 12.98704700, 107.82977000, 66, 647, NULL),
+(267, 'Trạm Phước Sơn', 'Phước Sơn', 11.61059300, 108.90094400, 56, NULL, NULL),
+(268, 'Trạm Tuy Phong', 'Xã Tuy Phong', 11.24024200, 108.64722000, 68, NULL, NULL),
+(269, 'Trạm Bác Ái Tây', 'Xã Bác Ái Tây', 12.15072900, 108.73064900, 56, NULL, NULL);
+
+-- --------------------------------------------------------
+
+--
+-- Cấu trúc bảng cho bảng `system_config`
+--
+
+CREATE TABLE `system_config` (
+  `KeyName` varchar(50) NOT NULL,
+  `Value` decimal(10,2) NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+--
+-- Đang đổ dữ liệu cho bảng `system_config`
+--
+
+INSERT INTO `system_config` (`KeyName`, `Value`) VALUES
+('PricePerKm', 5000.00);
 
 -- --------------------------------------------------------
 
@@ -1044,15 +1299,15 @@ CREATE TABLE `trips` (
   `TripId` int(11) NOT NULL,
   `DriverId` int(11) NOT NULL,
   `VehicleId` int(11) NOT NULL,
-  `RouteType` int(11) NOT NULL DEFAULT 1 COMMENT '1: Direct, 2: Multi-stop',
+  `RouteType` int(11) NOT NULL DEFAULT 1 COMMENT '1: Direct, 2: Shared',
   `FromStation` int(11) NOT NULL,
   `ToStation` int(11) NOT NULL,
   `StartTime` datetime NOT NULL,
   `ArrivalTime` datetime DEFAULT NULL,
-  `BasePricePerKg` decimal(18,2) NOT NULL,
   `AvaiCapacityKg` int(11) NOT NULL,
-  `BasePricePerM3` decimal(18,2) NOT NULL,
-  `AvaiCapacityM3` int(11) NOT NULL
+  `AvaiCapacityM3` int(11) NOT NULL,
+  `BasePrice` decimal(18,2) NOT NULL DEFAULT 0.00 COMMENT 'Giá mở đầu do tài xế nhập',
+  `Distance` decimal(10,2) DEFAULT NULL COMMENT 'Khoảng cách (km)'
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 -- --------------------------------------------------------
@@ -1073,6 +1328,26 @@ CREATE TABLE `trip_stations` (
 -- --------------------------------------------------------
 
 --
+-- Cấu trúc bảng cho bảng `trip_types`
+--
+
+CREATE TABLE `trip_types` (
+  `IdType` int(11) NOT NULL,
+  `Type` varchar(50) NOT NULL,
+  `Multiplier` decimal(10,2) NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+--
+-- Đang đổ dữ liệu cho bảng `trip_types`
+--
+
+INSERT INTO `trip_types` (`IdType`, `Type`, `Multiplier`) VALUES
+(1, 'Direct', 1.20),
+(2, 'Shared', 0.80);
+
+-- --------------------------------------------------------
+
+--
 -- Cấu trúc bảng cho bảng `users`
 --
 
@@ -1081,7 +1356,7 @@ CREATE TABLE `users` (
   `Name` varchar(255) NOT NULL,
   `Phone` varchar(20) NOT NULL,
   `Email` varchar(255) DEFAULT NULL,
-  `CreatedAt` datetime DEFAULT current_timestamp(),
+  `CreatedAt` datetime NOT NULL DEFAULT current_timestamp(),
   `PasswordHash` varchar(255) NOT NULL,
   `PasswordDemo` varchar(255) DEFAULT NULL COMMENT 'Dùng test',
   `Role` int(11) NOT NULL COMMENT '1: Admin, 2: Customer, 3: Driver',
@@ -1127,11 +1402,11 @@ CREATE TABLE `vehicles` (
 --
 
 INSERT INTO `vehicles` (`VehicleId`, `DriverId`, `PlateNumber`, `CapacityKg`, `CapacityM3`, `VehicleTypeId`, `Status`, `VehicleImage`) VALUES
-(1, 5, '29A-11111', 1000, 5, 1, 0, NULL),
-(2, 6, '30B-22222', 1500, 8, 2, 0, NULL),
-(3, 7, '31C-33333', 2000, 10, 3, 0, NULL),
-(4, 8, '32D-44444', 3000, 15, 4, 0, NULL),
-(5, 9, '33E-55555', 2500, 12, 5, 0, NULL);
+(1, 5, '29A-11111', 1000, 5, 1, 1, NULL),
+(2, 6, '30B-22222', 1500, 8, 2, 1, NULL),
+(3, 7, '31C-33333', 2000, 10, 3, 1, NULL),
+(4, 8, '32D-44444', 3000, 15, 4, 1, NULL),
+(5, 9, '33E-55555', 2500, 10, 5, 1, '/uploads/vehicles/92c259d5-1fd6-4418-bffb-26536b630be2_Ảnh chụp màn hình 2024-05-06 201421.png');
 
 -- --------------------------------------------------------
 
@@ -11306,6 +11581,13 @@ ALTER TABLE `behaviorlogs`
   ADD UNIQUE KEY `unique_behavior` (`UserId`,`Action`,`Object`,`Value`);
 
 --
+-- Chỉ mục cho bảng `cargodetail`
+--
+ALTER TABLE `cargodetail`
+  ADD PRIMARY KEY (`Id`),
+  ADD UNIQUE KEY `RequestId` (`RequestId`);
+
+--
 -- Chỉ mục cho bảng `cargotypes`
 --
 ALTER TABLE `cargotypes`
@@ -11374,6 +11656,19 @@ ALTER TABLE `savedroutes`
   ADD KEY `TripId` (`TripId`);
 
 --
+-- Chỉ mục cho bảng `shippingroute`
+--
+ALTER TABLE `shippingroute`
+  ADD PRIMARY KEY (`Id`),
+  ADD UNIQUE KEY `RequestId` (`RequestId`);
+
+--
+-- Chỉ mục cho bảng `shiprequest`
+--
+ALTER TABLE `shiprequest`
+  ADD PRIMARY KEY (`Id`);
+
+--
 -- Chỉ mục cho bảng `shiprequests`
 --
 ALTER TABLE `shiprequests`
@@ -11392,6 +11687,12 @@ ALTER TABLE `stations`
   ADD KEY `fk_station_ward` (`WardId`);
 
 --
+-- Chỉ mục cho bảng `system_config`
+--
+ALTER TABLE `system_config`
+  ADD PRIMARY KEY (`KeyName`);
+
+--
 -- Chỉ mục cho bảng `trips`
 --
 ALTER TABLE `trips`
@@ -11399,7 +11700,8 @@ ALTER TABLE `trips`
   ADD KEY `DriverId` (`DriverId`),
   ADD KEY `VehicleId` (`VehicleId`),
   ADD KEY `FromStation` (`FromStation`),
-  ADD KEY `ToStation` (`ToStation`);
+  ADD KEY `ToStation` (`ToStation`),
+  ADD KEY `trips_ibfk_5` (`RouteType`);
 
 --
 -- Chỉ mục cho bảng `trip_stations`
@@ -11408,6 +11710,12 @@ ALTER TABLE `trip_stations`
   ADD PRIMARY KEY (`TripStationId`),
   ADD KEY `TripId` (`TripId`),
   ADD KEY `StationId` (`StationId`);
+
+--
+-- Chỉ mục cho bảng `trip_types`
+--
+ALTER TABLE `trip_types`
+  ADD PRIMARY KEY (`IdType`);
 
 --
 -- Chỉ mục cho bảng `users`
@@ -11456,6 +11764,12 @@ ALTER TABLE `behaviorlogs`
   MODIFY `BehaviorId` int(11) NOT NULL AUTO_INCREMENT;
 
 --
+-- AUTO_INCREMENT cho bảng `cargodetail`
+--
+ALTER TABLE `cargodetail`
+  MODIFY `Id` int(11) NOT NULL AUTO_INCREMENT;
+
+--
 -- AUTO_INCREMENT cho bảng `cargotypes`
 --
 ALTER TABLE `cargotypes`
@@ -11492,6 +11806,18 @@ ALTER TABLE `request_trip_match`
   MODIFY `MatchId` int(11) NOT NULL AUTO_INCREMENT;
 
 --
+-- AUTO_INCREMENT cho bảng `shippingroute`
+--
+ALTER TABLE `shippingroute`
+  MODIFY `Id` int(11) NOT NULL AUTO_INCREMENT;
+
+--
+-- AUTO_INCREMENT cho bảng `shiprequest`
+--
+ALTER TABLE `shiprequest`
+  MODIFY `Id` int(11) NOT NULL AUTO_INCREMENT;
+
+--
 -- AUTO_INCREMENT cho bảng `shiprequests`
 --
 ALTER TABLE `shiprequests`
@@ -11501,7 +11827,7 @@ ALTER TABLE `shiprequests`
 -- AUTO_INCREMENT cho bảng `stations`
 --
 ALTER TABLE `stations`
-  MODIFY `StationId` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=83;
+  MODIFY `StationId` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=270;
 
 --
 -- AUTO_INCREMENT cho bảng `trips`
@@ -11514,6 +11840,12 @@ ALTER TABLE `trips`
 --
 ALTER TABLE `trip_stations`
   MODIFY `TripStationId` int(11) NOT NULL AUTO_INCREMENT;
+
+--
+-- AUTO_INCREMENT cho bảng `trip_types`
+--
+ALTER TABLE `trip_types`
+  MODIFY `IdType` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=4;
 
 --
 -- AUTO_INCREMENT cho bảng `users`
@@ -11542,6 +11874,12 @@ ALTER TABLE `vehicle_types`
 --
 ALTER TABLE `behaviorlogs`
   ADD CONSTRAINT `behaviorlogs_ibfk_1` FOREIGN KEY (`UserId`) REFERENCES `users` (`UserId`) ON DELETE CASCADE;
+
+--
+-- Các ràng buộc cho bảng `cargodetail`
+--
+ALTER TABLE `cargodetail`
+  ADD CONSTRAINT `FK_Cargo_ShipRequest` FOREIGN KEY (`RequestId`) REFERENCES `shiprequest` (`Id`) ON DELETE CASCADE;
 
 --
 -- Các ràng buộc cho bảng `chatmessages`
@@ -11594,6 +11932,12 @@ ALTER TABLE `savedroutes`
   ADD CONSTRAINT `savedroutes_ibfk_2` FOREIGN KEY (`TripId`) REFERENCES `trips` (`TripId`) ON DELETE CASCADE;
 
 --
+-- Các ràng buộc cho bảng `shippingroute`
+--
+ALTER TABLE `shippingroute`
+  ADD CONSTRAINT `FK_Route_ShipRequest` FOREIGN KEY (`RequestId`) REFERENCES `shiprequest` (`Id`) ON DELETE CASCADE;
+
+--
 -- Các ràng buộc cho bảng `shiprequests`
 --
 ALTER TABLE `shiprequests`
@@ -11616,7 +11960,8 @@ ALTER TABLE `trips`
   ADD CONSTRAINT `trips_ibfk_1` FOREIGN KEY (`DriverId`) REFERENCES `users` (`UserId`),
   ADD CONSTRAINT `trips_ibfk_2` FOREIGN KEY (`VehicleId`) REFERENCES `vehicles` (`VehicleId`),
   ADD CONSTRAINT `trips_ibfk_3` FOREIGN KEY (`FromStation`) REFERENCES `stations` (`StationId`),
-  ADD CONSTRAINT `trips_ibfk_4` FOREIGN KEY (`ToStation`) REFERENCES `stations` (`StationId`);
+  ADD CONSTRAINT `trips_ibfk_4` FOREIGN KEY (`ToStation`) REFERENCES `stations` (`StationId`),
+  ADD CONSTRAINT `trips_ibfk_5` FOREIGN KEY (`RouteType`) REFERENCES `trip_types` (`IdType`);
 
 --
 -- Các ràng buộc cho bảng `trip_stations`
