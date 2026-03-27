@@ -72,7 +72,8 @@ namespace TimChuyenDi.Controllers
         public async Task<IActionResult> BookTrip(int TripId, int CargoTypeId, string ReceiverName, string ReceiverPhone,
             string SenderPhone, int PickupType, int DeliveryType, string PickupAddress, string DeliveryAddress,
             int? FromStationId, int? ToStationId, decimal Weight, decimal Length, decimal Width, decimal Height,
-            string Description, int Quantity = 1, string Note = "")
+            string Description, decimal? PickupLat, decimal? PickupLng, decimal? DeliveryLat, decimal? DeliveryLng,
+            int Quantity = 1, string Note = "")
         {
             var trip = _context.Trips.Find(TripId);
             var cargoType = _context.Cargotypes.Find(CargoTypeId);
@@ -128,7 +129,9 @@ namespace TimChuyenDi.Controllers
                 FromStationId = FromStationId ?? trip.FromStation,
                 ToStationId = ToStationId ?? trip.ToStation,
                 ReceiverName = ReceiverName,
-                ReceiverPhone = ReceiverPhone
+                ReceiverPhone = ReceiverPhone,
+                Lat = PickupLat ?? DeliveryLat,
+                Lng = PickupLng ?? DeliveryLng
             };
             _context.Shippingroutes.Add(route);
 

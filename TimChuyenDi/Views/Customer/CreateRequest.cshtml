@@ -20,7 +20,7 @@
                 </div>
 
                 <div class="card-body p-4 p-md-5 bg-light">
-                    <form asp-action="CreateRequest" asp-controller="Customer" method="post" id="createRequestForm" enctype="multipart/form-data">
+                    <form asp-action="CreateRequest" asp-controller="Customer" method="post" id="createRequestForm">
                         <!-- Step 1: Địa điểm & Thời gian -->
                         <div class="mb-5">
                             <h5 class="fw-bold text-primary mb-4 d-flex align-items-center">
@@ -53,7 +53,19 @@
 
                                 <div class="col-md-12" id="pickupAddressSection">
                                     <label class="form-label fw-bold text-dark small">ĐỊA CHỈ LẤY HÀNG <span class="text-danger">*</span></label>
-                                    <input type="text" name="PickupAddress" id="pickupAddrInput" class="form-control border shadow-sm py-2 px-3 rounded-pill" placeholder="Số nhà, tên đường, phường/xã..." required />
+                                    <input type="text" name="PickupAddress" id="pickupAddrInput" class="form-control border shadow-sm py-2 px-3 rounded-pill" placeholder="Chọn vị trí trên bản đồ..." readonly required />
+                                    <input type="hidden" name="PickupLat" id="pickupLat" />
+                                    <input type="hidden" name="PickupLng" id="pickupLng" />
+                                    <!-- Map Panel -->
+                                    <div class="cr-map-panel mt-2" id="pickupMapPanel">
+                                        <div class="cr-map-search">
+                                            <input type="text" id="pickupSearch" placeholder="Nhập địa chỉ hoặc kéo ghim..." />
+                                            <button type="button" class="btn btn-primary btn-sm" onclick="crSearchMap('pickup')"><i class="bi bi-search"></i></button>
+                                        </div>
+                                        <div id="pickupMap" class="cr-map-canvas"></div>
+                                        <button type="button" class="cr-gps-btn" onclick="crUseGPS('pickup')"><i class="bi bi-cursor-fill me-1"></i> Lấy vị trí GPS</button>
+                                        <div class="cr-map-result" id="pickupResult"></div>
+                                    </div>
                                 </div>
                                 <div class="col-md-12 d-none" id="pickupStationSection">
                                     <label class="form-label fw-bold text-dark small">KHO/BẾN XE GỬI <span class="text-danger">*</span></label>
@@ -72,7 +84,19 @@
 
                                 <div class="col-md-12" id="deliveryAddressSection">
                                     <label class="form-label fw-bold text-dark small">ĐỊA CHỈ GIAO HÀNG <span class="text-danger">*</span></label>
-                                    <input type="text" name="DeliveryAddress" id="deliveryAddrInput" class="form-control border shadow-sm py-2 px-3 rounded-pill" placeholder="Số nhà, tên đường, phường/xã..." required />
+                                    <input type="text" name="DeliveryAddress" id="deliveryAddrInput" class="form-control border shadow-sm py-2 px-3 rounded-pill" placeholder="Chọn vị trí trên bản đồ..." readonly required />
+                                    <input type="hidden" name="DeliveryLat" id="deliveryLat" />
+                                    <input type="hidden" name="DeliveryLng" id="deliveryLng" />
+                                    <!-- Map Panel -->
+                                    <div class="cr-map-panel mt-2" id="deliveryMapPanel">
+                                        <div class="cr-map-search">
+                                            <input type="text" id="deliverySearch" placeholder="Nhập địa chỉ hoặc kéo ghim..." />
+                                            <button type="button" class="btn btn-primary btn-sm" onclick="crSearchMap('delivery')"><i class="bi bi-search"></i></button>
+                                        </div>
+                                        <div id="deliveryMap" class="cr-map-canvas"></div>
+                                        <button type="button" class="cr-gps-btn" onclick="crUseGPS('delivery')"><i class="bi bi-cursor-fill me-1"></i> Lấy vị trí GPS</button>
+                                        <div class="cr-map-result" id="deliveryResult"></div>
+                                    </div>
                                 </div>
                                 <div class="col-md-12 d-none" id="deliveryStationSection">
                                     <label class="form-label fw-bold text-dark small">KHO/BẾN XE ĐẾN <span class="text-danger">*</span></label>
@@ -201,21 +225,105 @@
     }
 </style>
 
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+
+<style>
+    /* MAP PANEL - CreateRequest */
+    .cr-map-panel { border: 2px solid #0d6efd; border-radius: 10px; overflow: hidden; background: #fff; }
+    .cr-map-search { display: flex; gap: 6px; padding: 8px 10px; background: #f0f6ff; }
+    .cr-map-search input { flex: 1; border-radius: 6px; border: 1px solid #ced4da; padding: 7px 10px; font-size: 0.89rem; }
+    .cr-map-canvas { height: 220px; width: 100%; }
+    .cr-gps-btn { width: 100%; background: #198754; color: white; border: none; padding: 7px; font-size: 0.88rem; cursor: pointer; }
+    .cr-gps-btn:hover { background: #157347; }
+    .cr-map-result { padding: 6px 10px; background: #e8f4fd; font-size: 0.8rem; color: #0d6efd; display: none; }
+    .cr-map-result.visible { display: block; }
+
 @section Scripts {
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script>
+        // ============================================================
+        // CR MAP LOGIC (CreateRequest page)
+        // ============================================================
+        const crMaps = {}, crMarkers = {};
+
+        function crInitMap(type) {
+            if (crMaps[type]) return;
+            const center = [10.8231, 106.6297];
+            const m = L.map(type + 'Map').setView(center, 12);
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '&copy; OpenStreetMap'
+            }).addTo(m);
+            const marker = L.marker(center, { draggable: true }).addTo(m);
+            marker.on('dragend', () => { const p = marker.getLatLng(); crReverseGeocode(type, p.lat, p.lng); });
+            m.on('click', e => { marker.setLatLng(e.latlng); crReverseGeocode(type, e.latlng.lat, e.latlng.lng); });
+            crMaps[type] = m; crMarkers[type] = marker;
+            setTimeout(() => m.invalidateSize(), 300);
+        }
+
+        async function crSearchMap(type) {
+            const q = document.getElementById(type + 'Search').value.trim();
+            if (!q) return;
+            const res = document.getElementById(type + 'Result');
+            res.textContent = '⌛ Đang tìm...'; res.classList.add('visible');
+            try {
+                const r = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(q + ', Việt Nam')}&limit=1`);
+                const data = await r.json();
+                if (data.length > 0) crPlaceMarker(type, parseFloat(data[0].lat), parseFloat(data[0].lon), data[0].display_name);
+                else res.textContent = '❌ Không tìm thấy địa chỉ!';
+            } catch { res.textContent = '❌ Lỗi kết nối!'; }
+        }
+
+        ['pickup', 'delivery'].forEach(t => {
+            const el = document.getElementById(t + 'Search');
+            if (el) el.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); crSearchMap(t); } });
+        });
+
+        function crUseGPS(type) {
+            if (!navigator.geolocation) { alert('Trình duyệt không hỗ trợ GPS.'); return; }
+            const res = document.getElementById(type + 'Result');
+            res.textContent = '📡 Đang lấy GPS...'; res.classList.add('visible');
+            navigator.geolocation.getCurrentPosition(
+                p => crPlaceMarker(type, p.coords.latitude, p.coords.longitude, null),
+                e => { res.textContent = '❌ Lỗi GPS: ' + e.message; }
+            );
+        }
+
+        async function crReverseGeocode(type, lat, lng) {
+            try {
+                const r = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}`);
+                const data = await r.json();
+                crSetAddress(type, lat, lng, data.display_name || `${lat.toFixed(5)}, ${lng.toFixed(5)}`);
+            } catch { crSetAddress(type, lat, lng, `${lat.toFixed(5)}, ${lng.toFixed(5)}`); }
+        }
+
+        function crPlaceMarker(type, lat, lng, name) {
+            crMaps[type].setView([lat, lng], 16);
+            crMarkers[type].setLatLng([lat, lng]);
+            if (name) crSetAddress(type, lat, lng, name);
+            else crReverseGeocode(type, lat, lng);
+        }
+
+        function crSetAddress(type, lat, lng, name) {
+            const addrInput = type === 'pickup' ? 'pickupAddrInput' : 'deliveryAddrInput';
+            document.getElementById(addrInput).value = name;
+            document.getElementById(type + 'Lat').value = lat.toFixed(6);
+            document.getElementById(type + 'Lng').value = lng.toFixed(6);
+            const res = document.getElementById(type + 'Result');
+            res.textContent = '📍 ' + name; res.classList.add('visible');
+        }
+
+        // ============================================================
+        // EXISTING LOGIC (date, station load, volume)
+        // ============================================================
         document.addEventListener('DOMContentLoaded', function () {
             const dateInput = document.getElementById('requestDate');
-            if(dateInput) {
-                const today = new Date().toISOString().split('T')[0];
-                dateInput.setAttribute('min', today);
-            }
+            if(dateInput) { const today = new Date().toISOString().split('T')[0]; dateInput.setAttribute('min', today); }
 
             const pickupType = document.getElementById('pickupType');
             const pickupAddr = document.getElementById('pickupAddressSection');
             const pickupStat = document.getElementById('pickupStationSection');
             const fromProv = document.getElementById('fromProv');
             const fromStationSelect = document.getElementById('fromStation');
-
             const deliveryType = document.getElementById('deliveryType');
             const deliveryAddr = document.getElementById('deliveryAddressSection');
             const deliveryStat = document.getElementById('deliveryStationSection');
@@ -224,65 +332,58 @@
 
             pickupType.addEventListener('change', function() {
                 if (this.value == '2') {
-                    pickupAddr.classList.add('d-none');
-                    pickupStat.classList.remove('d-none');
+                    pickupAddr.classList.add('d-none'); pickupStat.classList.remove('d-none');
                     document.getElementById('pickupAddrInput').required = false;
                     fromStationSelect.required = true;
                     loadStations(fromProv.value, fromStationSelect);
                 } else {
-                    pickupAddr.classList.remove('d-none');
-                    pickupStat.classList.add('d-none');
+                    pickupAddr.classList.remove('d-none'); pickupStat.classList.add('d-none');
                     document.getElementById('pickupAddrInput').required = true;
                     fromStationSelect.required = false;
+                    setTimeout(() => crInitMap('pickup'), 100);
                 }
             });
 
             deliveryType.addEventListener('change', function() {
                 if (this.value == '2') {
-                    deliveryAddr.classList.add('d-none');
-                    deliveryStat.classList.remove('d-none');
+                    deliveryAddr.classList.add('d-none'); deliveryStat.classList.remove('d-none');
                     document.getElementById('deliveryAddrInput').required = false;
                     toStationSelect.required = true;
                     loadStations(toProv.value, toStationSelect);
                 } else {
-                    deliveryAddr.classList.remove('d-none');
-                    deliveryStat.classList.add('d-none');
+                    deliveryAddr.classList.remove('d-none'); deliveryStat.classList.add('d-none');
                     document.getElementById('deliveryAddrInput').required = true;
                     toStationSelect.required = false;
+                    setTimeout(() => crInitMap('delivery'), 100);
                 }
             });
 
-            fromProv.addEventListener('change', function() {
-                if (pickupType.value == '2') loadStations(this.value, fromStationSelect);
-            });
-
-            toProv.addEventListener('change', function() {
-                if (deliveryType.value == '2') loadStations(this.value, toStationSelect);
-            });
+            fromProv.addEventListener('change', () => { if (pickupType.value == '2') loadStations(fromProv.value, fromStationSelect); });
+            toProv.addEventListener('change', () => { if (deliveryType.value == '2') loadStations(toProv.value, toStationSelect); });
 
             function loadStations(provId, selectElem) {
                 if (!provId) return;
                 fetch(`/Customer/GetStations?provinceId=${provId}`)
-                    .then(r => r.json())
-                    .then(data => {
+                    .then(r => r.json()).then(data => {
                         selectElem.innerHTML = '<option value="">-- Chọn kho/bến xe --</option>';
-                        data.forEach(s => {
-                            selectElem.innerHTML += `<option value="${s.stationId}">${s.stationName}</option>`;
-                        });
+                        data.forEach(s => { selectElem.innerHTML += `<option value="${s.stationId}">${s.stationName}</option>`; });
                     });
             }
 
-            // Calculations
+            // Volume calculator
             const ids = ['len', 'wid', 'hei'];
             ids.forEach(id => {
                 document.getElementById(id).addEventListener('input', function() {
                     let l = parseFloat(document.getElementById('len').value) || 0;
                     let w = parseFloat(document.getElementById('wid').value) || 0;
                     let h = parseFloat(document.getElementById('hei').value) || 0;
-                    let res = (l * w * h) / 1000000;
-                    document.getElementById('vol').value = res > 0 ? res.toFixed(4) : '0';
+                    document.getElementById('vol').value = (l*w*h/1000000) > 0 ? (l*w*h/1000000).toFixed(4) : '0';
                 });
             });
+
+            // Init maps for "home" option by default (PickupType=1, DeliveryType=1)
+            crInitMap('pickup');
+            crInitMap('delivery');
         });
     </script>
 }

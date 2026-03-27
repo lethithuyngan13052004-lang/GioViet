@@ -3,39 +3,32 @@
     ViewData["Title"] = "Tạo đơn vận chuyển";
 }
 
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+
 <style>
     body { background-color: #f8f9fa; }
-    .mobile-container {
-        max-width: 600px; margin: 0 auto; background-color: #f4f6f9;
-        min-height: 100vh; padding-bottom: 80px;
-    }
-    .header-bar {
-        background-color: var(--bs-primary); color: white; padding: 15px;
-        position: sticky; top: 0; z-index: 1000; font-size: 1.1rem;
-        font-weight: 600; text-align: center;
-    }
+    .mobile-container { max-width: 600px; margin: 0 auto; background-color: #f4f6f9; min-height: 100vh; padding-bottom: 80px; }
+    .header-bar { background-color: var(--bs-primary); color: white; padding: 15px; position: sticky; top: 0; z-index: 900; font-size: 1.1rem; font-weight: 600; text-align: center; }
     .header-bar a { position: absolute; left: 15px; color: white; text-decoration: none; }
     .section-title { color: var(--bs-primary); font-weight: 700; margin-bottom: 1rem; font-size: 1.1rem; }
-    .custom-card {
-        background: white; border-radius: 12px; padding: 20px;
-        margin-bottom: 15px; box-shadow: 0 2px 10px rgba(0,0,0,0.03);
-    }
-    .custom-input {
-        background-color: #f8f9fa; border: 1px solid #dee2e6;
-        border-radius: 8px; padding: 12px; margin-bottom: 5px;
-    }
+    .custom-card { background: white; border-radius: 12px; padding: 20px; margin-bottom: 15px; box-shadow: 0 2px 10px rgba(0,0,0,0.03); }
+    .custom-input { background-color: #f8f9fa; border: 1px solid #dee2e6; border-radius: 8px; padding: 12px; margin-bottom: 5px; }
+    .custom-input:focus { border-color: var(--bs-primary); background-color: white; box-shadow: 0 0 0 0.2rem rgba(13,110,253,0.1); }
     .form-label { font-weight: 500; color: #333; margin-bottom: 0.3rem; }
-    .bottom-bar {
-        position: fixed; bottom: 0; left: 0; width: 100%;
-        background-color: white; padding: 15px; z-index: 1000;
-        box-shadow: 0 -2px 10px rgba(0,0,0,0.05);
-    }
+    .bottom-bar { position: fixed; bottom: 0; left: 0; width: 100%; background-color: white; padding: 15px; z-index: 1000; box-shadow: 0 -2px 10px rgba(0,0,0,0.05); }
     .required-star { color: red; }
-    .error-feedback {
-        color: #dc3545; font-size: 0.85rem; background-color: #fdefef;
-        padding: 8px 12px; border-radius: 6px; border-left: 3px solid #dc3545;
-        margin-top: 5px; display: none;
-    }
+
+    /* MAP PANEL */
+    .map-panel { border-radius: 12px; overflow: hidden; border: 2px solid #0d6efd; margin-top: 12px; display: none; }
+    .map-panel.active { display: block; }
+    .map-search-bar { display: flex; gap: 6px; padding: 10px; background: #f0f6ff; }
+    .map-search-bar input { flex: 1; border-radius: 8px; border: 1px solid #ced4da; padding: 8px 12px; font-size: 0.9rem; }
+    .map-search-bar button { white-space: nowrap; }
+    .leaflet-map { height: 250px; width: 100%; }
+    .gps-btn { width: 100%; margin: 6px 0 0; background: #198754; color: white; border: none; border-radius: 8px; padding: 8px; font-size: 0.9rem; }
+    .gps-btn:hover { background: #157347; }
+    .map-result-bar { padding: 8px 10px; background: #e8f4fd; font-size: 0.82rem; color: #0d6efd; display: none; }
+    .map-result-bar.visible { display: block; }
 </style>
 
 <div class="mobile-container shadow-sm">
@@ -46,40 +39,70 @@
 
     <form asp-action="BookTrip" asp-controller="Customer" method="post" id="shippingForm" class="p-3">
         <input type="hidden" name="TripId" value="@Model.TripId" />
-        
+
+        <!-- THÔNG TIN GIAO NHẬN -->
         <div class="custom-card border-0">
             <div class="section-title">Thông tin giao nhận</div>
-            
+
             <label class="form-label">Hình thức lấy hàng <span class="required-star">*</span></label>
             <select name="PickupType" id="pickupType" class="form-select custom-input" required>
-                <option value="1">Lấy hàng tận nhà (Bên thứ 3)</option>
                 <option value="2">Gửi tại kho/bến xe (@Model.FromStationNavigation.StationName)</option>
+                <option value="1">Lấy hàng tận nhà (Bên thứ 3)</option>
             </select>
 
-            <div id="pickupAddressGroup">
+            <!-- Pickup address + map panel -->
+            <div id="pickupGroup" style="display:none;">
                 <label class="form-label mt-2">Địa chỉ lấy hàng <span class="required-star">*</span></label>
-                <input type="text" class="form-control custom-input" name="PickupAddress" id="pickupAddress" placeholder="Nhập địa chỉ lấy hàng" />
-                <div class="error-feedback" id="err-pickup">Vui lòng nhập địa chỉ lấy hàng</div>
-                <input type="hidden" name="Lat" id="lat" />
-                <input type="hidden" name="Lng" id="lng" />
+                <input type="text" class="form-control custom-input" name="PickupAddress" id="pickupAddress"
+                       placeholder="Địa chỉ sẽ được điền từ bản đồ..." readonly />
+                <input type="hidden" name="PickupLat" id="pickupLat" />
+                <input type="hidden" name="PickupLng" id="pickupLng" />
+
+                <div class="map-panel" id="pickupMapPanel">
+                    <div class="map-search-bar">
+                        <input type="text" id="pickupSearch" placeholder="Tìm địa chỉ lấy hàng..." />
+                        <button type="button" class="btn btn-primary btn-sm" onclick="searchMap('pickup')"><i class="bi bi-search"></i></button>
+                    </div>
+                    <div id="pickupMap" class="leaflet-map"></div>
+                    <button type="button" class="gps-btn" onclick="useGPS('pickup')">
+                        <i class="bi bi-cursor-fill me-1"></i> Dùng vị trí GPS của tôi
+                    </button>
+                    <div class="map-result-bar" id="pickupResult"></div>
+                </div>
             </div>
 
             <label class="form-label mt-2">Hình thức nhận hàng <span class="required-star">*</span></label>
             <select name="DeliveryType" id="deliveryType" class="form-select custom-input" required>
-                <option value="1">Giao hàng tận nơi</option>
                 <option value="2">Nhận tại kho/bến xe (@Model.ToStationNavigation.StationName)</option>
+                <option value="1">Giao hàng tận nơi</option>
             </select>
 
-            <div id="deliveryAddressGroup">
+            <!-- Delivery address + map panel -->
+            <div id="deliveryGroup" style="display:none;">
                 <label class="form-label mt-2">Địa chỉ giao hàng <span class="required-star">*</span></label>
-                <input type="text" class="form-control custom-input" name="DeliveryAddress" id="deliveryAddress" placeholder="Nhập địa chỉ giao hàng" />
-                <div class="error-feedback" id="err-delivery">Vui lòng nhập địa chỉ giao hàng</div>
+                <input type="text" class="form-control custom-input" name="DeliveryAddress" id="deliveryAddress"
+                       placeholder="Địa chỉ sẽ được điền từ bản đồ..." readonly />
+                <input type="hidden" name="DeliveryLat" id="deliveryLat" />
+                <input type="hidden" name="DeliveryLng" id="deliveryLng" />
+
+                <div class="map-panel" id="deliveryMapPanel">
+                    <div class="map-search-bar">
+                        <input type="text" id="deliverySearch" placeholder="Tìm địa chỉ giao hàng..." />
+                        <button type="button" class="btn btn-primary btn-sm" onclick="searchMap('delivery')"><i class="bi bi-search"></i></button>
+                    </div>
+                    <div id="deliveryMap" class="leaflet-map"></div>
+                    <button type="button" class="gps-btn" onclick="useGPS('delivery')">
+                        <i class="bi bi-cursor-fill me-1"></i> Dùng vị trí GPS của tôi
+                    </button>
+                    <div class="map-result-bar" id="deliveryResult"></div>
+                </div>
             </div>
         </div>
 
+        <!-- THÔNG TIN LIÊN HỆ -->
         <div class="custom-card border-0">
             <div class="section-title">Thông tin liên hệ</div>
-            
+
             <label class="form-label">SĐT người gửi <span class="required-star">*</span></label>
             <input type="tel" class="form-control custom-input" name="SenderPhone" value="@ViewBag.UserPhone" required />
 
@@ -98,10 +121,11 @@
             <input type="text" class="form-control custom-input" name="Note" placeholder="Ví dụ: Hàng dễ vỡ..." />
         </div>
 
+        <!-- THÔNG TIN KIỆN HÀNG -->
         <div class="custom-card border-0">
             <div class="section-title">Thông tin kiện hàng</div>
 
-            <label class="form-label">Tên kiện hàng <span class="required-star">*</span></label>
+            <label class="form-label">Tên / Mô tả hàng hóa <span class="required-star">*</span></label>
             <input type="text" class="form-control custom-input" name="Description" placeholder="Nhập tên hàng hóa" required />
 
             <div class="row mt-3">
@@ -141,38 +165,162 @@
 
 <div class="bottom-bar">
     <button type="submit" form="shippingForm" class="btn btn-primary w-100 btn-lg fw-bold rounded-pill shadow">
-        Xác nhận tạo đơn
+        <i class="bi bi-check-circle me-1"></i> Xác nhận tạo đơn
     </button>
 </div>
 
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
-    // 1. Tự động tính thể tích m3
-    const dims = ['length', 'width', 'height'];
-    dims.forEach(id => {
+    // ============================================================
+    // MAP STATE
+    // ============================================================
+    const maps = {};
+    const markers = {};
+
+    function initMap(type) {
+        if (maps[type]) return; // already initialized
+        const center = [10.8231, 106.6297]; // Ho Chi Minh City default
+        const m = L.map(type + 'Map').setView(center, 13);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '&copy; OpenStreetMap contributors'
+        }).addTo(m);
+
+        const marker = L.marker(center, { draggable: true }).addTo(m);
+        marker.on('dragend', function() {
+            const pos = marker.getLatLng();
+            reverseGeocode(type, pos.lat, pos.lng);
+        });
+
+        m.on('click', function(e) {
+            marker.setLatLng(e.latlng);
+            reverseGeocode(type, e.latlng.lat, e.latlng.lng);
+        });
+
+        maps[type] = m;
+        markers[type] = marker;
+        // Fix: leaflet tiles don't load properly until map is visible
+        setTimeout(() => m.invalidateSize(), 300);
+    }
+
+    // ============================================================
+    // SHOW / HIDE MAP PANELS
+    // ============================================================
+    document.getElementById('pickupType').addEventListener('change', function() {
+        const show = this.value === '1';
+        const grp = document.getElementById('pickupGroup');
+        const panel = document.getElementById('pickupMapPanel');
+        grp.style.display = show ? 'block' : 'none';
+        document.getElementById('pickupAddress').required = show;
+        if (show) {
+            panel.classList.add('active');
+            setTimeout(() => initMap('pickup'), 100);
+        }
+    });
+
+    document.getElementById('deliveryType').addEventListener('change', function() {
+        const show = this.value === '1';
+        const grp = document.getElementById('deliveryGroup');
+        const panel = document.getElementById('deliveryMapPanel');
+        grp.style.display = show ? 'block' : 'none';
+        document.getElementById('deliveryAddress').required = show;
+        if (show) {
+            panel.classList.add('active');
+            setTimeout(() => initMap('delivery'), 100);
+        }
+    });
+
+    // ============================================================
+    // GEOCODING: Search address → coordinates
+    // ============================================================
+    async function searchMap(type) {
+        const query = document.getElementById(type + 'Search').value.trim();
+        if (!query) return;
+
+        const res = document.getElementById(type + 'Result');
+        res.textContent = '⌛ Đang tìm...';
+        res.classList.add('visible');
+
+        try {
+            const r = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query + ', Việt Nam')}&limit=1`);
+            const data = await r.json();
+            if (data.length > 0) {
+                const lat = parseFloat(data[0].lat);
+                const lng = parseFloat(data[0].lon);
+                placeMarker(type, lat, lng, data[0].display_name);
+            } else {
+                res.textContent = '❌ Không tìm thấy địa chỉ!';
+            }
+        } catch(e) {
+            res.textContent = '❌ Lỗi kết nối!';
+        }
+    }
+
+    // Trigger search on Enter key
+    ['pickup', 'delivery'].forEach(type => {
+        const input = document.getElementById(type + 'Search');
+        if (input) input.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); searchMap(type); } });
+    });
+
+    // ============================================================
+    // GPS
+    // ============================================================
+    function useGPS(type) {
+        if (!navigator.geolocation) { alert('Trình duyệt không hỗ trợ GPS.'); return; }
+        const res = document.getElementById(type + 'Result');
+        res.textContent = '📡 Đang lấy vị trí GPS...';
+        res.classList.add('visible');
+        navigator.geolocation.getCurrentPosition(function(pos) {
+            placeMarker(type, pos.coords.latitude, pos.coords.longitude, null);
+        }, function(err) {
+            res.textContent = '❌ Không thể lấy GPS: ' + err.message;
+        });
+    }
+
+    // ============================================================
+    // REVERSE GEOCODE: coordinates → address text
+    // ============================================================
+    async function reverseGeocode(type, lat, lng) {
+        try {
+            const r = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}`);
+            const data = await r.json();
+            const addr = data.display_name || `${lat.toFixed(5)}, ${lng.toFixed(5)}`;
+            setAddress(type, lat, lng, addr);
+        } catch(e) {
+            setAddress(type, lat, lng, `${lat.toFixed(5)}, ${lng.toFixed(5)}`);
+        }
+    }
+
+    function placeMarker(type, lat, lng, displayName) {
+        const m = maps[type];
+        const marker = markers[type];
+        marker.setLatLng([lat, lng]);
+        m.setView([lat, lng], 16);
+        if (displayName) {
+            setAddress(type, lat, lng, displayName);
+        } else {
+            reverseGeocode(type, lat, lng);
+        }
+    }
+
+    function setAddress(type, lat, lng, displayName) {
+        document.getElementById(type + 'Address').value = displayName;
+        document.getElementById(type + 'Lat').value = lat.toFixed(6);
+        document.getElementById(type + 'Lng').value = lng.toFixed(6);
+        const res = document.getElementById(type + 'Result');
+        res.textContent = '📍 ' + displayName;
+        res.classList.add('visible');
+    }
+
+    // ============================================================
+    // VOLUME CALCULATOR
+    // ============================================================
+    ['length','width','height'].forEach(id => {
         document.getElementById(id).addEventListener('input', () => {
-            let l = parseFloat(document.getElementById('length').value) || 0;
-            let w = parseFloat(document.getElementById('width').value) || 0;
-            let h = parseFloat(document.getElementById('height').value) || 0;
-            let vol = (l * w * h) / 1000000;
+            const l = parseFloat(document.getElementById('length').value) || 0;
+            const w = parseFloat(document.getElementById('width').value) || 0;
+            const h = parseFloat(document.getElementById('height').value) || 0;
+            const vol = (l * w * h) / 1000000;
             document.getElementById('volumeDisplay').value = vol > 0 ? vol.toFixed(4) : '0';
         });
-    });
-
-    // 2. Logic Ẩn/Hiện địa chỉ dựa trên hình thức lấy/giao
-    const pickupType = document.getElementById('pickupType');
-    const pickupGroup = document.getElementById('pickupAddressGroup');
-    const deliveryType = document.getElementById('deliveryType');
-    const deliveryGroup = document.getElementById('deliveryAddressGroup');
-
-    pickupType.addEventListener('change', function() {
-        // Nếu chọn "Lấy tại nhà (1)" thì hiện ô nhập địa chỉ, ngược lại ẩn
-        pickupGroup.style.display = (this.value == '1') ? 'block' : 'none';
-        document.getElementById('pickupAddress').required = (this.value == '1');
-    });
-
-    deliveryType.addEventListener('change', function() {
-        // Nếu chọn "Giao tận nơi (1)" thì hiện ô nhập địa chỉ, ngược lại ẩn
-        deliveryGroup.style.display = (this.value == '1') ? 'block' : 'none';
-        document.getElementById('deliveryAddress').required = (this.value == '1');
     });
 </script>
