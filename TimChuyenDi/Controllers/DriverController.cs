@@ -96,51 +96,124 @@ namespace TimChuyenDi.Controllers
         {
             var driverId = int.Parse(User.FindFirstValue("UserId"));
 
-            // Định dạng Dropdown Trạm: "Tên Trạm (Tên Tỉnh)" cho dễ nhìn
-            var stations = _context.Stations.Include(s => s.Province).ToList();
-            var stationList = stations.Select(s => new {
-                StationId = s.StationId,
-                DisplayName = s.StationName + " (" + s.Province.ProvinceName + ")"
+            // Danh sách trạm đầy đủ để tra cứu trên Map
+            var stations = _context.Stations
+                .Include(s => s.Province)
+                .OrderBy(s => s.StationName)
+                .ToList();
+            
+            ViewBag.StationsRaw = stations.Select(s => new {
+                s.StationId,
+                s.StationName,
+                s.Latitude,
+                s.Longitude,
+                ProvinceName = s.Province.ProvinceName,
+                s.Address
             }).ToList();
 
-            ViewBag.Stations = new SelectList(stationList, "StationId", "DisplayName");
+            // Loại chuyến đi (Radio Buttons)
+            ViewBag.TripTypes = _context.TripTypes.ToList();
 
-            // Chỉ hiển thị xe của ông tài xế đang đăng nhập và ĐÃ ĐƯỢC DUYỆT (Status = 1)
-            var myVehicles = _context.Vehicles.Where(v => v.DriverId == driverId && v.Status == 1).ToList();
-            ViewBag.Vehicles = new SelectList(myVehicles, "VehicleId", "PlateNumber");
+            // Danh sách Tỉnh/Thành
+            ViewBag.Provinces = _context.Provinces.OrderBy(p => p.ProvinceName).ToList();
+
+            // Xe của tài xế đã duyệt
+            var myVehicles = _context.Vehicles
+                .Where(v => v.DriverId == driverId && v.Status == 1)
+                .Include(v => v.VehicleType)
+                .ToList();
+            ViewBag.Vehicles = myVehicles;
 
             return View();
         }
 
+        [HttpGet]
+        public IActionResult GetStationsByProvince(int? provinceId)
+        {
+            var query = _context.Stations.AsQueryable();
+            if (provinceId.HasValue)
+            {
+                query = query.Where(s => s.ProvinceId == provinceId.Value);
+            }
+
+            var stations = query
+                .Include(s => s.Province)
+                .Select(s => new {
+                    id = s.StationId,
+                    name = s.StationName,
+                    lat = s.Latitude,
+                    lng = s.Longitude,
+                    address = s.Address,
+                    province = s.Province.ProvinceName,
+                    provinceId = s.ProvinceId
+                }).ToList();
+            return Json(stations);
+        }
+
+        [HttpGet]
+        public IActionResult GetStationsApi()
+        {
+            var stations = _context.Stations
+                .Include(s => s.Province)
+                .Select(s => new {
+                    id = s.StationId,
+                    name = s.StationName,
+                    lat = s.Latitude,
+                    lng = s.Longitude,
+                    address = s.Address,
+                    province = s.Province.ProvinceName
+                }).ToList();
+            return Json(stations);
+        }
+
         // POST: Xử lý lưu chuyến xe mới vào Database
         [HttpPost]
-        public IActionResult CreateTrip(Trip model)
+        public async Task<IActionResult> CreateTrip(Trip model, string intermediateStations)
         {
             var driverId = int.Parse(User.FindFirstValue("UserId"));
-
-            // Lấy thông tin Xe để "hút" sức chứa tối đa ném vào chuyến đi (phải được duyệt)
             var vehicle = _context.Vehicles.FirstOrDefault(v => v.VehicleId == model.VehicleId && v.DriverId == driverId && v.Status == 1);
 
             if (vehicle != null)
             {
-                var newTrip = new Trip
+                using var transaction = await _context.Database.BeginTransactionAsync();
+                try
                 {
-                    DriverId = driverId,
-                    VehicleId = model.VehicleId,
-                    RouteType = model.RouteType, // 1: Chạy thẳng cao tốc, 2: Rẽ trạm con
-                    FromStation = model.FromStation,
-                    ToStation = model.ToStation,
-                    StartTime = model.StartTime,
-                    ArrivalTime = model.ArrivalTime,
-                    BasePrice = model.BasePrice,
-                    Distance = model.Distance,
-                    AvaiCapacityKg = vehicle.CapacityKg, // Bắt tự động từ bảng Vehicles
-                    AvaiCapacityM3 = vehicle.CapacityM3  // Bắt tự động từ bảng Vehicles
-                };
+                    model.DriverId = driverId;
+                    // Mặc định Capacity nếu tài xế không sửa
+                    if (model.AvaiCapacityKg <= 0) model.AvaiCapacityKg = vehicle.CapacityKg;
+                    if (model.AvaiCapacityM3 <= 0) model.AvaiCapacityM3 = vehicle.CapacityM3;
 
-                _context.Trips.Add(newTrip);
-                _context.SaveChanges();
-                TempData["Success"] = "Lên lịch chuyến xe mới thành công!";
+                    _context.Trips.Add(model);
+                    await _context.SaveChangesAsync();
+
+                    // Xử lý trạm trung gian
+                    if (!string.IsNullOrEmpty(intermediateStations))
+                    {
+                        var stationIds = intermediateStations.Split(',', StringSplitOptions.RemoveEmptyEntries)
+                                          .Select(int.Parse).ToList();
+                        
+                        for (int i = 0; i < stationIds.Count; i++)
+                        {
+                            var ts = new TripStation
+                            {
+                                TripId = model.TripId,
+                                StationId = stationIds[i],
+                                StopOrder = i + 1
+                            };
+                            _context.TripStations.Add(ts);
+                        }
+                        await _context.SaveChangesAsync();
+                    }
+
+                    await transaction.CommitAsync();
+                    TempData["Success"] = "Đăng chuyến xe và lộ trình thành công!";
+                }
+                catch (Exception ex)
+                {
+                    await transaction.RollbackAsync();
+                    TempData["Error"] = "Lỗi khi lưu chuyến xe: " + ex.Message;
+                    return RedirectToAction("CreateTrip");
+                }
             }
 
             return RedirectToAction("MyTrips");

@@ -1,69 +1,400 @@
+@model TimChuyenDi.Models.Trip
 @{
-    ViewData["Title"] = "Đăng Chuyến Xe Mới";
+    ViewData["Title"] = "Đăng Chuyến Xe & Lập Lộ Trình";
 }
 
-<div class="row justify-content-center mt-4">
-    <div class="col-md-8">
-        <div class="card shadow">
-            <div class="card-header bg-primary text-white fw-bold">
-                Đăng Thông Tin Chuyến Xe Chở Hàng
+<!-- Leaflet & Routing Assets -->
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<link rel="stylesheet" href="https://unpkg.com/leaflet-routing-machine/dist/leaflet-routing-machine.css" />
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" />
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/select2-bootstrap-5-theme@1.3.0/dist/select2-bootstrap-5-theme.min.css" />
+
+<style>
+    #map { height: 650px; border-radius: 12px; border: 2px solid #e9ecef; }
+    .card-trip { border: none; border-radius: 15px; overflow: hidden; }
+    .form-section-title { font-weight: 700; color: #0d6efd; border-left: 4px solid #0d6efd; padding-left: 10px; margin-bottom: 20px; }
+    .trip-type-card { cursor: pointer; border: 2px solid #dee2e6; transition: 0.3s; }
+    .trip-type-card:hover { border-color: #0d6efd; }
+    .trip-type-radio:checked + .trip-type-card { border-color: #0d6efd; background-color: #f0f7ff; }
+    .intermediate-station { display: flex; align-items: center; background: #fff; border: 1px solid #dee2e6; padding: 8px 12px; border-radius: 8px; margin-bottom: 8px; }
+    .station-marker-label { font-weight: bold; color: #0d6efd; }
+</style>
+
+<div class="container-fluid py-4">
+    <form asp-action="CreateTrip" method="post" id="tripForm">
+        <div class="row g-4">
+            <!-- Left Panel: Form Data -->
+            <div class="col-lg-4">
+                <div class="card card-trip shadow-lg h-100">
+                    <div class="card-header bg-white py-3">
+                        <h5 class="mb-0 fw-bold text-dark"><i class="bi bi-truck me-2"></i>Thông Tin Chuyến Xe</h5>
+                    </div>
+                    <div class="card-body p-4 overflow-auto" style="max-height: 80vh;">
+                        
+                        <div class="form-section-title">1. Chọn Phương Tiện & Loại Hình</div>
+                        
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Chọn xe vận tải</label>
+                            <select name="VehicleId" id="vehicleSelect" class="form-select select2-bootstrap" required>
+                                <option value="">-- Chọn xe của bạn --</option>
+                                @foreach (var v in ViewBag.Vehicles)
+                                {
+                                    <option value="@v.VehicleId" data-kg="@v.CapacityKg" data-m3="@v.CapacityM3">
+                                        @v.PlateNumber (@v.VehicleType.TypeName - @v.CapacityKg kg)
+                                    </option>
+                                }
+                            </select>
+                        </div>
+
+                        <div class="mb-4">
+                            <label class="form-label fw-bold">Loại chuyến đi</label>
+                            <div class="row g-2">
+                                @foreach (var type in ViewBag.TripTypes)
+                                {
+                                    <div class="col-6">
+                                        <input type="radio" name="RouteType" value="@type.IdType" id="type-@type.IdType" class="trip-type-radio d-none" required @(type.IdType == 1 ? "checked" : "")>
+                                        <label for="type-@type.IdType" class="trip-type-card p-2 rounded text-center w-100">
+                                            <div class="fw-bold">@type.Type</div>
+                                            <small class="text-muted">Hệ số: x@type.Multiplier</small>
+                                        </label>
+                                    </div>
+                                }
+                            </div>
+                        </div>
+
+                        <div class="form-section-title">2. Lập Lộ Trình</div>
+
+                        <!-- START STATION -->
+                        <div class="p-3 bg-light rounded border border-primary border-opacity-25 mb-3">
+                            <label class="form-label fw-bold text-primary"><i class="bi bi-geo-alt-fill"></i> ĐIỂM XUẤT PHÁT</label>
+                            <select id="provinceStart" class="form-select select2-bootstrap mb-2" onchange="filterStations('start')">
+                                <option value="">-- Chọn Tình/Thành --</option>
+                                @foreach (var p in ViewBag.Provinces)
+                                {
+                                    <option value="@p.ProvinceId">@p.ProvinceName</option>
+                                }
+                            </select>
+                            <select name="FromStation" id="fromStation" class="form-select select2-stations" required disabled>
+                                <option value="">-- Chọn trạm --</option>
+                            </select>
+                        </div>
+
+                        <!-- INTERMEDIATE STATIONS -->
+                        <div id="intermediateStationsContainer" class="mb-3">
+                            <label class="form-label fw-bold text-warning"><i class="bi bi-plus-circle-fill"></i> CÁC TRẠM DỪNG (PHỤ)</label>
+                            <div id="stopsList">
+                                <!-- Dynamic stops -->
+                            </div>
+                            <button type="button" class="btn btn-sm btn-outline-warning w-100 mt-1 fw-bold" onclick="addStop()">
+                                <i class="bi bi-plus-lg"></i> THÊM TRẠM DỪNG PHỤ
+                            </button>
+                        </div>
+
+                        <!-- END STATION -->
+                        <div class="p-3 bg-light rounded border border-success border-opacity-25 mb-4">
+                            <label class="form-label fw-bold text-success"><i class="bi bi-flag-fill"></i> ĐIỂM ĐẾN NƠI</label>
+                            <select id="provinceEnd" class="form-select select2-bootstrap mb-2" onchange="filterStations('end')">
+                                <option value="">-- Chọn Tình/Thành --</option>
+                                @foreach (var p in ViewBag.Provinces)
+                                {
+                                    <option value="@p.ProvinceId">@p.ProvinceName</option>
+                                }
+                            </select>
+                            <select name="ToStation" id="toStation" class="form-select select2-stations" required disabled>
+                                <option value="">-- Chọn trạm --</option>
+                            </select>
+                        </div>
+
+                        <div class="form-section-title">3. Thời Gian & Giá Cước</div>
+
+                        <div class="row g-3 mb-3">
+                            <div class="col-6">
+                                <label class="form-label fw-bold">Giá cơ bản (VNĐ)</label>
+                                <input type="number" name="BasePrice" class="form-control" required placeholder="Ví dụ: 500000">
+                            </div>
+                            <div class="col-6">
+                                <label class="form-label fw-bold">Sức chứa (kg)</label>
+                                <input type="number" name="AvaiCapacityKg" id="capacityInput" class="form-control" required>
+                            </div>
+                        </div>
+
+                        <div class="row g-3 mb-4">
+                            <div class="col-6">
+                                <label class="form-label fw-bold">Giờ xuất phát</label>
+                                <input type="datetime-local" name="StartTime" id="startTime" class="form-control" required>
+                            </div>
+                            <div class="col-6">
+                                <label class="form-label fw-bold text-primary">Ngày tới (Dự kiến)</label>
+                                <input type="datetime-local" name="ArrivalTime" id="arrivalTime" class="form-control" required>
+                                <small class="text-muted" id="etaMessage"></small>
+                            </div>
+                        </div>
+
+                        <input type="hidden" name="Distance" id="distanceInput">
+                        <input type="hidden" name="intermediateStations" id="hiddenStops">
+
+                        <button type="submit" class="btn btn-primary w-100 py-3 fw-bold shadow-lg rounded-pill" onclick="return validateAndSubmit()">
+                            <i class="bi bi-check-circle-fill me-2"></i> XÁC NHẬN ĐĂNG CHUYẾN
+                        </button>
+                    </div>
+                </div>
             </div>
-            <div class="card-body">
-                <form asp-action="CreateTrip" method="post">
-                    <div class="row mb-3">
-                        <div class="col-md-6">
-                            <label class="form-label">Chọn xe vận tải</label>
-                            <select name="VehicleId" class="form-select" asp-items="ViewBag.Vehicles" required></select>
-                        </div>
-                        <div class="col-md-6">
-                            <label class="form-label">Giá mở đầu (VNĐ)</label>
-                            <input type="number" step="1000" name="BasePrice" class="form-control" required placeholder="Ví dụ: 350000" />
-                        </div>
-                    </div>
 
-                    <div class="row mb-3">
-                        <div class="col-md-6">
-                            <label class="form-label text-primary fw-bold">Tỉnh/Thành xuất phát</label>
-                            <select name="FromLocation" class="form-select border-primary" asp-items="ViewBag.Locations" required></select>
-                        </div>
-                        <div class="col-md-6">
-                            <label class="form-label">Địa chỉ chi tiết (Bến bãi/KCN)</label>
-                            <input type="text" name="FromAddress" class="form-control" required />
-                        </div>
-                    </div>
-
-                    <div class="row mb-3">
-                        <div class="col-md-6">
-                            <label class="form-label text-success fw-bold">Tỉnh/Thành đích đến</label>
-                            <select name="ToLocation" class="form-select border-success" asp-items="ViewBag.Locations" required></select>
-                        </div>
-                        <div class="col-md-6">
-                            <label class="form-label">Địa chỉ trả hàng</label>
-                            <input type="text" name="ToAddress" class="form-control" required />
-                        </div>
-                    </div>
-
-                    <div class="row mb-3">
-                        <div class="col-md-4">
-                            <label class="form-label">Trọng tải nhận chở (kg)</label>
-                            <input type="number" name="AvaiCapacityKg" class="form-control" required />
-                        </div>
-                        <div class="col-md-4">
-                            <label class="form-label">Thời gian xuất phát</label>
-                            <input type="datetime-local" name="StartTime" class="form-control" required />
-                        </div>
-                        <div class="col-md-4">
-                            <label class="form-label">Dự kiến đến nơi</label>
-                            <input type="datetime-local" name="ArrivalTime" class="form-control" required />
+            <!-- Right Panel: Map -->
+            <div class="col-lg-8">
+                <div class="card card-trip shadow-lg h-100">
+                    <div class="card-body p-0 position-relative">
+                        <div id="map"></div>
+                        <div class="position-absolute bottom-0 start-0 p-3 w-100" style="z-index: 1000;">
+                            <div class="bg-white p-3 rounded-pill shadow-lg d-flex justify-content-around align-items-center mx-auto" style="max-width: 600px;">
+                                <div class="text-center px-4">
+                                    <span class="d-block small text-muted">Tổng quãng đường</span>
+                                    <span class="h5 fw-bold mb-0 text-primary" id="totalDistance">0 km</span>
+                                </div>
+                                <div class="vr"></div>
+                                <div class="text-center px-4">
+                                    <span class="d-block small text-muted">Thời gian di chuyển</span>
+                                    <span class="h5 fw-bold mb-0 text-success" id="totalTime">0 h</span>
+                                </div>
+                                <div class="vr"></div>
+                                <div class="text-center px-4">
+                                    <button type="button" class="btn btn-sm btn-outline-secondary" onclick="resetMap()">
+                                        <i class="bi bi-arrow-repeat"></i> Reset Map
+                                    </button>
+                                </div>
+                            </div>
                         </div>
                     </div>
-
-                    <div class="text-end">
-                        <a asp-action="MyTrips" class="btn btn-secondary">Hủy</a>
-                        <button type="submit" class="btn btn-primary fw-bold">Đăng Chuyến Xe</button>
-                    </div>
-                </form>
+                </div>
             </div>
         </div>
-    </div>
+    </form>
 </div>
+
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://unpkg.com/leaflet-routing-machine/dist/leaflet-routing-machine.js"></script>
+
+<script>
+    var map, routingControl;
+    var allStations = []; // Sẽ chứa data từ API
+    var locationMarkers = L.layerGroup();
+    var routeMarkers = {}; // Để ghim các điểm đã chọn trong lộ trình
+
+    $(document).ready(function() {
+        initMap();
+        initSelect2();
+        
+        $('#vehicleSelect').change(function() {
+            var kg = $(this).find(':selected').data('kg'); // Bắt Capacity từ thuộc tính data-kg
+            $('#capacityInput').val(kg);
+        });
+
+        $('#fromStation, #toStation').on('change', updateRoute);
+        $('#startTime').on('change', () => calculateArrivalTime(lastTotalTimeSeconds));
+    });
+
+    var lastTotalTimeSeconds = 0;
+
+    function initMap() {
+        map = L.map('map').setView([16.0544, 108.2022], 6);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '&copy; OpenStreetMap contributors'
+        }).addTo(map);
+
+        // Khóa map tại Việt Nam theo yêu cầu Admin
+        var vnBounds = [[8.18, 102.14], [23.4, 109.46]];
+        map.setMaxBounds(vnBounds);
+        map.options.minZoom = 5;
+
+        locationMarkers.addTo(map);
+
+        routingControl = L.Routing.control({
+            waypoints: [],
+            routeWhileDragging: false,
+            show: false,
+            lineOptions: { styles: [{ color: '#0d6efd', opacity: 0.8, weight: 6 }] },
+            createMarker: function() { return null; }
+        }).addTo(map);
+
+        routingControl.on('routesfound', function(e) {
+            var summary = e.routes[0].summary;
+            lastTotalTimeSeconds = summary.totalTime;
+            $('#totalDistance').text((summary.totalDistance / 1000).toFixed(1) + " km");
+            $('#totalTime').text((summary.totalTime / 3600).toFixed(1) + " h");
+            $('#distanceInput').val((summary.totalDistance / 1000).toFixed(1));
+            calculateArrivalTime(summary.totalTime);
+        });
+    }
+
+    function initSelect2() {
+        $('.select2-bootstrap').select2({ theme: 'bootstrap-5', width: '100%' });
+        $('.select2-stations').select2({ theme: 'bootstrap-5', width: '100%' });
+    }
+
+    // --- HÀM 1: LỌC TRẠM THEO TỈNH ---
+    async function filterStations(type, pIdArg) {
+        var pId = pIdArg || (type === 'start' ? $('#provinceStart').val() : (type === 'end' ? $('#provinceEnd').val() : null));
+        var targetSelect = type === 'start' ? $('#fromStation') : (type === 'end' ? $('#toStation') : null);
+
+        if (!pId) return;
+
+        targetSelect.prop('disabled', false).html('<option value="">-- Đang nạp trạm... --</option>');
+        
+        try {
+            const response = await fetch(`/Driver/GetStationsByProvince?provinceId=${pId}`);
+            const stations = await response.json();
+            
+            let html = '<option value="">-- Chọn trạm --</option>';
+            stations.forEach(s => {
+                html += `<option value="${s.id}" data-lat="${s.lat}" data-lng="${s.lng}">${s.name}</option>`;
+            });
+            targetSelect.html(html).trigger('change.select2');
+
+            // Hiển thị markers của TỈNH ĐÓ lên map
+            showProvinceMarkers(stations, type);
+        } catch (error) {
+            console.error('Lỗi tải trạm:', error);
+        }
+    }
+
+    // --- HÀM 2: HIỂN THỊ MARKERS TRẠM TRÊN MAP ---
+    function showProvinceMarkers(stations, type) {
+        locationMarkers.clearLayers();
+        var bounds = [];
+
+        stations.forEach(s => {
+            if (s.lat && s.lng) {
+                bounds.push([s.lat, s.lng]);
+                var iconUrl = (type === 'start') ? 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-blue.png' : 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-green.png';
+                
+                var marker = L.marker([s.lat, s.lng], {
+                    icon: L.icon({
+                        iconUrl: iconUrl,
+                        shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png',
+                        iconSize: [25, 41],
+                        iconAnchor: [12, 41],
+                        popupAnchor: [1, -34],
+                        shadowSize: [41, 41]
+                    })
+                }).bindPopup(`<b>${s.name}</b><br>${s.address}<hr><button type='button' class='btn btn-sm btn-primary w-100' onclick='selectFromMap(${s.id}, "${type}")'>Chọn Trạm Này</button>`);
+                
+                locationMarkers.addLayer(marker);
+            }
+        });
+
+        if (bounds.length > 0) {
+            map.fitBounds(bounds, { padding: [50, 50] });
+        }
+    }
+
+    // --- HÀM 3: CHỌN TRẠM TỪ MAP ---
+    function selectFromMap(id, type) {
+        var targetSelect = (type === 'start') ? $('#fromStation') : (type === 'end') ? $('#toStation') : null;
+        if (targetSelect) {
+            targetSelect.val(id).trigger('change');
+            map.closePopup();
+        }
+    }
+
+    // --- HÀM 4: CẬP NHẬT LỘ TRÌNH (VẼ ĐƯỜNG) ---
+    function updateRoute() {
+        var waypoints = [];
+        
+        // Start Station
+        var startId = $('#fromStation').val();
+        if (startId) {
+            var opt = $('#fromStation option:selected');
+            waypoints.push(L.latLng(opt.data('lat'), opt.data('lng')));
+        }
+
+        // Stops
+        $('.intermediate-select').each(function() {
+            var id = $(this).val();
+            if (id) {
+                var opt = $(this).find('option:selected');
+                waypoints.push(L.latLng(opt.data('lat'), opt.data('lng')));
+            }
+        });
+
+        // End Station
+        var endId = $('#toStation').val();
+        if (endId) {
+            var opt = $('#toStation option:selected');
+            waypoints.push(L.latLng(opt.data('lat'), opt.data('lng')));
+        }
+
+        if (waypoints.length >= 2) {
+            routingControl.setWaypoints(waypoints);
+        }
+    }
+
+    // --- HÀM 5: THÊM TRẠM PHỤ ---
+    function addStop() {
+        var stopCount = $('.intermediate-select').length + 1;
+        var html = `
+            <div class="intermediate-station" id="stopRow_${stopCount}">
+                <select class="form-select select2-bootstrap mb-2 province-stop" onchange="loadStopStations(${stopCount})">
+                    <option value="">-- Tỉnh dừng --</option>
+                    @foreach (var p in ViewBag.Provinces) { <option value="@p.ProvinceId">@p.ProvinceName</option> }
+                </select>
+                <select class="form-select select2-stations intermediate-select" onchange="updateRoute()" disabled>
+                    <option value="">-- Trạm phụ --</option>
+                </select>
+                <button type="button" class="btn btn-link text-danger p-0 ms-2" onclick="removeStop(${stopCount})"><i class="bi bi-trash"></i></button>
+            </div>
+        `;
+        $('#stopsList').append(html);
+        initSelect2();
+    }
+
+    async function loadStopStations(id) {
+        var pId = $(`#stopRow_${id} .province-stop`).val();
+        var targetSelect = $(`#stopRow_${id} .intermediate-select`);
+        if (!pId) return;
+
+        targetSelect.prop('disabled', false).html('<option value="">-- Đang nạp... --</option>');
+        const res = await fetch(`/Driver/GetStationsByProvince?provinceId=${pId}`);
+        const stations = await res.json();
+        
+        let html = '<option value="">-- Chọn trạm --</option>';
+        stations.forEach(s => html += `<option value="${s.id}" data-lat="${s.lat}" data-lng="${s.lng}">${s.name}</option>`);
+        targetSelect.html(html).trigger('change.select2');
+    }
+
+    function removeStop(id) {
+        $(`#stopRow_${id}`).remove();
+        updateRoute();
+    }
+
+    function calculateArrivalTime(seconds) {
+        var startTimeVal = $('#startTime').val();
+        if (!startTimeVal || !seconds) return;
+
+        var start = new Date(startTimeVal);
+        var arrival = new Date(start.getTime() + seconds * 1000);
+        
+        var formatted = arrival.getFullYear() + '-' + ('0' + (arrival.getMonth() + 1)).slice(-2) + '-' + ('0' + arrival.getDate()).slice(-2) + 'T' + ('0' + arrival.getHours()).slice(-2) + ':' + ('0' + arrival.getMinutes()).slice(-2);
+        $('#arrivalTime').val(formatted);
+        $('#etaMessage').html(`<i class="bi bi-lightning-auto"></i> ETA tự động cập nhật`);
+    }
+
+    function validateAndSubmit() {
+        var stops = [];
+        $('.intermediate-select').each(function() { if ($(this).val()) stops.push($(this).val()); });
+        $('#hiddenStops').val(stops.join(','));
+
+        if (!$('#fromStation').val() || !$('#toStation').val()) {
+            alert("Vui lòng chọn trạm đi và trạm đến!");
+            return false;
+        }
+        return true;
+    }
+
+    function resetMap() {
+        locationMarkers.clearLayers();
+        routingControl.setWaypoints([]);
+        map.setView([16.0544, 108.2022], 6);
+    }
+</script>
