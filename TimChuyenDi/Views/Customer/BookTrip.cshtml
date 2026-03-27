@@ -130,19 +130,19 @@
 
             <div class="row mt-3">
                 <div class="col-6">
-                    <label class="form-label">Chiều dài (cm)</label>
-                    <input type="number" class="form-control custom-input" name="Length" id="length" min="1" />
+                    <label class="form-label">Chiều dài (cm) <span class="required-star">*</span></label>
+                    <input type="number" class="form-control custom-input" name="Length" id="length" min="1" required />
                 </div>
                 <div class="col-6">
-                    <label class="form-label">Chiều rộng (cm)</label>
-                    <input type="number" class="form-control custom-input" name="Width" id="width" min="1" />
+                    <label class="form-label">Chiều rộng (cm) <span class="required-star">*</span></label>
+                    <input type="number" class="form-control custom-input" name="Width" id="width" min="1" required />
                 </div>
             </div>
 
             <div class="row mt-3">
                 <div class="col-6">
-                    <label class="form-label">Chiều cao (cm)</label>
-                    <input type="number" class="form-control custom-input" name="Height" id="height" min="1" />
+                    <label class="form-label">Chiều cao (cm) <span class="required-star">*</span></label>
+                    <input type="number" class="form-control custom-input" name="Height" id="height" min="1" required />
                 </div>
                 <div class="col-6">
                     <label class="form-label">Cân nặng (kg) <span class="required-star">*</span></label>
@@ -323,4 +323,82 @@
             document.getElementById('volumeDisplay').value = vol > 0 ? vol.toFixed(4) : '0';
         });
     });
+
+    // ============================================================
+    // FORM VALIDATION WITH WARNING
+    // ============================================================
+    document.getElementById('shippingForm').addEventListener('submit', function(e) {
+        // Remove old warnings
+        document.querySelectorAll('.validation-warning').forEach(el => el.remove());
+        document.querySelectorAll('.input-error').forEach(el => el.classList.remove('input-error'));
+
+        const fieldNames = {
+            'SenderPhone': 'SĐT người gửi',
+            'ReceiverName': 'Tên người nhận',
+            'ReceiverPhone': 'SĐT người nhận',
+            'Description': 'Tên / Mô tả hàng hóa',
+            'Length': 'Chiều dài',
+            'Width': 'Chiều rộng',
+            'Height': 'Chiều cao',
+            'Weight': 'Cân nặng',
+            'CargoTypeId': 'Loại hàng hóa'
+        };
+
+        let missing = [];
+
+        // Check pickup address if pickup type = home
+        if (document.getElementById('pickupType').value === '1') {
+            const pa = document.getElementById('pickupAddress');
+            if (!pa.value.trim()) {
+                missing.push('Địa chỉ lấy hàng (chọn trên bản đồ)');
+                pa.classList.add('input-error');
+            }
+        }
+
+        // Check delivery address if delivery type = home
+        if (document.getElementById('deliveryType').value === '1') {
+            const da = document.getElementById('deliveryAddress');
+            if (!da.value.trim()) {
+                missing.push('Địa chỉ giao hàng (chọn trên bản đồ)');
+                da.classList.add('input-error');
+            }
+        }
+
+        // Check all required fields
+        this.querySelectorAll('[required]').forEach(input => {
+            if (!input.value || input.value.trim() === '') {
+                const name = input.getAttribute('name');
+                const label = fieldNames[name] || name;
+                if (!missing.includes(label)) missing.push(label);
+                input.classList.add('input-error');
+            }
+        });
+
+        if (missing.length > 0) {
+            e.preventDefault();
+            const warningDiv = document.createElement('div');
+            warningDiv.className = 'validation-warning';
+            warningDiv.innerHTML = `
+                <div class="alert alert-danger alert-dismissible fade show shadow-sm" role="alert" style="border-radius:12px; border-left: 4px solid #dc3545;">
+                    <strong><i class="bi bi-exclamation-triangle-fill me-2"></i>Vui lòng điền đầy đủ thông tin!</strong>
+                    <ul class="mb-0 mt-2" style="padding-left:20px;">
+                        ${missing.map(m => `<li>${m}</li>`).join('')}
+                    </ul>
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                </div>`;
+            this.insertBefore(warningDiv, this.firstChild);
+            window.scrollTo({ top: warningDiv.offsetTop - 80, behavior: 'smooth' });
+        }
+    });
+
+    // Clear error style on input
+    document.querySelectorAll('#shippingForm input, #shippingForm select').forEach(el => {
+        el.addEventListener('input', () => el.classList.remove('input-error'));
+        el.addEventListener('change', () => el.classList.remove('input-error'));
+    });
 </script>
+
+<style>
+    .input-error { border: 2px solid #dc3545 !important; background-color: #fff5f5 !important; }
+    .validation-warning { margin-bottom: 15px; }
+</style>

@@ -1,0 +1,57 @@
+@{ ViewData["Title"] = "Xác thực OTP"; }
+
+<div class="container py-5" style="max-width: 500px;">
+    <div class="card border-0 shadow-sm rounded-4 overflow-hidden">
+        <div class="card-header bg-info text-white p-4 text-center">
+            <i class="bi bi-chat-square-dots-fill" style="font-size: 2.5rem;"></i>
+            <h4 class="fw-bold mt-2 mb-0">Nhập mã OTP</h4>
+            <p class="mb-0 opacity-75 small">Mã xác thực đã được gửi tới SĐT của bạn</p>
+        </div>
+        <div class="card-body p-4">
+            @if (TempData["SuccessMessage"] != null)
+            {
+                <div class="alert alert-success rounded-3"><i class="bi bi-check-circle me-2"></i>@TempData["SuccessMessage"]</div>
+            }
+            @if (ViewBag.Error != null)
+            {
+                <div class="alert alert-danger rounded-3"><i class="bi bi-exclamation-triangle me-2"></i>@ViewBag.Error</div>
+            }
+
+            @if (ViewBag.OtpDemo != null)
+            {
+                <div class="alert alert-warning rounded-3 text-center">
+                    <small class="d-block text-muted mb-1"><i class="bi bi-info-circle me-1"></i>Mã OTP demo (sẽ gửi SMS trong thực tế):</small>
+                    <span class="display-6 fw-bold text-dark letter-spacing">@ViewBag.OtpDemo</span>
+                </div>
+            }
+
+            <form method="post" asp-action="VerifyOtp">
+                <input type="hidden" name="Phone" value="@ViewBag.Phone" />
+                <div class="mb-4">
+                    <label class="form-label fw-bold text-muted small">MÃ OTP (6 CHỮ SỐ)</label>
+                    <input type="text" name="OtpCode" class="form-control rounded-3 py-3 text-center fw-bold fs-4" 
+                           maxlength="6" pattern="[0-9]{6}" placeholder="● ● ● ● ● ●" 
+                           style="letter-spacing: 12px;" required autofocus />
+                </div>
+
+                <div class="d-grid gap-2">
+                    <button type="submit" class="btn btn-info btn-lg rounded-pill fw-bold shadow-sm text-white">
+                        <i class="bi bi-check-circle me-2"></i>XÁC NHẬN
+                    </button>
+                    <a asp-action="ForgotPassword" class="btn btn-outline-secondary rounded-pill">
+                        <i class="bi bi-arrow-counterclockwise me-2"></i>Gửi lại mã OTP
+                    </a>
+                </div>
+            </form>
+
+            <div class="text-center mt-3">
+                <small class="text-muted"><i class="bi bi-clock me-1"></i>Mã OTP có hiệu lực trong 5 phút</small>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    body { background-color: #f0f2f5; }
+    .letter-spacing { letter-spacing: 8px; }
+</style>

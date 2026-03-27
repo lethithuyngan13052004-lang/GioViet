@@ -1,4 +1,4 @@
-﻿@{
+@{
     ViewData["Title"] = "Đăng nhập hệ thống";
 }
 
@@ -38,6 +38,16 @@
                     </div>
 
                 </form>
+                <div class="text-center mt-3">
+                    <a asp-action="ForgotPassword" class="text-danger text-decoration-none small fw-bold">
+                        <i class="bi bi-question-circle me-1"></i>Quên mật khẩu?
+                    </a>
+                </div>
+                <hr>
+                <div class="text-center">
+                    <span class="text-muted small">Chưa có tài khoản?</span>
+                    <a asp-action="Register" class="fw-bold text-decoration-none small ms-1">Đăng ký ngay</a>
+                </div>
             </div>
         </div>
     </div>

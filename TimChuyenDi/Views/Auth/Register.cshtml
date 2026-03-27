@@ -1,4 +1,4 @@
-﻿@{
+@{
     ViewData["Title"] = "Đăng ký tài khoản";
 }
 
@@ -30,7 +30,7 @@
 
                     <div class="mb-3">
                         <label class="form-label fw-bold">Mật khẩu</label>
-                        <input type="password" name="password" class="form-control" required placeholder="Tạo mật khẩu" />
+                        <input type="password" name="password" class="form-control" required placeholder="Tối thiểu 6 ký tự" minlength="6" />
                     </div>
                     <div class="mb-4">
                         <label class="form-label fw-bold">Bạn là ai?</label>
@@ -40,7 +40,11 @@
                         </select>
                     </div>
                     <div class="d-grid">
-                        <button type="submit" class="btn btn-success fw-bold">Đăng ký ngay</button>
+                        <button type="submit" class="btn btn-success fw-bold"><i class="bi bi-send me-2"></i>Gửi mã OTP & Đăng ký</button>
+                    </div>
+                    <div class="text-center mt-3">
+                        <span class="text-muted small">Đã có tài khoản?</span>
+                        <a asp-action="Login" class="fw-bold text-decoration-none small ms-1">Đăng nhập</a>
                     </div>
                 </form>
             </div>
