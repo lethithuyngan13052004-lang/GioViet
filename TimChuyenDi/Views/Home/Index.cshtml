@@ -118,41 +118,9 @@
                             <i class="bi bi-geo-alt-fill text-primary" style="font-size: 2rem;"></i>
                         </div>
                     </div>
-<<<<<<< HEAD
-                    <div class="card-body">
-                        @{
-                            double avgScore = 0;
-                            if (ViewBag.AvgRatings != null && ViewBag.AvgRatings.ContainsKey(item.DriverId))
-                            {
-                                avgScore = ViewBag.AvgRatings[item.DriverId];
-                            }
-                        }
-
-                        <p class="mb-1 d-flex align-items-center">
-                            <strong>Nhà xe/Tài xế:</strong> <span class="ms-1">@item.Driver.Name</span>
-
-                            @if (avgScore > 0)
-                            {
-                                <span class="badge bg-warning text-dark ms-2 fs-6">@avgScore ⭐</span>
-                                <a asp-controller="Home" asp-action="DriverReviews" asp-route-driverId="@item.DriverId" class="text-decoration-none small ms-2 text-primary fst-italic">
-                                    (Xem đánh giá)
-                                </a>
-                            }
-                            else
-                            {
-                                <span class="badge bg-secondary ms-2">Chưa có đánh giá</span>
-                            }
-                        </p>
-                        <p class="mb-1"><strong>Lộ trình chi tiết:</strong> Trạm @item.FromStationNavigation.StationName <i class="bi bi-arrow-right small text-muted"></i> Trạm @item.ToStationNavigation.StationName</p>
-                        <p class="mb-1"><strong>Biển số:</strong> @item.Vehicle.PlateNumber - <span class="text-primary fw-bold">@item.Vehicle.VehicleType.TypeName</span></p>
-                        <p class="mb-1"><strong>Khởi hành:</strong> <span class="text-success">@item.StartTime.ToString("dd/MM/yyyy HH:mm")</span></p>
-                        <p class="mb-1"><strong>Trọng tải trống:</strong> <span class="text-danger">@item.AvaiCapacityKg kg</span></p>
-                        <p class="mb-0"><strong>Giá mở đầu:</strong> @item.BasePrice.ToString("N0") VNĐ</p>
-=======
                     <div class="col-md">
                         <h4 class="fw-bold text-dark mb-1 text-center text-md-start">Tìm chuyến xe quanh bạn?</h4>
                         <p class="text-muted mb-0 text-center text-md-start small">Sử dụng tính năng định vị để tìm các chuyến xe đang ở gần khu vực lấy hàng của bạn.</p>
->>>>>>> 436120f49f53790747860d5345472acf0dbc160e
                     </div>
                     <div class="col-md-auto mt-3 mt-md-0 text-center">
                         <a asp-controller="Home" asp-action="Map" class="btn btn-dark btn-lg fw-bold px-4 rounded-pill">
@@ -219,10 +187,6 @@
 
                             <hr class="my-3 opacity-10">
 
-                            <div class="d-flex justify-content-between align-items-center">
-                                <span class="capacity-badge"><i class="bi bi-box-seam me-1"></i>Trống: @item.AvaiCapacityKg kg</span>
-                                <span class="price-tag">@item.BasePricePerKg.ToString("N0") đ/kg</span>
-                            </div>
                         </div>
                         <div class="card-footer bg-light border-0 p-3 pt-0">
                             <div class="row g-2">

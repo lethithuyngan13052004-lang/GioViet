@@ -533,7 +533,7 @@ namespace TimChuyenDi.Controllers
                 var cargo = request.Cargodetails.FirstOrDefault();
                 if (cargo != null)
                 {
-                    request.TotalPrice = cargo.Weight * trip.BasePricePerKg;
+                    request.TotalPrice = trip.BasePrice;
                     trip.AvaiCapacityKg -= (int)(cargo.Weight ?? 0);
                 }
 
