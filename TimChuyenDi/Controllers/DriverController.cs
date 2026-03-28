@@ -138,6 +138,8 @@ namespace TimChuyenDi.Controllers
 
             var stations = query
                 .Include(s => s.Province)
+                .Include(s => s.District)
+                .Include(s => s.Ward)
                 .Select(s => new {
                     id = s.StationId,
                     name = s.StationName,
@@ -145,7 +147,9 @@ namespace TimChuyenDi.Controllers
                     lng = s.Longitude,
                     address = s.Address,
                     province = s.Province.ProvinceName,
-                    provinceId = s.ProvinceId
+                    provinceId = s.ProvinceId,
+                    districtName = s.District != null ? s.District.DistrictName : "",
+                    wardName = s.Ward != null ? s.Ward.WardName : ""
                 }).ToList();
             return Json(stations);
         }

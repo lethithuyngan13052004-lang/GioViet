@@ -9,15 +9,35 @@
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" />
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/select2-bootstrap-5-theme@1.3.0/dist/select2-bootstrap-5-theme.min.css" />
 
+<!-- Toast Container (Standard UI) -->
+<div class="toast-container position-fixed top-0 end-0 p-4" style="z-index: 1060; margin-top: 20px;">
+    <div id="actionToast" class="toast align-items-center border-0 shadow-lg rounded-4" role="alert" aria-live="assertive" aria-atomic="true" style="backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); border-left: 6px solid !important;">
+        <div class="d-flex">
+            <div class="toast-body fw-bold px-3 py-3" id="toastMessage" style="font-size: 1rem;">
+                Thao tác thành công!
+            </div>
+            <button type="button" class="btn-close me-3 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+        </div>
+    </div>
+</div>
+
 <style>
-    #map { height: 650px; border-radius: 12px; border: 2px solid #e9ecef; }
-    .card-trip { border: none; border-radius: 15px; overflow: hidden; }
-    .form-section-title { font-weight: 700; color: #0d6efd; border-left: 4px solid #0d6efd; padding-left: 10px; margin-bottom: 20px; }
-    .trip-type-card { cursor: pointer; border: 2px solid #dee2e6; transition: 0.3s; }
-    .trip-type-card:hover { border-color: #0d6efd; }
-    .trip-type-radio:checked + .trip-type-card { border-color: #0d6efd; background-color: #f0f7ff; }
-    .intermediate-station { display: flex; align-items: center; background: #fff; border: 1px solid #dee2e6; padding: 8px 12px; border-radius: 8px; margin-bottom: 8px; }
+    #map { height: 650px; border-radius: 20px; border: 1px solid rgba(0,0,0,0.08); box-shadow: 0 10px 30px rgba(0,0,0,0.05); }
+    .card-trip { border: none; border-radius: 20px; overflow: hidden; }
+    .form-section-title { font-weight: 700; color: #0d6efd; border-left: 4px solid #0d6efd; padding-left: 10px; margin-bottom: 20px; font-size: 0.95rem; text-transform: uppercase; letter-spacing: 0.5px; }
+    .trip-type-card { cursor: pointer; border: 2px solid #f1f3f5; transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1); background: #fdfdfe; border-radius: 12px !important; }
+    .trip-type-card:hover { border-color: #0d6efd; transform: translateY(-2px); box-shadow: 0 5px 15px rgba(13, 110, 253, 0.08); }
+    .trip-type-radio:checked + .trip-type-card { border-color: #0d6efd; background-color: #f0f7ff; box-shadow: 0 5px 15px rgba(13, 110, 253, 0.12); }
+    .intermediate-station { display: flex; align-items: center; background: #fff; border: 1px solid #e9ecef; padding: 12px; border-radius: 12px; margin-bottom: 10px; transition: 0.2s; }
+    .intermediate-station:hover { border-color: #ffc107; background: #fffcf5; }
     .station-marker-label { font-weight: bold; color: #0d6efd; }
+    .select-highlight { animation: highlight-fade 1.5s ease-out; }
+    @@keyframes highlight-fade {
+        0% { background-color: rgba(13, 110, 253, 0.15); box-shadow: 0 0 0 3px rgba(13, 110, 253, 0.2); }
+        100% { background-color: transparent; box-shadow: none; }
+    }
+    .leaflet-popup-content-wrapper { border-radius: 12px; padding: 5px; }
+    .leaflet-popup-tip { box-shadow: none; }
 </style>
 
 <div class="container-fluid py-4">
@@ -47,20 +67,43 @@
                         </div>
 
                         <div class="mb-4">
-                            <label class="form-label fw-bold">Loại chuyến đi</label>
-                            <div class="row g-2">
-                                @foreach (var type in ViewBag.TripTypes)
-                                {
-                                    <div class="col-6">
-                                        <input type="radio" name="RouteType" value="@type.IdType" id="type-@type.IdType" class="trip-type-radio d-none" required @(type.IdType == 1 ? "checked" : "")>
-                                        <label for="type-@type.IdType" class="trip-type-card p-2 rounded text-center w-100">
-                                            <div class="fw-bold">@type.Type</div>
-                                            <small class="text-muted">Hệ số: x@type.Multiplier</small>
-                                        </label>
-                                    </div>
-                                }
-                            </div>
+    <label class="form-label fw-bold">Chọn loại chuyến đi</label>
+
+    <div class="d-flex flex-column gap-2">
+        @foreach (var type in ViewBag.TripTypes)
+        {
+            <div>
+                <input type="radio"
+                       name="RouteType"
+                       value="@type.IdType"
+                       id="type-@type.IdType"
+                       class="d-none trip-type-radio"
+                       required
+                       @(type.IdType == 1 ? "checked" : "")>
+
+                <label for="type-@type.IdType" class="trip-type-card p-2 rounded w-100">
+                    <div class="d-flex align-items-center gap-2">
+                        <div class="fs-5">
+                            @(type.Type == "Direct" ? "🚗" : "📦")
                         </div>
+
+                        <div>
+                            <div class="fw-bold">
+                                @(type.Type == "Direct" ? "Chuyến riêng" : "Chuyến ghép")
+                            </div>
+
+                            <small class="text-muted">
+                                @(type.Type == "Direct"
+                                    ? "Không ghép đơn, đi thẳng đến điểm đến"
+                                    : "Nhận thêm đơn khác trên cùng tuyến đường")
+                            </small>
+                        </div>
+                    </div>
+                </label>
+            </div>
+        }
+    </div>
+</div>
 
                         <div class="form-section-title">2. Lập Lộ Trình</div>
 
@@ -80,12 +123,12 @@
                         </div>
 
                         <!-- INTERMEDIATE STATIONS -->
-                        <div id="intermediateStationsContainer" class="mb-3">
+                        <div id="intermediateStationsContainer" class="mb-3" style="display: none;">
                             <label class="form-label fw-bold text-warning"><i class="bi bi-plus-circle-fill"></i> CÁC TRẠM DỪNG (PHỤ)</label>
                             <div id="stopsList">
                                 <!-- Dynamic stops -->
                             </div>
-                            <button type="button" class="btn btn-sm btn-outline-warning w-100 mt-1 fw-bold" onclick="addStop()">
+                            <button type="button" class="btn btn-sm btn-outline-warning w-100 mt-1 fw-bold rounded-pill" onclick="addStop()">
                                 <i class="bi bi-plus-lg"></i> THÊM TRẠM DỪNG PHỤ
                             </button>
                         </div>
@@ -191,6 +234,19 @@
             $('#capacityInput').val(kg);
         });
 
+        // Xử lý ẩn hiện Trạm dừng phụ theo Loại chuyến đi
+        $('input[name="RouteType"]').change(function() {
+            if ($(this).val() == "2") { // Ghép chuyến
+                $('#intermediateStationsContainer').slideDown(300);
+            } else {
+                $('#intermediateStationsContainer').slideUp(300);
+            }
+        });
+        // Kích hoạt ngay lúc nạp (đề phòng browser cache form)
+        if ($('input[name="RouteType"]:checked').val() == "2") {
+            $('#intermediateStationsContainer').show();
+        }
+
         $('#fromStation, #toStation').on('change', updateRoute);
         $('#startTime').on('change', () => calculateArrivalTime(lastTotalTimeSeconds));
     });
@@ -231,6 +287,32 @@
     function initSelect2() {
         $('.select2-bootstrap').select2({ theme: 'bootstrap-5', width: '100%' });
         $('.select2-stations').select2({ theme: 'bootstrap-5', width: '100%' });
+        
+        // Auto-focus cho Select2 search
+        $(document).on('select2:open', () => {
+            setTimeout(() => {
+                let searchField = document.querySelector('.select2-container--open .select2-search__field');
+                if (searchField) searchField.focus();
+            }, 50);
+        });
+    }
+
+    function showToast(message, isError = false) {
+        var toastEl = document.getElementById('actionToast');
+        var toastMsg = document.getElementById('toastMessage');
+        toastMsg.innerText = message;
+        
+        if (isError) {
+            toastEl.style.backgroundColor = 'rgba(248, 215, 218, 0.9)'; // Đỏ nhạt 90%
+            toastEl.style.color = '#842029'; 
+            toastEl.style.borderLeftColor = '#dc3545'; 
+        } else {
+            toastEl.style.backgroundColor = 'rgba(209, 231, 221, 0.9)'; // Xanh lá nhạt 90%
+            toastEl.style.color = '#0f5132'; 
+            toastEl.style.borderLeftColor = '#198754';
+        }
+        var toast = new bootstrap.Toast(toastEl, { delay: 1500 });
+        toast.show();
     }
 
     // --- HÀM 1: LỌC TRẠM THEO TỈNH ---
@@ -278,23 +360,45 @@
                         popupAnchor: [1, -34],
                         shadowSize: [41, 41]
                     })
-                }).bindPopup(`<b>${s.name}</b><br>${s.address}<hr><button type='button' class='btn btn-sm btn-primary w-100' onclick='selectFromMap(${s.id}, "${type}")'>Chọn Trạm Này</button>`);
+                }).bindPopup(`
+                    <div class="text-center p-1">
+                        <h6 class="fw-bold mb-1 text-primary">${s.name}</h6>
+                        <p class="small text-muted mb-2">
+                            ${s.address}<br/>
+                            <span class="badge bg-light text-dark border fw-normal">
+                                ${s.wardName ? s.wardName + ', ' : ''}${s.districtName ? s.districtName + ', ' : ''}${s.province}
+                            </span>
+                        </p>
+                        <button type='button' class='btn btn-sm btn-primary w-100 rounded-pill fw-bold shadow-sm' 
+                                onclick='selectFromMap(${s.id}, "${type}", "${s.name}")'>
+                            <i class="bi bi-pin-angle-fill me-1"></i> Chọn Trạm Này
+                        </button>
+                    </div>
+                `);
                 
                 locationMarkers.addLayer(marker);
             }
         });
 
         if (bounds.length > 0) {
-            map.fitBounds(bounds, { padding: [50, 50] });
+            map.fitBounds(bounds, { padding: [50, 50], maxZoom: 16 });
         }
     }
 
     // --- HÀM 3: CHỌN TRẠM TỪ MAP ---
-    function selectFromMap(id, type) {
+    function selectFromMap(id, type, stationName) {
         var targetSelect = (type === 'start') ? $('#fromStation') : (type === 'end') ? $('#toStation') : null;
         if (targetSelect) {
             targetSelect.val(id).trigger('change');
             map.closePopup();
+            
+            // Visual feedback
+            showToast(`Đã chọn trạm: ${stationName}`);
+            
+            // Highlight select box
+            var selectContainer = targetSelect.next('.select2-container');
+            selectContainer.addClass('select-highlight');
+            setTimeout(() => selectContainer.removeClass('select-highlight'), 1500);
         }
     }
 

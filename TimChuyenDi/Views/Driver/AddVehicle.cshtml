@@ -3,63 +3,126 @@
     ViewData["Title"] = "Thêm xe mới";
 }
 
-<div class="card shadow-lg border-0 rounded-4 overflow-hidden" style="max-width: 850px; margin: 0 auto;">
+<div class="card shadow-lg border-0 rounded-4 overflow-hidden" style="max-width: 750px; margin: 40px auto;">
     
     <!-- Header -->
-    <div class="p-4 text-white" style="background: linear-gradient(135deg, #4e73df, #1cc88a);">
+    <div class="p-4 text-white"
+         style="background: linear-gradient(135deg, #4e73df, #1cc88a);">
         <h4 class="fw-bold mb-1">
-            <i class="bi bi-truck-front"></i> Khai báo Phương tiện
+            <i class="bi bi-truck-front"></i> Khai báo phương tiện
         </h4>
         <p class="mb-0 small opacity-75">
-            Điền thông tin chính xác để được xét duyệt nhanh chóng
+            Cung cấp thông tin chính xác để được duyệt nhanh hơn
         </p>
     </div>
 
     <!-- Body -->
     <div class="p-4 bg-white">
-        <form asp-action="AddVehicle" method="post" enctype="multipart/form-data">
+        <form id="vehicleForm" asp-action="AddVehicle" method="post" enctype="multipart/form-data">
+
             <div class="row g-3">
 
+                <!-- Row 1 -->
                 <div class="col-md-6">
                     <label class="form-label fw-semibold">Biển số xe</label>
-                    <input asp-for="PlateNumber" class="form-control rounded-3 shadow-sm"
+                    <input asp-for="PlateNumber"
+                           class="form-control rounded-3 shadow-sm"
                            placeholder="VD: 51H-123.45" required />
                 </div>
 
                 <div class="col-md-6">
                     <label class="form-label fw-semibold">Loại xe</label>
-                    <select asp-for="VehicleTypeId" class="form-select rounded-3 shadow-sm"
+                    <select asp-for="VehicleTypeId"
+                            class="form-select rounded-3 shadow-sm"
                             asp-items="ViewBag.VehicleTypes" required>
                         <option value="">-- Chọn loại xe --</option>
                     </select>
                 </div>
 
+                <!-- Row 2 -->
                 <div class="col-md-6">
-                    <label class="form-label fw-semibold">Trọng tải (Kg)</label>
+                    <label class="form-label fw-semibold">Trọng tải</label>
                     <div class="input-group shadow-sm">
-                        <input asp-for="CapacityKg" type="number" class="form-control"
+                        <input asp-for="CapacityKg" type="number"
+                               class="form-control"
                                min="1" placeholder="VD: 1500" required />
                         <span class="input-group-text bg-light">Kg</span>
                     </div>
                 </div>
 
-                <div class="col-12">
+                <div class="col-md-6">
                     <label class="form-label fw-semibold">Ảnh giấy đăng ký xe</label>
-                    <input type="file" name="imageFile" class="form-control rounded-3 shadow-sm"
+                    <input type="file" id="imageInput" name="imageFile"
+                           class="form-control rounded-3 shadow-sm"
                            accept="image/*" required />
-                    <div class="form-text text-danger fst-italic">
-                        <i class="bi bi-info-circle"></i> Ảnh phải rõ nét để xác thực
+                    <div class="form-text text-muted">
+                        Chọn ảnh rõ nét để hệ thống xác thực
                     </div>
                 </div>
 
-                <div class="col-12 text-end mt-4">
-                    <button type="submit" class="btn text-white fw-bold px-4 py-2 rounded-3"
+                <!-- Row 3: Preview lớn -->
+                <div id="previewContainer" class="text-center mt-3 d-none">
+                    <label class="form-label fw-semibold d-block">Xem trước ảnh</label>
+
+                    <img id="previewImage"
+                         src="#"
+                         class="rounded-4 border shadow-sm"
+                         style="width: 70%; max-height: 400px; object-fit: contain;" />
+                </div>
+
+                <!-- Button -->
+                <div class="col-12 text-end mt-3">
+                    <button id="submitBtn"
+                            type="submit"
+                            class="btn text-white fw-bold px-4 py-2 rounded-3"
                             style="background: linear-gradient(135deg, #4e73df, #1cc88a); border: none;">
-                        <i class="bi bi-cloud-arrow-up"></i> Gửi duyệt
+                        
+                        <span id="btnText">
+                            <i class="bi bi-cloud-arrow-up"></i> Gửi duyệt
+                        </span>
+
+                        <span id="loadingSpinner" class="d-none">
+                            <span class="spinner-border spinner-border-sm"></span>
+                            Đang gửi...
+                        </span>
+
                     </button>
                 </div>
 
             </div>
+
         </form>
     </div>
 </div>
+
+@section Scripts {
+    <script>
+        const imageInput = document.getElementById("imageInput");
+        const preview = document.getElementById("previewImage");
+        const previewContainer = document.getElementById("previewContainer");
+
+        imageInput.addEventListener("change", function (e) {
+            const file = e.target.files[0];
+
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function (e) {
+                    preview.src = e.target.result;
+                    previewContainer.classList.remove("d-none"); // hiện cả block
+                };
+                reader.readAsDataURL(file);
+            } else {
+                preview.src = "#";
+                previewContainer.classList.add("d-none"); // ẩn lại cả block
+            }
+        });
+
+        // Loading khi submit
+        document.getElementById("vehicleForm").addEventListener("submit", function () {
+            document.getElementById("submitBtn").disabled = true;
+            document.getElementById("btnText").classList.add("d-none");
+            document.getElementById("loadingSpinner").classList.remove("d-none");
+        });
+    </script>
+}
+}
