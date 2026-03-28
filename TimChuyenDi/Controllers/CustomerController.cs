@@ -339,6 +339,7 @@ namespace TimChuyenDi.Controllers
                         .ThenInclude(s => s.Province)
                 .Include(u => u.Trips)
                     .ThenInclude(t => t.Vehicle)
+                        .ThenInclude(v => v.VehicleType)
                 .Include(u => u.Trips)
                     .ThenInclude(t => t.Driver)
                 .FirstOrDefault(u => u.UserId == customerId);

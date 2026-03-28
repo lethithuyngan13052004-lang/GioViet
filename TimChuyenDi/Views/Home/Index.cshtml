@@ -224,22 +224,27 @@
                                 </span>
                             </div>
 
-                            <div class="d-flex justify-content-between align-items-center mt-auto">
+                            @* <div class="d-flex justify-content-between align-items-center mt-auto">
                                 <div class="text-muted small">Giá từ:</div>
                                 <div class="price-tag" style="font-size: 1.1rem;">
                                     @item.BasePrice.ToString("N0") <small style="font-size: 0.7rem;">đ</small>
                                 </div>
-                            </div>
+                            </div> *@
 
                             <hr class="my-3 opacity-10">
                         </div>
                         <div class="card-footer bg-light border-0 p-3 pt-0">
+                            <div class="mb-2">
+                                <a asp-controller="Home" asp-action="TripDetails" asp-route-id="@item.TripId" class="btn btn-outline-primary w-100 rounded-pill fw-bold py-2 shadow-sm transition-all hover-scale">
+                                    <i class="bi bi-info-circle me-1"></i> XEM CHI TIẾT CHUYẾN ĐI
+                                </a>
+                            </div>
                             <div class="row g-2">
                                 <div class="col-4">
-                                    <a asp-controller="Customer" asp-action="SaveRoute" asp-route-id="@item.TripId" class="btn btn-light w-100 rounded-pill small py-2 border"><i class="bi bi-bookmark"></i></a>
+                                    <a asp-controller="Customer" asp-action="SaveRoute" asp-route-id="@item.TripId" class="btn btn-light w-100 rounded-pill py-2 border hover-scale transition-all"><i class="bi bi-bookmark text-dark"></i></a>
                                 </div>
                                 <div class="col-8">
-                                    <a asp-controller="Customer" asp-action="BookTrip" asp-route-id="@item.TripId" class="btn btn-primary w-100 rounded-pill fw-bold py-2 shadow-sm">GỬI YÊU CẦU</a>
+                                    <a asp-controller="Customer" asp-action="BookTrip" asp-route-id="@item.TripId" class="btn btn-primary w-100 rounded-pill fw-bold py-2 shadow-sm transition-all hover-scale">GỬI YÊU CẦU</a>
                                 </div>
                             </div>
                         </div>

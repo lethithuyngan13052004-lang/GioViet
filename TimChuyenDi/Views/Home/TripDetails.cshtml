@@ -1,0 +1,237 @@
+@model TimChuyenDi.Models.Trip
+@{
+    ViewData["Title"] = "Chi Tiết Chuyến Đi - Gió Việt";
+}
+
+<style>
+    .trip-detail-card {
+        border-radius: 20px;
+        border: none;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
+        background: #fff;
+        overflow: hidden;
+    }
+    .trip-detail-header {
+        background-color: #0d6efd;
+        color: white;
+        padding: 16px 20px;
+        font-weight: 600;
+        font-size: 1.1rem;
+    }
+    .user-avatar-placeholder {
+        width: 45px;
+        height: 45px;
+        background-color: #f1f5f9;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    .badge-route {
+        background-color: #e6f6ec;
+        color: #15803d;
+        border-radius: 30px;
+        padding: 4px 12px;
+        font-size: 0.85rem;
+        font-weight: 600;
+        border: 1px solid #16a34a;
+    }
+    .capacity-badge-kg {
+        background-color: #e0f2fe;
+        color: #0284c7;
+        padding: 6px 16px;
+        border-radius: 30px;
+        font-weight: 600;
+        font-size: 0.95rem;
+    }
+    .capacity-badge-m3 {
+        background-color: #fffbeb;
+        color: #b45309;
+        padding: 6px 16px;
+        border-radius: 30px;
+        font-weight: 600;
+        font-size: 0.95rem;
+        border: 1px solid #fde68a;
+    }
+    .info-line {
+        display: flex;
+        align-items: flex-start;
+        margin-bottom: 12px;
+    }
+    .info-line i {
+        margin-top: 3px;
+        margin-right: 12px;
+        font-size: 1.1rem;
+    }
+    .info-text {
+        font-size: 1.05rem;
+        color: #334155;
+    }
+</style>
+
+<div class="container py-5">
+    
+    <div class="row justify-content-center">
+        <div class="col-12 col-md-8 col-lg-6">
+            
+            <a href="javascript:history.back()" class="text-decoration-none text-muted mb-3 d-inline-block hover-scale">
+                <i class="bi bi-arrow-left me-1"></i> Quay lại
+            </a>
+
+            <div class="trip-detail-card animate__animated animate__fadeInUp">
+                <!-- Header -->
+                <div class="trip-detail-header text-center">
+                    @(Model.FromStationNavigation?.Province?.ProvinceName) <i class="bi bi-arrow-right mx-2"></i> @(Model.ToStationNavigation?.Province?.ProvinceName)
+                </div>
+
+                <!-- Body -->
+                <div class="p-4">
+                    <!-- Driver Info -->
+                    <div class="d-flex align-items-center mb-4">
+                        <div class="user-avatar-placeholder me-3">
+                            <i class="bi bi-person-fill text-secondary fs-4"></i>
+                        </div>
+                        <div class="flex-grow-1">
+                            <div class="fw-bold text-dark" style="font-size: 1.1rem;">@Model.Driver.Name</div>
+                            @if (ViewBag.AvgScore > 0)
+                            {
+                                <div class="text-warning small text-nowrap mt-1">
+                                    @for(int i = 1; i <= 5; i++)
+                                    {
+                                        if (i <= Math.Round(ViewBag.AvgScore)) { <i class="bi bi-star-fill"></i> }
+                                        else { <i class="bi bi-star"></i> }
+                                    }
+                                    <span class="text-muted ms-1">(@ViewBag.ReviewCount đánh giá)</span>
+                                </div>
+                            }
+                            else
+                            {
+                                <div class="text-muted small mt-1">Chưa có đánh giá</div>
+                            }
+                        </div>
+                        <div>
+                            <span class="badge-route">
+                                <i class="bi @(Model.RouteType == 1 ? "bi-record-circle" : "bi-bezier2") me-1"></i>
+                                @(Model.RouteTypeNavigation?.Type ?? (Model.RouteType == 1 ? "Direct" : "Multi-stop"))
+                            </span>
+                        </div>
+                    </div>
+
+                    <hr class="opacity-10 mb-4" />
+
+                    <!-- Route Details -->
+                    <div class="info-line">
+                        <i class="bi bi-geo-alt text-primary"></i>
+                        <div class="info-text">Trạm @(Model.FromStationNavigation?.StationName) - @(Model.FromStationNavigation?.Address), @(Model.FromStationNavigation?.Province?.ProvinceName)</div>
+                    </div>
+                    <div class="info-line">
+                        <i class="bi bi-flag text-danger"></i>
+                        <div class="info-text">Trạm @(Model.ToStationNavigation?.StationName) - @(Model.ToStationNavigation?.Address), @(Model.ToStationNavigation?.Province?.ProvinceName)</div>
+                    </div>
+                    
+                    <div class="text-center mt-3 mb-4">
+                        <button class="btn btn-sm btn-outline-primary rounded-pill px-4 hover-scale shadow-sm fw-bold" data-bs-toggle="modal" data-bs-target="#routeMapModal">
+                            <i class="bi bi-map me-1"></i> Xem lộ trình trên bản đồ
+                        </button>
+                    </div>
+                    <div class="info-line">
+                        <i class="bi bi-calendar-event text-secondary"></i>
+                        <div class="info-text">@Model.StartTime.ToString("dd/MM/yyyy HH:mm")</div>
+                    </div>
+                    <div class="info-line">
+                        <i class="bi bi-truck text-success"></i>
+                        <div class="info-text">Loại xe: <strong>@(Model.Vehicle?.VehicleType?.TypeName ?? "N/A")</strong></div>
+                    </div>
+                    <div class="info-line mb-4">
+                        <i class="bi bi-car-front-fill text-muted"></i>
+                        <div class="info-text">Biển số xe: <strong>@(Model.Vehicle?.PlateNumber)</strong></div>
+                    </div>
+
+                    <!-- Capacity Badges -->
+                    <div class="d-flex flex-wrap gap-3 mb-4">
+                        <div class="capacity-badge-kg">
+                            <span class="fw-bold">@Model.AvaiCapacityKg</span> kg
+                        </div>
+                        <div class="capacity-badge-m3">
+                            <i class="bi bi-box me-1"></i> <span class="fw-bold">@Model.AvaiCapacityM3</span> m³
+                        </div>
+                    </div>
+
+                    <hr class="opacity-10 mb-0" />
+                </div>
+
+                <!-- Footer (Actions) -->
+                <div class="bg-white p-3 pt-0 pb-4 px-4 border-0">
+                    <div class="row g-3">
+                        <div class="col-3">
+                            <a asp-controller="Customer" asp-action="SaveRoute" asp-route-id="@Model.TripId" class="btn btn-outline-secondary w-100 rounded-pill py-3 hover-scale border-1 shadow-sm h-100 d-flex align-items-center justify-content-center">
+                                <i class="bi bi-bookmark fs-5"></i>
+                            </a>
+                        </div>
+                        <div class="col-9">
+                            <a asp-controller="Customer" asp-action="BookTrip" asp-route-id="@Model.TripId" class="btn btn-primary w-100 rounded-pill py-3 fw-bold fs-5 shadow-sm hover-scale text-uppercase d-flex align-items-center justify-content-center h-100">
+                                GỬI YÊU CẦU
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+<!-- Map Modal -->
+<div class="modal fade" id="routeMapModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content border-0 rounded-4 shadow-lg">
+            <div class="modal-header bg-primary text-white border-0" style="border-top-left-radius: 1rem; border-top-right-radius: 1rem;">
+                <h5 class="modal-title fw-bold"><i class="bi bi-map me-2"></i> Lộ trình dự kiến</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body p-0">
+                <div id="routeMap" style="height: 450px; width: 100%; border-bottom-left-radius: 1rem; border-bottom-right-radius: 1rem;"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+<script>
+    document.addEventListener("DOMContentLoaded", function () {
+        var map;
+        var mapModal = document.getElementById('routeMapModal');
+        
+        mapModal.addEventListener('shown.bs.modal', function () {
+            if (!map) {
+                map = L.map('routeMap');
+                L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                    attribution: '&copy; OpenStreetMap'
+                }).addTo(map);
+
+                // Lấy tọa độ từ Model, fallback về tọa độ thủ đô / HCM nếu null
+                var fromLat = @(Model.FromStationNavigation?.Latitude?.ToString(System.Globalization.CultureInfo.InvariantCulture) ?? "21.028511");
+                var fromLng = @(Model.FromStationNavigation?.Longitude?.ToString(System.Globalization.CultureInfo.InvariantCulture) ?? "105.804817");
+                var toLat = @(Model.ToStationNavigation?.Latitude?.ToString(System.Globalization.CultureInfo.InvariantCulture) ?? "10.823099");
+                var toLng = @(Model.ToStationNavigation?.Longitude?.ToString(System.Globalization.CultureInfo.InvariantCulture) ?? "106.629662");
+
+                var fromMarker = L.marker([fromLat, fromLng], {
+                    icon: L.icon({ iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-blue.png', iconSize: [25, 41], iconAnchor: [12, 41], popupAnchor: [1, -34] })
+                }).addTo(map).bindPopup(`<b>Trạm đón:</b><br/>@Html.Raw(Model.FromStationNavigation?.StationName)`);
+                
+                var toMarker = L.marker([toLat, toLng], {
+                    icon: L.icon({ iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-red.png', iconSize: [25, 41], iconAnchor: [12, 41], popupAnchor: [1, -34] })
+                }).addTo(map).bindPopup(`<b>Trạm trả:</b><br/>@Html.Raw(Model.ToStationNavigation?.StationName)`);
+
+                var latlngs = [
+                    [fromLat, fromLng],
+                    [toLat, toLng]
+                ];
+
+                var polyline = L.polyline(latlngs, {color: '#0d6efd', weight: 4, opacity: 0.8, dashArray: '10, 10'}).addTo(map);
+                map.fitBounds(polyline.getBounds(), { padding: [50, 50] });
+            }
+        });
+    });
+</script>            
+        </div>
+    </div>
+</div>

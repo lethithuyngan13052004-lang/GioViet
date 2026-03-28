@@ -2,228 +2,171 @@
     ViewData["Title"] = "Tạo Đơn Vận Chuyển";
 }
 
-<div class="container py-5 mobile-container">
-    <div class="row justify-content-center">
-        <div class="col-lg-8">
-            <div class="card border-0 shadow-lg rounded-4 overflow-hidden">
-                <!-- Header -->
-                <div class="card-header bg-primary text-white p-4 border-0">
-                    <div class="d-flex align-items-center">
-                        <div class="bg-white rounded-circle p-2 me-3">
-                            <i class="bi bi-box-seam text-primary fs-4"></i>
-                        </div>
-                        <div>
-                            <h2 class="h4 mb-0 fw-bold">Tạo Đơn Vận Chuyển Mới</h2>
-                            <p class="small mb-0 opacity-75">Cung cấp thông tin chi tiết để tìm chuyến xe phù hợp nhất</p>
-                        </div>
+<style>
+    body { background-color: #f8f9fa; }
+    .mobile-container { max-width: 600px; margin: 0 auto; background-color: #f4f6f9; min-height: 100vh; padding-bottom: 30px; }
+    .header-bar { background-color: var(--bs-primary); color: white; padding: 15px; position: sticky; top: 0; z-index: 900; font-size: 1.1rem; font-weight: 600; text-align: center; }
+    .header-bar a { position: absolute; left: 15px; color: white; text-decoration: none; }
+    .section-title { color: var(--bs-primary); font-weight: 700; margin-bottom: 1rem; font-size: 1.1rem; }
+    .custom-card { background: white; border-radius: 12px; padding: 20px; margin-bottom: 15px; box-shadow: 0 2px 10px rgba(0,0,0,0.03); }
+    .custom-input { background-color: #f8f9fa; border: 1px solid #dee2e6; border-radius: 8px; padding: 12px; margin-bottom: 5px; }
+    .custom-input:focus { border-color: var(--bs-primary); background-color: white; box-shadow: 0 0 0 0.2rem rgba(13,110,253,0.1); }
+    .form-label { font-weight: 500; color: #333; margin-bottom: 0.3rem; }
+    .required-star { color: red; }
+</style>
+
+<div class="mobile-container shadow-sm">
+    <div class="header-bar shadow-sm">
+        <a asp-controller="Home" asp-action="Index"><i class="bi bi-chevron-left"></i> Trở lại</a>
+        Tạo đơn vận chuyển
+    </div>
+
+    <form asp-action="CreateRequest" asp-controller="Customer" method="post" id="createRequestForm" class="p-3">
+        <!-- THÔNG TIN GIAO NHẬN -->
+        <div class="custom-card border-0">
+            <div class="section-title">Thông tin giao nhận</div>
+            
+            <label class="form-label mt-2">Tỉnh xuất phát <span class="required-star">*</span></label>
+            <select name="fromProvinceId" id="fromProv" class="form-select custom-input" asp-items="ViewBag.Provinces" required>
+                <option value="">-- Chọn Tỉnh --</option>
+            </select>
+
+            <label class="form-label mt-2">Tỉnh đích <span class="required-star">*</span></label>
+            <select name="toProvinceId" id="toProv" class="form-select custom-input" asp-items="ViewBag.Provinces" required>
+                <option value="">-- Chọn Tỉnh --</option>
+            </select>
+
+            <label class="form-label mt-2">Ngày mong muốn <span class="required-star">*</span></label>
+            <input type="date" name="startDate" class="form-control custom-input" value="@ViewBag.CurrentDate" required id="requestDate"/>
+
+            <label class="form-label mt-2">Hình thức lấy hàng <span class="required-star">*</span></label>
+            <select name="PickupType" id="pickupType" class="form-select custom-input" required>
+                <option value="1">Lấy hàng tại nhà</option>
+                <option value="2">Gửi tại kho/bến xe</option>
+            </select>
+
+            <div id="pickupAddressSection">
+                <label class="form-label mt-2">Địa chỉ lấy hàng <span class="required-star">*</span></label>
+                <input type="text" name="PickupAddress" id="pickupAddrInput" class="form-control custom-input" placeholder="Chọn vị trí trên bản đồ..." readonly required />
+                <input type="hidden" name="PickupLat" id="pickupLat" />
+                <input type="hidden" name="PickupLng" id="pickupLng" />
+                <div class="cr-map-panel mt-2" id="pickupMapPanel">
+                    <div class="cr-map-search">
+                        <input type="text" id="pickupSearch" placeholder="Nhập địa chỉ hoặc kéo ghim..." />
+                        <button type="button" class="btn btn-primary btn-sm" onclick="crSearchMap('pickup')"><i class="bi bi-search"></i></button>
                     </div>
-                </div>
-
-                <div class="card-body p-4 p-md-5 bg-light">
-                    <form asp-action="CreateRequest" asp-controller="Customer" method="post" id="createRequestForm">
-                        <!-- Step 1: Địa điểm & Thời gian -->
-                        <div class="mb-5">
-                            <h5 class="fw-bold text-primary mb-4 d-flex align-items-center">
-                                <span class="badge bg-primary rounded-circle me-2">1</span> Thông tin giao nhận
-                            </h5>
-                            <div class="row g-3">
-                                <div class="col-md-6">
-                                    <label class="form-label fw-bold text-dark small">TỈNH XUẤT PHÁT</label>
-                                    <select name="fromProvinceId" id="fromProv" class="form-select border shadow-sm py-2 px-3 rounded-pill" asp-items="ViewBag.Provinces" required>
-                                        <option value="">-- Chọn Tỉnh --</option>
-                                    </select>
-                                </div>
-                                <div class="col-md-6">
-                                    <label class="form-label fw-bold text-dark small">TỈNH ĐÍCH</label>
-                                    <select name="toProvinceId" id="toProv" class="form-select border shadow-sm py-2 px-3 rounded-pill" asp-items="ViewBag.Provinces" required>
-                                        <option value="">-- Chọn Tỉnh --</option>
-                                    </select>
-                                </div>
-                                <div class="col-md-6">
-                                    <label class="form-label fw-bold text-dark small">HÌNH THỨC LẤY HÀNG</label>
-                                    <select name="PickupType" id="pickupType" class="form-select border shadow-sm py-2 px-3 rounded-pill" required>
-                                        <option value="1">Lấy hàng tại nhà</option>
-                                        <option value="2">Gửi tại kho/bến xe</option>
-                                    </select>
-                                </div>
-                                <div class="col-md-6">
-                                    <label class="form-label fw-bold text-dark small">NGÀY MONG MUỐN</label>
-                                    <input type="date" name="startDate" class="form-control border shadow-sm py-2 px-3 rounded-pill" value="@ViewBag.CurrentDate" required id="requestDate"/>
-                                </div>
-
-                                <div class="col-md-12" id="pickupAddressSection">
-                                    <label class="form-label fw-bold text-dark small">ĐỊA CHỈ LẤY HÀNG <span class="text-danger">*</span></label>
-                                    <input type="text" name="PickupAddress" id="pickupAddrInput" class="form-control border shadow-sm py-2 px-3 rounded-pill" placeholder="Chọn vị trí trên bản đồ..." readonly required />
-                                    <input type="hidden" name="PickupLat" id="pickupLat" />
-                                    <input type="hidden" name="PickupLng" id="pickupLng" />
-                                    <!-- Map Panel -->
-                                    <div class="cr-map-panel mt-2" id="pickupMapPanel">
-                                        <div class="cr-map-search">
-                                            <input type="text" id="pickupSearch" placeholder="Nhập địa chỉ hoặc kéo ghim..." />
-                                            <button type="button" class="btn btn-primary btn-sm" onclick="crSearchMap('pickup')"><i class="bi bi-search"></i></button>
-                                        </div>
-                                        <div id="pickupMap" class="cr-map-canvas"></div>
-                                        <button type="button" class="cr-gps-btn" onclick="crUseGPS('pickup')"><i class="bi bi-cursor-fill me-1"></i> Lấy vị trí GPS</button>
-                                        <div class="cr-map-result" id="pickupResult"></div>
-                                    </div>
-                                </div>
-                                <div class="col-md-12 d-none" id="pickupStationSection">
-                                    <label class="form-label fw-bold text-dark small">KHO/BẾN XE GỬI <span class="text-danger">*</span></label>
-                                    <select name="FromStationId" id="fromStation" class="form-select border shadow-sm py-2 px-3 rounded-pill">
-                                        <option value="">-- Chọn kho/bến xe --</option>
-                                    </select>
-                                </div>
-
-                                <div class="col-md-6">
-                                    <label class="form-label fw-bold text-dark small">HÌNH THỨC NHẬN HÀNG</label>
-                                    <select name="DeliveryType" id="deliveryType" class="form-select border shadow-sm py-2 px-3 rounded-pill" required>
-                                        <option value="1">Giao hàng tận nơi</option>
-                                        <option value="2">Nhận tại kho/bến xe</option>
-                                    </select>
-                                </div>
-
-                                <div class="col-md-12" id="deliveryAddressSection">
-                                    <label class="form-label fw-bold text-dark small">ĐỊA CHỈ GIAO HÀNG <span class="text-danger">*</span></label>
-                                    <input type="text" name="DeliveryAddress" id="deliveryAddrInput" class="form-control border shadow-sm py-2 px-3 rounded-pill" placeholder="Chọn vị trí trên bản đồ..." readonly required />
-                                    <input type="hidden" name="DeliveryLat" id="deliveryLat" />
-                                    <input type="hidden" name="DeliveryLng" id="deliveryLng" />
-                                    <!-- Map Panel -->
-                                    <div class="cr-map-panel mt-2" id="deliveryMapPanel">
-                                        <div class="cr-map-search">
-                                            <input type="text" id="deliverySearch" placeholder="Nhập địa chỉ hoặc kéo ghim..." />
-                                            <button type="button" class="btn btn-primary btn-sm" onclick="crSearchMap('delivery')"><i class="bi bi-search"></i></button>
-                                        </div>
-                                        <div id="deliveryMap" class="cr-map-canvas"></div>
-                                        <button type="button" class="cr-gps-btn" onclick="crUseGPS('delivery')"><i class="bi bi-cursor-fill me-1"></i> Lấy vị trí GPS</button>
-                                        <div class="cr-map-result" id="deliveryResult"></div>
-                                    </div>
-                                </div>
-                                <div class="col-md-12 d-none" id="deliveryStationSection">
-                                    <label class="form-label fw-bold text-dark small">KHO/BẾN XE ĐẾN <span class="text-danger">*</span></label>
-                                    <select name="ToStationId" id="toStation" class="form-select border shadow-sm py-2 px-3 rounded-pill">
-                                        <option value="">-- Chọn kho/bến xe --</option>
-                                    </select>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Step 2: Thông tin liên hệ -->
-                        <div class="mb-5">
-                            <h5 class="fw-bold text-primary mb-4 d-flex align-items-center">
-                                <span class="badge bg-primary rounded-circle me-2">2</span> Thông tin liên hệ
-                            </h5>
-                            <div class="row g-3">
-                                <div class="col-md-6">
-                                    <label class="form-label fw-bold text-dark small">SỐ ĐIỆN THOẠI NGƯỜI GỬI</label>
-                                    <input type="tel" name="SenderPhone" class="form-control border shadow-sm py-2 px-3 rounded-pill" value="@ViewBag.UserPhone" placeholder="0xxx xxx xxx" required />
-                                </div>
-                                <div class="col-md-6">
-                                    <label class="form-label fw-bold text-dark small">TÊN NGƯỜI NHẬN</label>
-                                    <input type="text" name="ReceiverName" class="form-control border shadow-sm py-2 px-3 rounded-pill" placeholder="Họ tên người nhận" required />
-                                </div>
-                                <div class="col-md-6">
-                                    <label class="form-label fw-bold text-dark small">SỐ ĐIỆN THOẠI NGƯỜI NHẬN</label>
-                                    <input type="tel" name="ReceiverPhone" class="form-control border shadow-sm py-2 px-3 rounded-pill" placeholder="0xxx xxx xxx" required />
-                                </div>
-                                <div class="col-md-6">
-                                    <label class="form-label fw-bold text-dark small">GHI CHÚ ĐƠN HÀNG</label>
-                                    <input type="text" name="Note" class="form-control border shadow-sm py-2 px-3 rounded-pill" placeholder="Ghi chú thêm (nếu có)..." />
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Step 3: Kiện hàng -->
-                        <div class="mb-5">
-                            <h5 class="fw-bold text-primary mb-4 d-flex align-items-center">
-                                <span class="badge bg-primary rounded-circle me-2">3</span> Chi tiết kiện hàng
-                            </h5>
-                            <div class="row g-3">
-                                <div class="col-md-12">
-                                    <label class="form-label fw-semibold text-muted small text-uppercase">Tên hàng hóa / Mô tả</label>
-                                    <input type="text" name="Description" class="form-control border-0 shadow-sm py-2 px-3 rounded-3" placeholder="Thùng trái cây, Đồ nội thất..." required />
-                                </div>
-                                <div class="col-md-3 col-6">
-                                    <label class="form-label fw-semibold text-muted small text-uppercase">Dài (cm) <span class="text-danger">*</span></label>
-                                    <input type="number" id="len" name="Length" class="form-control border-0 shadow-sm py-2 px-3 rounded-3" placeholder="0" required />
-                                </div>
-                                <div class="col-md-3 col-6">
-                                    <label class="form-label fw-semibold text-muted small text-uppercase">Rộng (cm) <span class="text-danger">*</span></label>
-                                    <input type="number" id="wid" name="Width" class="form-control border-0 shadow-sm py-2 px-3 rounded-3" placeholder="0" required />
-                                </div>
-                                <div class="col-md-3 col-6">
-                                    <label class="form-label fw-semibold text-muted small text-uppercase">Cao (cm) <span class="text-danger">*</span></label>
-                                    <input type="number" id="hei" name="Height" class="form-control border-0 shadow-sm py-2 px-3 rounded-3" placeholder="0" required />
-                                </div>
-                                <div class="col-md-3 col-6">
-                                    <label class="form-label fw-semibold text-muted small text-uppercase">Thể tích (m³)</label>
-                                    <input type="text" id="vol" class="form-control border-0 shadow-sm py-2 px-3 rounded-3 bg-white" readonly placeholder="0" />
-                                </div>
-                                <div class="col-md-6">
-                                    <label class="form-label fw-semibold text-muted small text-uppercase">Cân nặng (kg)</label>
-                                    <input type="number" name="Weight" class="form-control border-0 shadow-sm py-2 px-3 rounded-3" placeholder="0" required />
-                                </div>
-                                <div class="col-md-6">
-                                    <label class="form-label fw-semibold text-muted small text-uppercase">Loại hàng</label>
-                                    <select name="cargoTypeId" class="form-select border-0 shadow-sm py-2 px-3 rounded-3" asp-items="ViewBag.CargoTypes" required>
-                                        <option value="">-- Chọn loại --</option>
-                                    </select>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Footer Actions -->
-                        <div class="d-grid pt-3">
-                            <button type="submit" class="btn btn-primary btn-lg py-3 rounded-pill fw-bold shadow-sm transition-all hover-scale">
-                                <i class="bi bi-search me-2"></i> TÌM CHUYẾN VÀ ĐẶT NGAY
-                            </button>
-                            <p class="text-center text-muted small mt-3">
-                                <i class="bi bi-shield-check me-1"></i> Thông tin của bạn được bảo mật tuyệt đối
-                            </p>
-                        </div>
-                    </form>
+                    <div id="pickupMap" class="cr-map-canvas"></div>
+                    <button type="button" class="cr-gps-btn" onclick="crUseGPS('pickup')"><i class="bi bi-cursor-fill me-1"></i> Lấy vị trí GPS</button>
+                    <div class="cr-map-result" id="pickupResult"></div>
                 </div>
             </div>
-        </div>
-    </div>
-</div>
 
-<style>
-    body {
-        background-color: #f0f2f5;
-    }
-    .mobile-container {
-        max-width: 900px;
-    }
-    .cursor-pointer { cursor: pointer; }
-    .transition-all { transition: all 0.3s ease; }
-    .hover-scale:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 10px 20px rgba(0,0,0,0.1) !important;
-    }
-    .upload-zone:hover {
-        background-color: #f8fbff;
-        border-style: solid;
-    }
-    .card {
-        border-radius: 20px !important;
-    }
-    .form-select, .form-control {
-        background-color: #fdfdfd;
-    }
-    .form-select:focus, .form-control:focus {
-        background-color: #fff;
-        box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.05) !important;
-    }
-    .badge {
-        width: 24px;
-        height: 24px;
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        padding: 0;
-        font-size: 13px;
-    }
-</style>
+            <div id="pickupStationSection" class="d-none">
+                <label class="form-label mt-2">Kho/bến xe gửi <span class="required-star">*</span></label>
+                <select name="FromStationId" id="fromStation" class="form-select custom-input">
+                    <option value="">-- Chọn kho/bến xe --</option>
+                </select>
+            </div>
+
+            <label class="form-label mt-2">Hình thức nhận hàng <span class="required-star">*</span></label>
+            <select name="DeliveryType" id="deliveryType" class="form-select custom-input" required>
+                <option value="1">Giao hàng tận nơi</option>
+                <option value="2">Nhận tại kho/bến xe</option>
+            </select>
+
+            <div id="deliveryAddressSection">
+                <label class="form-label mt-2">Địa chỉ giao hàng <span class="required-star">*</span></label>
+                <input type="text" name="DeliveryAddress" id="deliveryAddrInput" class="form-control custom-input" placeholder="Chọn vị trí trên bản đồ..." readonly required />
+                <input type="hidden" name="DeliveryLat" id="deliveryLat" />
+                <input type="hidden" name="DeliveryLng" id="deliveryLng" />
+                <div class="cr-map-panel mt-2" id="deliveryMapPanel">
+                    <div class="cr-map-search">
+                        <input type="text" id="deliverySearch" placeholder="Nhập địa chỉ hoặc kéo ghim..." />
+                        <button type="button" class="btn btn-primary btn-sm" onclick="crSearchMap('delivery')"><i class="bi bi-search"></i></button>
+                    </div>
+                    <div id="deliveryMap" class="cr-map-canvas"></div>
+                    <button type="button" class="cr-gps-btn" onclick="crUseGPS('delivery')"><i class="bi bi-cursor-fill me-1"></i> Lấy vị trí GPS</button>
+                    <div class="cr-map-result" id="deliveryResult"></div>
+                </div>
+            </div>
+
+            <div id="deliveryStationSection" class="d-none">
+                <label class="form-label mt-2">Kho/bến xe đến <span class="required-star">*</span></label>
+                <select name="ToStationId" id="toStation" class="form-select custom-input">
+                    <option value="">-- Chọn kho/bến xe --</option>
+                </select>
+            </div>
+        </div>
+
+        <!-- THÔNG TIN LIÊN HỆ -->
+        <div class="custom-card border-0">
+            <div class="section-title">Thông tin liên hệ</div>
+
+            <label class="form-label">SĐT người gửi <span class="required-star">*</span></label>
+            <input type="tel" class="form-control custom-input" name="SenderPhone" value="@ViewBag.UserPhone" placeholder="0xxx xxxx xxx" required />
+
+            <div class="row mt-2">
+                <div class="col-6">
+                    <label class="form-label">Tên người nhận <span class="required-star">*</span></label>
+                    <input type="text" class="form-control custom-input" name="ReceiverName" placeholder="Họ tên" required />
+                </div>
+                <div class="col-6">
+                    <label class="form-label">SĐT người nhận <span class="required-star">*</span></label>
+                    <input type="tel" class="form-control custom-input" name="ReceiverPhone" placeholder="0xxx xxxx xxx" required />
+                </div>
+            </div>
+
+            <label class="form-label mt-2">Ghi chú (tùy chọn)</label>
+            <input type="text" class="form-control custom-input" name="Note" placeholder="Ví dụ: Hàng dễ vỡ..." />
+        </div>
+
+        <!-- THÔNG TIN KIỆN HÀNG -->
+        <div class="custom-card border-0">
+            <div class="section-title">Thông tin kiện hàng</div>
+
+            <label class="form-label">Tên / Mô tả hàng hóa <span class="required-star">*</span></label>
+            <input type="text" class="form-control custom-input" name="Description" placeholder="Ví dụ: Thùng quần áo" required />
+
+            <div class="row mt-3">
+                <div class="col-6">
+                    <label class="form-label">Chiều dài (cm) <span class="required-star">*</span></label>
+                    <input type="number" class="form-control custom-input" name="Length" id="len" min="1" placeholder="0" required />
+                </div>
+                <div class="col-6">
+                    <label class="form-label">Chiều rộng (cm) <span class="required-star">*</span></label>
+                    <input type="number" class="form-control custom-input" name="Width" id="wid" min="1" placeholder="0" required />
+                </div>
+            </div>
+
+            <div class="row mt-3">
+                <div class="col-6">
+                    <label class="form-label">Chiều cao (cm) <span class="required-star">*</span></label>
+                    <input type="number" class="form-control custom-input" name="Height" id="hei" min="1" placeholder="0" required />
+                </div>
+                <div class="col-6">
+                    <label class="form-label">Cân nặng (kg) <span class="required-star">*</span></label>
+                    <input type="number" class="form-control custom-input" name="Weight" min="0.1" step="0.1" placeholder="0" required />
+                </div>
+            </div>
+
+            <div class="mt-3">
+                <label class="form-label">Thể tích ước tính (m³)</label>
+                <input type="text" class="form-control custom-input bg-light" id="vol" readonly placeholder="0" />
+            </div>
+
+            <label class="form-label mt-3">Loại hàng hóa <span class="required-star">*</span></label>
+            <select name="cargoTypeId" class="form-select custom-input" asp-items="ViewBag.CargoTypes" required>
+                <option value="">-- Chọn loại hàng --</option>
+            </select>
+        </div>
+
+        <div class="mt-4 mb-2">
+            <button type="submit" class="btn btn-primary w-100 btn-lg fw-bold rounded-pill shadow-sm py-3">
+                <i class="bi bi-search me-1"></i> TÌM CHUYẾN VÀ ĐẶT NGAY
+            </button>
+        </div>
+    </form>
+</div>
 
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
 

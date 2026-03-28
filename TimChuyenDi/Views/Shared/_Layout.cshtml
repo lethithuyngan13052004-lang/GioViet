@@ -16,7 +16,7 @@
     }
 
     <header>
-        <nav class="navbar navbar-expand-sm navbar-dark mb-4 shadow" style="background: linear-gradient(135deg, #0d6efd 0%, #0a58ca 100%); border-bottom: 3px solid #084298;">
+        <nav class="navbar navbar-expand-sm navbar-dark mb-4 shadow" style="background-color: #0d6efd; border-bottom: 3px solid #084298;">
             <div class="container">
                 <a class="navbar-brand fw-bold text-white" asp-controller="Home" asp-action="Index">
                     <i class="bi bi-truck"></i> Gió Việt
@@ -30,39 +30,39 @@
                         <!-- Chưa đăng nhập -->
                         @if (!User.Identity.IsAuthenticated)
                         {
-                            <li class="nav-item">
-                                <a class="nav-link text-white" asp-controller="Home" asp-action="Index">Tìm chuyến xe</a>
+                            <li class="nav-item mx-1">
+                                <a class="nav-link text-white px-3 fw-medium rounded-pill hover-bg-light-alpha transition-all" asp-controller="Home" asp-action="Index"><i class="bi bi-search me-1"></i> Tìm chuyến xe</a>
                             </li>
                         }
 
                         <!-- CUSTOMER (2) -->
                         @if (role == "2")
                         {
-                            <li class="nav-item">
-                                <a class="nav-link text-white" asp-controller="Home" asp-action="Index">Tìm chuyến xe</a>
+                            <li class="nav-item mx-1">
+                                <a class="nav-link text-white px-3 fw-medium rounded-pill hover-bg-light-alpha transition-all" asp-controller="Home" asp-action="Index"><i class="bi bi-search me-1"></i> Tìm chuyến xe</a>
                             </li>
-                            <li class="nav-item">
-                                <a class="nav-link text-white" asp-controller="Customer" asp-action="MySavedRoutes">Tuyến đã lưu</a>
+                            <li class="nav-item mx-1">
+                                <a class="nav-link text-white px-3 fw-medium rounded-pill hover-bg-light-alpha transition-all" asp-controller="Customer" asp-action="MySavedRoutes"><i class="bi bi-bookmark-fill me-1"></i> Tuyến đã lưu</a>
                             </li>
-                            <li class="nav-item">
-                                <a class="nav-link text-white" asp-controller="Customer" asp-action="RequestHistory">Lịch sử gửi hàng</a>
+                            <li class="nav-item mx-1">
+                                <a class="nav-link text-white px-3 fw-medium rounded-pill hover-bg-light-alpha transition-all" asp-controller="Customer" asp-action="RequestHistory"><i class="bi bi-clock-history me-1"></i> Lịch sử gửi hàng</a>
                             </li>
                         }
 
                         <!-- DRIVER (3) -->
                         @if (role == "3")
                         {
-                            <li class="nav-item">
-                                <a class="nav-link text-white" asp-controller="Driver" asp-action="Index">Duyệt yêu cầu</a>
+                            <li class="nav-item mx-1">
+                                <a class="nav-link text-white px-3 fw-medium rounded-pill hover-bg-light-alpha transition-all" asp-controller="Driver" asp-action="Index"><i class="bi bi-card-checklist me-1"></i> Duyệt yêu cầu</a>
                             </li>
-                            <li class="nav-item">
-                                <a class="nav-link text-white" asp-controller="Driver" asp-action="MyTrips">Chuyến xe của tôi</a>
+                            <li class="nav-item mx-1">
+                                <a class="nav-link text-white px-3 fw-medium rounded-pill hover-bg-light-alpha transition-all" asp-controller="Driver" asp-action="MyTrips"><i class="bi bi-truck me-1"></i> Chuyến xe của tôi</a>
                             </li>
-                            <li class="nav-item">
-                                <a class="nav-link text-white" asp-controller="Driver" asp-action="ManageVehicles">Quản lý Xe</a>
+                            <li class="nav-item mx-1">
+                                <a class="nav-link text-white px-3 fw-medium rounded-pill hover-bg-light-alpha transition-all" asp-controller="Driver" asp-action="ManageVehicles"><i class="bi bi-car-front-fill me-1"></i> Quản lý Xe</a>
                             </li>
-                            <li class="nav-item">
-                                <a class="nav-link text-white" asp-controller="Driver" asp-action="MyReviews">Đánh giá của khách</a>
+                            <li class="nav-item mx-1">
+                                <a class="nav-link text-white px-3 fw-medium rounded-pill hover-bg-light-alpha transition-all" asp-controller="Driver" asp-action="MyReviews"><i class="bi bi-star-half me-1"></i> Đánh giá của khách</a>
                             </li>
                         }
 
@@ -70,19 +70,19 @@
                         @if (role == "1")
                         {
                             <li class="nav-item mx-1">
-                                <a class="nav-link text-white px-3 rounded-pill hover-bg-light-alpha transition-all" asp-controller="Admin" asp-action="Index"><i class="bi bi-people-fill me-1"></i> Người dùng</a>
+                                <a class="nav-link text-white px-3 fw-medium rounded-pill hover-bg-light-alpha transition-all" asp-controller="Admin" asp-action="Index"><i class="bi bi-people-fill me-1"></i> Người dùng</a>
                             </li>
                             <li class="nav-item mx-1">
-                                <a class="nav-link text-white px-3 rounded-pill hover-bg-light-alpha transition-all" asp-controller="Admin" asp-action="ManageTrips"><i class="bi bi-calendar-event me-1"></i> Chuyến xe</a>
+                                <a class="nav-link text-white px-3 fw-medium rounded-pill hover-bg-light-alpha transition-all" asp-controller="Admin" asp-action="ManageTrips"><i class="bi bi-calendar-event me-1"></i> Chuyến xe</a>
                             </li>
                             <li class="nav-item mx-1">
-                                <a class="nav-link text-white px-3 rounded-pill hover-bg-light-alpha transition-all" asp-controller="Admin" asp-action="ManageStations"><i class="bi bi-geo-alt-fill me-1"></i> Trạm</a>
+                                <a class="nav-link text-white px-3 fw-medium rounded-pill hover-bg-light-alpha transition-all" asp-controller="Admin" asp-action="ManageStations"><i class="bi bi-geo-alt-fill me-1"></i> Trạm</a>
                             </li>
                             <li class="nav-item mx-1">
-                                <a class="nav-link text-white px-3 rounded-pill hover-bg-light-alpha transition-all" asp-controller="Admin" asp-action="ManageVehicles"><i class="bi bi-truck-front-fill me-1"></i> Kho Xe</a>
+                                <a class="nav-link text-white px-3 fw-medium rounded-pill hover-bg-light-alpha transition-all" asp-controller="Admin" asp-action="ManageVehicles"><i class="bi bi-truck-front-fill me-1"></i> Kho Xe</a>
                             </li>
                             <li class="nav-item mx-1">
-                                <a class="nav-link text-white fw-bold px-3 rounded-pill hover-bg-light-alpha transition-all" asp-controller="Admin" asp-action="ManageSettings"><i class="bi bi-gear-fill me-1"></i> Cấu hình</a>
+                                <a class="nav-link text-white px-3 fw-medium rounded-pill hover-bg-light-alpha transition-all" asp-controller="Admin" asp-action="ManageSettings"><i class="bi bi-gear-fill me-1"></i> Cấu hình</a>
                             </li>
                         }
 

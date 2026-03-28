@@ -140,6 +140,33 @@ namespace TimChuyenDi.Controllers
         }
 
         // ==================================================
+        // XEM CHI TIẾT CHUYẾN ĐI
+        // ==================================================
+        [HttpGet]
+        public IActionResult TripDetails(int id)
+        {
+            var trip = _context.Trips
+                .Include(t => t.FromStationNavigation).ThenInclude(s => s.Province)
+                .Include(t => t.ToStationNavigation).ThenInclude(s => s.Province)
+                .Include(t => t.Driver)
+                .Include(t => t.Vehicle).ThenInclude(v => v.VehicleType)
+                .Include(t => t.RouteTypeNavigation)
+                .FirstOrDefault(t => t.TripId == id);
+
+            if (trip == null) return NotFound();
+
+            var reviews = _context.Ratings
+                .Include(r => r.Req).ThenInclude(req => req.Trip)
+                .Where(r => r.Req != null && r.Req.Trip != null && r.Req.Trip.DriverId == trip.DriverId)
+                .ToList();
+
+            ViewBag.AvgScore = reviews.Any() ? Math.Round(reviews.Average(r => r.Score), 1) : 0;
+            ViewBag.ReviewCount = reviews.Count;
+
+            return View(trip);
+        }
+
+        // ==================================================
         // 3. TOOL BƠM DỮ LIỆU TỐI THƯỢNG
         // ==================================================
 
