@@ -219,14 +219,26 @@
 <!-- Scripts -->
 <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0/dist/js/select2.min.js"></script>
+<!-- Fallback for Select2 if JSDelivr fails -->
+<script>if(!$.fn.select2){ document.write('<script src="https://cdnjs.cloudflare.com/ajax/libs/select2/4.0.13/js/select2.min.js"><\/script>'); }</script>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="https://unpkg.com/leaflet-routing-machine/dist/leaflet-routing-machine.js"></script>
 
 <script>
     var map, routingControl;
     var locationMarkers = L.layerGroup();
-    var persistentMarkers = L.layerGroup(); // Layer for selected/permanent stations
+    var persistentMarkers = L.layerGroup();
     var lastTotalTimeSeconds = 0;
+
+    // Vietnam Coastal Corridor Points (to force routes into Vietnam)
+    const VN_CORRIDOR = [
+        { name: "Vinh", lat: 18.67, lng: 105.68 },
+        { name: "Đồng Hới", lat: 17.47, lng: 106.60 },
+        { name: "Đà Nẵng", lat: 16.05, lng: 108.20 },
+        { name: "Quy Nhơn", lat: 13.78, lng: 109.21 },
+        { name: "Nha Trang", lat: 12.24, lng: 109.19 },
+        { name: "Phan Thiết", lat: 10.92, leather: 108.10 } // misspelled "leather" fixed to lng below
+    ].map(p => ({ ...p, lng: p.lng || p.leather }));
 
     // Fixed Icon Definitions
     const iconBase = "https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-";
@@ -312,8 +324,9 @@
             waypoints: [],
             routeWhileDragging: false,
             show: false,
+            // Reverting to standard OSRM router to avoid 400 errors from trip/v1
             router: L.Routing.osrmv1({
-                serviceUrl: 'https://router.project-osrm.org/trip/v1/driving', // Optimized for route calculation
+                serviceUrl: 'https://router.project-osrm.org/route/v1',
                 profile: 'driving'
             }),
             lineOptions: { 
@@ -369,42 +382,61 @@
 
     function updateRoute() {
         persistentMarkers.clearLayers();
-        var waypoints = [];
+        var rawWaypoints = [];
         
-        // 1. Start Station (Blue)
+        // 1. Collect Point Data (Start, Stops, End)
         var start = $('#fromStation option:selected');
-        if (start.val()) {
-            var latLng = L.latLng(parseFloat(start.data('lat')), parseFloat(start.data('lng')));
-            waypoints.push(latLng);
-            L.marker(latLng, { icon: startIcon }).addTo(persistentMarkers).bindPopup("<b>Điểm bắt đầu</b>: " + start.text());
-        }
+        if (start.val()) rawWaypoints.push({ type: 'start', lat: parseFloat(start.data('lat')), lng: parseFloat(start.data('lng')), name: start.text(), icon: startIcon });
 
-        // 2. Intermediate Stations (Orange)
         $('.intermediate-select').each(function () {
             var opt = $(this).find('option:selected');
-            if (opt.val()) {
-                var latLng = L.latLng(parseFloat(opt.data('lat')), parseFloat(opt.data('lng')));
-                waypoints.push(latLng);
-                L.marker(latLng, { icon: stopIcon }).addTo(persistentMarkers).bindPopup("<b>Trạm dừng phụ</b>: " + opt.text());
-            }
+            if (opt.val()) rawWaypoints.push({ type: 'stop', lat: parseFloat(opt.data('lat')), lng: parseFloat(opt.data('lng')), name: opt.text(), icon: stopIcon });
         });
 
-        // 3. End Station (Green)
         var end = $('#toStation option:selected');
-        if (end.val()) {
-            var latLng = L.latLng(parseFloat(end.data('lat')), parseFloat(end.data('lng')));
-            waypoints.push(latLng);
-            L.marker(latLng, { icon: endIcon }).addTo(persistentMarkers).bindPopup("<b>Điểm đến</b>: " + end.text());
+        if (end.val()) rawWaypoints.push({ type: 'end', lat: parseFloat(end.data('lat')), lng: parseFloat(end.data('lng')), name: end.text(), icon: endIcon });
+
+        if (rawWaypoints.length < 1) return;
+
+        // 2. Build Routing Waypoints with "Corridor Injection" to keep routes in Vietnam
+        var finalWaypoints = [];
+        for (var i = 0; i < rawWaypoints.length; i++) {
+            var curr = rawWaypoints[i];
+            if (!curr) continue;
+            
+            // Add visible marker to map
+            var latLng = L.latLng(curr.lat, curr.lng);
+            L.marker(latLng, { icon: curr.icon }).addTo(persistentMarkers).bindPopup(`<b>${curr.type === 'start' ? 'Bắt đầu' : curr.type === 'end' ? 'Kết thúc' : 'Trạm phụ'}</b>: ${curr.name}`);
+            
+            finalWaypoints.push(latLng);
+
+            // If there's a next point and it's far away (Hanoi-Da Nang distance), inject corridor
+            if (i < rawWaypoints.length - 1) {
+                var next = rawWaypoints[i+1];
+                var latDiff = Math.abs(curr.lat - next.lat);
+                
+                if (latDiff > 3.0) { // Approx 330km span
+                    // Find intermediate corridor points
+                    var minLat = Math.min(curr.lat, next.lat);
+                    var maxLat = Math.max(curr.lat, next.lat);
+                    
+                    VN_CORRIDOR.forEach(cp => {
+                        if (cp.lat > minLat + 0.5 && cp.lat < maxLat - 0.5) {
+                            // Inject hidden transit point for routing only
+                            finalWaypoints.push(L.latLng(cp.lat, cp.lng));
+                        }
+                    });
+                }
+            }
         }
 
-        if (waypoints.length >= 2) {
-            routingControl.setWaypoints(waypoints);
+        if (finalWaypoints.length >= 2) {
+            routingControl.setWaypoints(finalWaypoints);
             
-            // Auto focus viewport to fit new markers if they are changed significantly
-            if (waypoints.length > 0) {
-                var group = L.featureGroup(waypoints.map(w => L.marker(w)));
-                map.fitBounds(group.getBounds().pad(0.2));
-            }
+            // Fit map bounds
+            var group = L.featureGroup(rawWaypoints.map(w => L.marker([w.lat, w.lng])));
+            map.fitBounds(group.getBounds().pad(0.2));
+            console.log("Routing updated with corridor checkpoints. Waypoints used:", finalWaypoints.length);
         }
     }
 
