@@ -37,6 +37,7 @@ namespace TimChuyenDi.Controllers
                 .Include(t => t.Driver)
                 .Include(t => t.Vehicle).ThenInclude(v => v.VehicleType)
                 .Include(t => t.RouteTypeNavigation)
+                .AsSplitQuery() 
                 .AsQueryable();
 
             if (fromProvinceId.HasValue)
@@ -53,7 +54,8 @@ namespace TimChuyenDi.Controllers
                 query = query.Where(t => t.Vehicle.VehicleType.CargoTypes.Any(c => c.CargoTypeId == cargoTypeId.Value));
             }
 
-            query = query.Where(t => t.StartTime > DateTime.Now).OrderBy(t => t.StartTime);
+            // Relaxed filter: Show trips from today onwards
+            query = query.Where(t => t.StartTime >= DateTime.Today).OrderBy(t => t.StartTime);
 
             int pageSize = 6;
             int totalTrips = query.Count();

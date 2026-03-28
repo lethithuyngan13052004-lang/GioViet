@@ -153,13 +153,20 @@
                         <div class="form-section-title">3. Thời Gian & Giá Cước</div>
 
                         <div class="row g-3 mb-3">
-                            <div class="col-6">
+                            <div class="col-12">
+                                <label class="form-label fw-bold small text-muted">Giới hạn tải trọng: <span id="vehicleLimits" class="text-primary">Chưa chọn xe</span></label>
+                            </div>
+                            <div class="col-12">
+                                <label class="form-label fw-bold">Trọng tải đăng ký cho chuyến này (kg)</label>
+                                <div class="input-group">
+                                    <input type="number" name="AvaiCapacityKg" id="capacityKgInput" class="form-control" required placeholder="Nhập số kg" oninput="checkCapacity()">
+                                    <span class="input-group-text bg-light text-muted">kg</span>
+                                </div>
+                                <input type="hidden" name="AvaiCapacityM3" id="capacityM3Input">
+                            </div>
+                            <div class="col-12">
                                 <label class="form-label fw-bold">Giá cơ bản (VNĐ)</label>
                                 <input type="number" name="BasePrice" class="form-control" required placeholder="Ví dụ: 500000">
-                            </div>
-                            <div class="col-6">
-                                <label class="form-label fw-bold">Sức chứa (kg)</label>
-                                <input type="number" name="AvaiCapacityKg" id="capacityInput" class="form-control" required>
                             </div>
                         </div>
 
@@ -278,10 +285,19 @@
         var initVal = $('input[name="RouteType"]:checked').val();
         if (initVal) updateIntermediateSection(initVal);
 
-        // Vehicle Capacity Auto-fill
+        // Vehicle Capacity Auto-fill & Limit Display
         $(document).on('change', '#vehicleSelect', function () {
             var kg = $(this).find(':selected').data('kg');
-            $('#capacityInput').val(kg);
+            var m3 = $(this).find(':selected').data('m3');
+            
+            if (kg && m3) {
+                $('#capacityKgInput').val(kg);
+                $('#capacityM3Input').val(m3);
+                $('#vehicleLimits').text(`Tối đa ${kg}kg / ${m3}m³`).removeClass('text-danger').addClass('text-primary');
+            } else {
+                $('#vehicleLimits').text('Chưa chọn xe').removeClass('text-danger');
+            }
+            checkCapacity();
         });
 
         $('#fromStation, #toStation').on('change', updateRoute);
@@ -376,7 +392,9 @@
             toastEl.style.color = '#0f5132'; 
             toastEl.style.borderLeftColor = '#198754';
         }
-        var toast = new bootstrap.Toast(toastEl, { delay: 1500 });
+        // Lỗi/Cảnh báo hiện lâu hơn (4 giây)
+        var duration = isError ? 4000 : 1500;
+        var toast = new bootstrap.Toast(toastEl, { delay: duration });
         toast.show();
     }
 
@@ -415,16 +433,22 @@
                 var next = rawWaypoints[i+1];
                 var latDiff = Math.abs(curr.lat - next.lat);
                 
-                if (latDiff > 3.0) { // Approx 330km span
-                    // Find intermediate corridor points
+                if (latDiff > 2.5) { // Threshold for long-haul in VN
                     var minLat = Math.min(curr.lat, next.lat);
                     var maxLat = Math.max(curr.lat, next.lat);
                     
-                    VN_CORRIDOR.forEach(cp => {
-                        if (cp.lat > minLat + 0.5 && cp.lat < maxLat - 0.5) {
-                            // Inject hidden transit point for routing only
-                            finalWaypoints.push(L.latLng(cp.lat, cp.lng));
-                        }
+                    // Filter and Sort corridor points based on travel direction
+                    var isNorthbound = (next.lat > curr.lat);
+                    var applicablePoints = VN_CORRIDOR.filter(cp => cp.lat > minLat + 0.3 && cp.lat < maxLat - 0.3);
+                    
+                    if (isNorthbound) {
+                        applicablePoints.sort((a,b) => a.lat - b.lat); // Northbound (Ascending Latitude)
+                    } else {
+                        applicablePoints.sort((a,b) => b.lat - a.lat); // Southbound (Descending Latitude)
+                    }
+
+                    applicablePoints.forEach(cp => {
+                        finalWaypoints.push(L.latLng(cp.lat, cp.lng));
                     });
                 }
             }
@@ -471,11 +495,19 @@
 
     async function loadStopStations(id) {
         var pId = $(`#stopRow_${id} .province-stop`).val();
+        var pName = $(`#stopRow_${id} .province-stop option:selected`).text();
         var target = $(`#stopRow_${id} .intermediate-select`);
         if (!pId) return;
         target.prop('disabled', false).html('<option>Loading...</option>');
         const res = await fetch(`/Driver/GetStationsByProvince?provinceId=${pId}`);
         const data = await res.json();
+        
+        if (data.length === 0) {
+            showToast(`Tỉnh/ thành phố ${pName} hiện chưa có trạm nào`, true);
+            target.html('<option value="">-- Không có trạm --</option>').prop('disabled', true);
+            return;
+        }
+
         let html = '<option value="">-- Chọn trạm --</option>';
         data.forEach(s => { html += `<option value="${s.id}" data-lat="${s.lat}" data-lng="${s.lng}">${s.name}</option>`; });
         target.html(html).trigger('change.select2');
@@ -492,12 +524,20 @@
 
     async function filterStations(type) {
         var pId = type === 'start' ? $('#provinceStart').val() : $('#provinceEnd').val();
+        var pName = type === 'start' ? $('#provinceStart option:selected').text() : $('#provinceEnd option:selected').text();
         var targetSelect = type === 'start' ? $('#fromStation') : $('#toStation');
         if (!pId) return;
         targetSelect.prop('disabled', false).html('<option value="">-- Đang nạp trạm... --</option>');
         try {
             const response = await fetch(`/Driver/GetStationsByProvince?provinceId=${pId}`);
             const stations = await response.json();
+            
+            if (stations.length === 0) {
+                showToast(`Tỉnh/ thành phố ${pName} hiện chưa có trạm nào`, true);
+                targetSelect.html('<option value="">-- Không có trạm --</option>').prop('disabled', true);
+                return;
+            }
+
             let html = '<option value="">-- Chọn trạm --</option>';
             stations.forEach(s => { html += `<option value="${s.id}" data-lat="${s.lat}" data-lng="${s.lng}">${s.name}</option>`; });
             targetSelect.html(html).trigger('change.select2');
@@ -541,11 +581,44 @@
         }
     }
 
+    function checkCapacity() {
+        var vehicle = $('#vehicleSelect option:selected');
+        var maxKg = vehicle.data('kg') || 0;
+        var maxM3 = vehicle.data('m3') || 0;
+        var currKg = parseInt($('#capacityKgInput').val()) || 0;
+
+        // Auto estimation logic: Prop M3 based on Weight
+        var estM3 = 0;
+        if (maxKg > 0 && currKg > 0) {
+            estM3 = Math.round((currKg / maxKg) * maxM3);
+        }
+        $('#capacityM3Input').val(estM3);
+        $('#estM3').text(estM3);
+        $('#volumeEstimationLabel').show();
+
+        var isValid = true;
+        if (currKg > maxKg) {
+            isValid = false;
+            $('#vehicleLimits').text(`Vượt quá tải trọng! (Tối đa ${maxKg}kg)`).removeClass('text-primary').addClass('text-danger');
+        } else {
+            $('#vehicleLimits').text(`Tối đa ${maxKg}kg / ${maxM3}m³`).removeClass('text-danger').addClass('text-primary');
+        }
+        return isValid;
+    }
+
     function validateAndSubmit() {
+        if (!checkCapacity()) {
+            showToast("Sức chứa không được vượt quá tải trọng của xe!", true);
+            return false;
+        }
+
         var stops = [];
         $('.intermediate-select').each(function() { if ($(this).val()) stops.push($(this).val()); });
         $('#hiddenStops').val(stops.join(','));
-        if (!$('#fromStation').val() || !$('#toStation').val()) { alert("Vui lòng chọn trạm đi và trạm đến!"); return false; }
+        if (!$('#fromStation').val() || !$('#toStation').val()) { 
+            showToast("Vui lòng chọn trạm đi và trạm đến!", true);
+            return false; 
+        }
         return true;
     }
 
