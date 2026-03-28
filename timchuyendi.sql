@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Máy chủ: 127.0.0.1
--- Thời gian đã tạo: Th3 27, 2026 lúc 09:40 AM
+-- Thời gian đã tạo: Th3 28, 2026 lúc 05:35 AM
 -- Phiên bản máy phục vụ: 10.4.32-MariaDB
 -- Phiên bản PHP: 8.0.30
 
@@ -52,6 +52,13 @@ CREATE TABLE `cargodetail` (
   `Height` decimal(10,2) DEFAULT NULL,
   `Description` text DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+--
+-- Đang đổ dữ liệu cho bảng `cargodetail`
+--
+
+INSERT INTO `cargodetail` (`Id`, `RequestId`, `Weight`, `Length`, `Width`, `Height`, `Description`) VALUES
+(2, 2, 1.00, 1.00, 1.00, 1.00, '121');
 
 -- --------------------------------------------------------
 
@@ -986,8 +993,18 @@ CREATE TABLE `shippingroute` (
   `ReceiverName` varchar(100) DEFAULT NULL,
   `ReceiverPhone` varchar(15) DEFAULT NULL,
   `ToStationId` int(11) DEFAULT NULL,
-  `DeliveryAddress` varchar(500) DEFAULT NULL
+  `DeliveryAddress` varchar(500) DEFAULT NULL,
+  `FromProvinceId` int(11) DEFAULT NULL,
+  `ToProvinceId` int(11) DEFAULT NULL,
+  `DeliveryType` int(11) NOT NULL DEFAULT 0
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+--
+-- Đang đổ dữ liệu cho bảng `shippingroute`
+--
+
+INSERT INTO `shippingroute` (`Id`, `RequestId`, `SenderPhone`, `PickupType`, `PickupAddress`, `Lat`, `Lng`, `FromStationId`, `ReceiverName`, `ReceiverPhone`, `ToStationId`, `DeliveryAddress`, `FromProvinceId`, `ToProvinceId`, `DeliveryType`) VALUES
+(1, 2, '0900000003', 2, NULL, NULL, NULL, 55, 'sdas', '321', 229, NULL, 1, 79, 2);
 
 -- --------------------------------------------------------
 
@@ -1005,35 +1022,13 @@ CREATE TABLE `shiprequest` (
   `CreatedAt` timestamp NOT NULL DEFAULT current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
--- --------------------------------------------------------
-
 --
--- Cấu trúc bảng cho bảng `shiprequests`
+-- Đang đổ dữ liệu cho bảng `shiprequest`
 --
 
-CREATE TABLE `shiprequests` (
-  `ReqId` int(11) NOT NULL,
-  `CustomerId` int(11) NOT NULL,
-  `TripId` int(11) NOT NULL,
-  `CargoTypeId` int(11) NOT NULL,
-  `PickupAddress` varchar(255) DEFAULT NULL,
-  `PickupLat` decimal(10,8) DEFAULT NULL,
-  `PickupLng` decimal(11,8) DEFAULT NULL,
-  `DeliveryAddress` varchar(255) DEFAULT NULL,
-  `DeliveryLat` decimal(10,8) DEFAULT NULL,
-  `DeliveryLng` decimal(11,8) DEFAULT NULL,
-  `ReceiverInfo` varchar(255) NOT NULL,
-  `Weight` int(11) NOT NULL,
-  `Size` varchar(100) DEFAULT NULL,
-  `Description` text DEFAULT NULL,
-  `BasePrice` decimal(18,2) NOT NULL,
-  `PickupFee` decimal(18,2) NOT NULL DEFAULT 0.00,
-  `DeliveryFee` decimal(18,2) NOT NULL DEFAULT 0.00,
-  `TotalPrice` decimal(18,2) NOT NULL,
-  `Status` int(11) NOT NULL DEFAULT 0 COMMENT '0: Pending, 1: Accepted, 2: Rejected, 3: Shipping, 4: Done',
-  `CreatedAt` datetime NOT NULL DEFAULT current_timestamp(),
-  `RespondedAt` datetime DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+INSERT INTO `shiprequest` (`Id`, `UserId`, `TripId`, `Status`, `TotalPrice`, `Note`, `CreatedAt`) VALUES
+(1, 4, NULL, 0, 0.00, 'kd', '2026-03-27 10:12:16'),
+(2, 4, NULL, 0, 0.00, 'ssd', '2026-03-27 10:21:17');
 
 -- --------------------------------------------------------
 
@@ -1287,6 +1282,7 @@ CREATE TABLE `system_config` (
 --
 
 INSERT INTO `system_config` (`KeyName`, `Value`) VALUES
+('PlatformFee', 0.15),
 ('PricePerKm', 5000.00);
 
 -- --------------------------------------------------------
@@ -1307,8 +1303,18 @@ CREATE TABLE `trips` (
   `AvaiCapacityKg` int(11) NOT NULL,
   `AvaiCapacityM3` int(11) NOT NULL,
   `BasePrice` decimal(18,2) NOT NULL DEFAULT 0.00 COMMENT 'Giá mở đầu do tài xế nhập',
-  `Distance` decimal(10,2) DEFAULT NULL COMMENT 'Khoảng cách (km)'
+  `Distance` decimal(10,2) DEFAULT NULL COMMENT 'Khoảng cách (km)',
+  `TotalPrice` decimal(10,2) DEFAULT NULL,
+  `PlatformFee` decimal(10,2) DEFAULT NULL,
+  `DriverEarning` decimal(10,2) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+--
+-- Đang đổ dữ liệu cho bảng `trips`
+--
+
+INSERT INTO `trips` (`TripId`, `DriverId`, `VehicleId`, `RouteType`, `FromStation`, `ToStation`, `StartTime`, `ArrivalTime`, `AvaiCapacityKg`, `AvaiCapacityM3`, `BasePrice`, `Distance`, `TotalPrice`, `PlatformFee`, `DriverEarning`) VALUES
+(1, 9, 5, 1, 150, 233, '2026-03-28 18:14:00', '2026-03-29 18:14:00', 5000, 10, 50000.00, NULL, NULL, NULL, NULL);
 
 -- --------------------------------------------------------
 
@@ -11669,15 +11675,6 @@ ALTER TABLE `shiprequest`
   ADD PRIMARY KEY (`Id`);
 
 --
--- Chỉ mục cho bảng `shiprequests`
---
-ALTER TABLE `shiprequests`
-  ADD PRIMARY KEY (`ReqId`),
-  ADD KEY `CustomerId` (`CustomerId`),
-  ADD KEY `TripId` (`TripId`),
-  ADD KEY `CargoTypeId` (`CargoTypeId`);
-
---
 -- Chỉ mục cho bảng `stations`
 --
 ALTER TABLE `stations`
@@ -11767,7 +11764,7 @@ ALTER TABLE `behaviorlogs`
 -- AUTO_INCREMENT cho bảng `cargodetail`
 --
 ALTER TABLE `cargodetail`
-  MODIFY `Id` int(11) NOT NULL AUTO_INCREMENT;
+  MODIFY `Id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=3;
 
 --
 -- AUTO_INCREMENT cho bảng `cargotypes`
@@ -11809,19 +11806,13 @@ ALTER TABLE `request_trip_match`
 -- AUTO_INCREMENT cho bảng `shippingroute`
 --
 ALTER TABLE `shippingroute`
-  MODIFY `Id` int(11) NOT NULL AUTO_INCREMENT;
+  MODIFY `Id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=2;
 
 --
 -- AUTO_INCREMENT cho bảng `shiprequest`
 --
 ALTER TABLE `shiprequest`
-  MODIFY `Id` int(11) NOT NULL AUTO_INCREMENT;
-
---
--- AUTO_INCREMENT cho bảng `shiprequests`
---
-ALTER TABLE `shiprequests`
-  MODIFY `ReqId` int(11) NOT NULL AUTO_INCREMENT;
+  MODIFY `Id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=3;
 
 --
 -- AUTO_INCREMENT cho bảng `stations`
@@ -11833,7 +11824,7 @@ ALTER TABLE `stations`
 -- AUTO_INCREMENT cho bảng `trips`
 --
 ALTER TABLE `trips`
-  MODIFY `TripId` int(11) NOT NULL AUTO_INCREMENT;
+  MODIFY `TripId` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=2;
 
 --
 -- AUTO_INCREMENT cho bảng `trip_stations`
@@ -11879,7 +11870,8 @@ ALTER TABLE `behaviorlogs`
 -- Các ràng buộc cho bảng `cargodetail`
 --
 ALTER TABLE `cargodetail`
-  ADD CONSTRAINT `FK_Cargo_ShipRequest` FOREIGN KEY (`RequestId`) REFERENCES `shiprequest` (`Id`) ON DELETE CASCADE;
+  ADD CONSTRAINT `FK_Cargo_ShipRequest` FOREIGN KEY (`RequestId`) REFERENCES `shiprequest` (`Id`) ON DELETE CASCADE,
+  ADD CONSTRAINT `fk_cargodetail_request` FOREIGN KEY (`RequestId`) REFERENCES `shiprequest` (`Id`) ON DELETE CASCADE;
 
 --
 -- Các ràng buộc cho bảng `chatmessages`
@@ -11894,7 +11886,7 @@ ALTER TABLE `chatmessages`
 ALTER TABLE `chatsessions`
   ADD CONSTRAINT `chatsessions_ibfk_1` FOREIGN KEY (`DriverId`) REFERENCES `users` (`UserId`),
   ADD CONSTRAINT `chatsessions_ibfk_2` FOREIGN KEY (`CustomerId`) REFERENCES `users` (`UserId`),
-  ADD CONSTRAINT `fk_chat_req` FOREIGN KEY (`ReqId`) REFERENCES `shiprequests` (`ReqId`) ON DELETE CASCADE;
+  ADD CONSTRAINT `fk_chat_request` FOREIGN KEY (`ReqId`) REFERENCES `shiprequest` (`Id`) ON DELETE CASCADE;
 
 --
 -- Các ràng buộc cho bảng `districts`
@@ -11906,22 +11898,22 @@ ALTER TABLE `districts`
 -- Các ràng buộc cho bảng `ratings`
 --
 ALTER TABLE `ratings`
-  ADD CONSTRAINT `fk_rating_request` FOREIGN KEY (`ReqId`) REFERENCES `shiprequests` (`ReqId`) ON DELETE CASCADE,
+  ADD CONSTRAINT `fk_rating_request` FOREIGN KEY (`ReqId`) REFERENCES `shiprequest` (`Id`) ON DELETE CASCADE,
   ADD CONSTRAINT `ratings_ibfk_1` FOREIGN KEY (`CustomerId`) REFERENCES `users` (`UserId`);
 
 --
 -- Các ràng buộc cho bảng `reports`
 --
 ALTER TABLE `reports`
+  ADD CONSTRAINT `fk_report_request` FOREIGN KEY (`ReqId`) REFERENCES `shiprequest` (`Id`) ON DELETE SET NULL,
   ADD CONSTRAINT `reports_ibfk_1` FOREIGN KEY (`ReporterId`) REFERENCES `users` (`UserId`),
-  ADD CONSTRAINT `reports_ibfk_2` FOREIGN KEY (`DriverId`) REFERENCES `users` (`UserId`),
-  ADD CONSTRAINT `reports_ibfk_3` FOREIGN KEY (`ReqId`) REFERENCES `shiprequests` (`ReqId`) ON DELETE SET NULL;
+  ADD CONSTRAINT `reports_ibfk_2` FOREIGN KEY (`DriverId`) REFERENCES `users` (`UserId`);
 
 --
 -- Các ràng buộc cho bảng `request_trip_match`
 --
 ALTER TABLE `request_trip_match`
-  ADD CONSTRAINT `request_trip_match_ibfk_1` FOREIGN KEY (`RequestId`) REFERENCES `shiprequests` (`ReqId`) ON DELETE CASCADE,
+  ADD CONSTRAINT `fk_match_request` FOREIGN KEY (`RequestId`) REFERENCES `shiprequest` (`Id`) ON DELETE CASCADE,
   ADD CONSTRAINT `request_trip_match_ibfk_2` FOREIGN KEY (`TripId`) REFERENCES `trips` (`TripId`) ON DELETE CASCADE;
 
 --
@@ -11935,15 +11927,8 @@ ALTER TABLE `savedroutes`
 -- Các ràng buộc cho bảng `shippingroute`
 --
 ALTER TABLE `shippingroute`
-  ADD CONSTRAINT `FK_Route_ShipRequest` FOREIGN KEY (`RequestId`) REFERENCES `shiprequest` (`Id`) ON DELETE CASCADE;
-
---
--- Các ràng buộc cho bảng `shiprequests`
---
-ALTER TABLE `shiprequests`
-  ADD CONSTRAINT `shiprequests_ibfk_1` FOREIGN KEY (`CustomerId`) REFERENCES `users` (`UserId`),
-  ADD CONSTRAINT `shiprequests_ibfk_2` FOREIGN KEY (`TripId`) REFERENCES `trips` (`TripId`),
-  ADD CONSTRAINT `shiprequests_ibfk_3` FOREIGN KEY (`CargoTypeId`) REFERENCES `cargotypes` (`CargoTypeId`);
+  ADD CONSTRAINT `FK_Route_ShipRequest` FOREIGN KEY (`RequestId`) REFERENCES `shiprequest` (`Id`) ON DELETE CASCADE,
+  ADD CONSTRAINT `fk_shippingroute_request` FOREIGN KEY (`RequestId`) REFERENCES `shiprequest` (`Id`) ON DELETE CASCADE;
 
 --
 -- Các ràng buộc cho bảng `stations`

@@ -36,6 +36,7 @@ namespace TimChuyenDi.Controllers
                 .Include(t => t.ToStationNavigation).ThenInclude(s => s.Province)
                 .Include(t => t.Driver)
                 .Include(t => t.Vehicle).ThenInclude(v => v.VehicleType)
+                .Include(t => t.RouteTypeNavigation)
                 .AsQueryable();
 
             if (fromProvinceId.HasValue)
@@ -54,7 +55,7 @@ namespace TimChuyenDi.Controllers
 
             query = query.Where(t => t.StartTime > DateTime.Now).OrderBy(t => t.StartTime);
 
-            int pageSize = 4;
+            int pageSize = 6;
             int totalTrips = query.Count();
             int totalPages = (int)Math.Ceiling(totalTrips / (double)pageSize);
 
@@ -65,17 +66,20 @@ namespace TimChuyenDi.Controllers
             var driverIds = trips.Select(t => t.DriverId).Distinct().ToList();
             var driverRatings = _context.Ratings
                 .Include(r => r.Req).ThenInclude(req => req.Trip)
-                .Where(r => r.Req.Trip != null && driverIds.Contains(r.Req.Trip.DriverId))
+                .Where(r => r.Req != null && r.Req.Trip != null && driverIds.Contains(r.Req.Trip.DriverId))
                 .ToList();
 
             var avgRatings = new Dictionary<int, double>();
+            var countRatings = new Dictionary<int, int>();
             foreach (var id in driverIds)
             {
-                var reviews = driverRatings.Where(r => r.Req.Trip.DriverId == id).ToList();
+                var reviews = driverRatings.Where(r => r.Req != null && r.Req.Trip != null && r.Req.Trip.DriverId == id).ToList();
                 avgRatings[id] = reviews.Any() ? Math.Round(reviews.Average(r => r.Score), 1) : 0;
+                countRatings[id] = reviews.Count;
             }
 
             ViewBag.AvgRatings = avgRatings;
+            ViewBag.CountRatings = countRatings;
             ViewBag.CurrentFrom = fromProvinceId;
             ViewBag.CurrentTo = toProvinceId;
             ViewBag.CurrentDate = startDate?.ToString("yyyy-MM-dd");
@@ -120,7 +124,7 @@ namespace TimChuyenDi.Controllers
                 .Include(r => r.Customer)
                 .Include(r => r.Req).ThenInclude(req => req.Trip).ThenInclude(t => t.FromStationNavigation)
                 .Include(r => r.Req).ThenInclude(req => req.Trip).ThenInclude(t => t.ToStationNavigation)
-                .Where(r => r.Req.Trip != null && r.Req.Trip.DriverId == driverId)
+                .Where(r => r.Req != null && r.Req.Trip != null && r.Req.Trip.DriverId == driverId)
                 .OrderByDescending(r => r.RatingId)
                 .ToList();
 

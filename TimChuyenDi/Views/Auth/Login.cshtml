@@ -39,9 +39,15 @@
 
                 </form>
                 <div class="text-center mt-3">
-                    <a asp-action="ForgotPassword" class="text-danger text-decoration-none small fw-bold">
-                        <i class="bi bi-question-circle me-1"></i>Quên mật khẩu?
+                    <a asp-action="ForgotPassword" class="text-muted text-decoration-none small">
+                        Quên mật khẩu?
                     </a>
+
+                    <style>
+                        a.text-muted:hover {
+                            color: #0d6efd; /* chuyển sang xanh khi hover */
+                        }
+                    </style>
                 </div>
                 <hr>
                 <div class="text-center">

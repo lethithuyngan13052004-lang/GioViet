@@ -152,9 +152,14 @@
                         <div class="card-body p-4">
                             @{
                                 double avgScore = 0;
+                                int reviewCount = 0;
                                 if (ViewBag.AvgRatings != null && ViewBag.AvgRatings.ContainsKey(item.DriverId))
                                 {
                                     avgScore = ViewBag.AvgRatings[item.DriverId];
+                                }
+                                if (ViewBag.CountRatings != null && ViewBag.CountRatings.ContainsKey(item.DriverId))
+                                {
+                                    reviewCount = ViewBag.CountRatings[item.DriverId];
                                 }
                             }
 
@@ -162,31 +167,71 @@
                                 <div class="bg-light rounded-circle p-2 me-2">
                                     <i class="bi bi-person-fill text-secondary"></i>
                                 </div>
-                                <div>
+                                <div class="flex-grow-1">
                                     <div class="fw-bold text-dark small">@item.Driver.Name</div>
                                     @if (avgScore > 0)
                                     {
-                                        <div class="text-warning small"><i class="bi bi-star-fill"></i> @avgScore <span class="text-muted ms-1">(12 đánh giá)</span></div>
+                                        <div class="text-warning small" style="font-size: 0.75rem;">
+                                            <i class="bi bi-star-fill"></i> @avgScore 
+                                            <span class="text-muted ms-1">(@reviewCount đánh giá)</span>
+                                        </div>
                                     }
+                                    else
+                                    {
+                                        <div class="text-muted small" style="font-size: 0.75rem;">Chưa có đánh giá</div>
+                                    }
+                                </div>
+                                <div class="text-end">
+                                    <span class="badge @(item.RouteType == 1 ? "bg-success" : "bg-info") bg-opacity-10 text-@(item.RouteType == 1 ? "success" : "info") rounded-pill" style="font-size: 0.7rem;">
+                                        <i class="bi @(item.RouteType == 1 ? "bi-record-circle" : "bi-bezier2") me-1"></i>
+                                        @(item.RouteTypeNavigation?.Type ?? (item.RouteType == 1 ? "Trực tiếp" : "Nhiều chặng"))
+                                    </span>
                                 </div>
                             </div>
 
                             <div class="mb-3">
                                 <div class="d-flex align-items-start mb-2">
-                                    <i class="bi bi-geo-alt text-primary mt-1 me-2"></i>
-                                    <div class="small text-muted">@item.FromStationNavigation.StationName</div>
+                                    <i class="bi bi-geo-alt text-primary mt-1 me-2" style="font-size: 0.8rem;"></i>
+                                    <div class="small text-dark fw-medium">@item.FromStationNavigation.StationName</div>
                                 </div>
                                 <div class="d-flex align-items-start mb-2">
-                                    <i class="bi bi-flag text-danger mt-1 me-2"></i>
-                                    <div class="small text-muted">@item.ToStationNavigation.StationName</div>
+                                    <i class="bi bi-flag text-danger mt-1 me-2" style="font-size: 0.8rem;"></i>
+                                    <div class="small text-dark fw-medium">@item.ToStationNavigation.StationName</div>
                                 </div>
-                                <div class="d-flex align-items-center text-primary fw-bold small">
-                                    <i class="bi bi-calendar-event me-2"></i> @item.StartTime.ToString("dd/MM/yyyy HH:mm")
+                                <div class="row g-2 mt-2">
+                                    <div class="col-6">
+                                        <div class="d-flex align-items-center text-muted" style="font-size: 0.75rem;">
+                                            <i class="bi bi-calendar-event me-2"></i> @item.StartTime.ToString("dd/MM HH:mm")
+                                        </div>
+                                    </div>
+                                    @if (item.Distance.HasValue)
+                                    {
+                                        <div class="col-6 text-end">
+                                            <div class="text-muted" style="font-size: 0.75rem;">
+                                                <i class="bi bi-ruler me-1"></i> @item.Distance km
+                                            </div>
+                                        </div>
+                                    }
+                                </div>
+                            </div>
+
+                            <div class="d-flex flex-wrap gap-2 mb-3">
+                                <span class="capacity-badge">
+                                    <i class="bi bi-weight me-1"></i> @item.AvaiCapacityKg kg
+                                </span>
+                                <span class="capacity-badge bg-warning bg-opacity-10 text-warning border-warning border-opacity-25" style="color: #856404 !important;">
+                                    <i class="bi bi-box me-1"></i> @item.AvaiCapacityM3 m³
+                                </span>
+                            </div>
+
+                            <div class="d-flex justify-content-between align-items-center mt-auto">
+                                <div class="text-muted small">Giá từ:</div>
+                                <div class="price-tag" style="font-size: 1.1rem;">
+                                    @item.BasePrice.ToString("N0") <small style="font-size: 0.7rem;">đ</small>
                                 </div>
                             </div>
 
                             <hr class="my-3 opacity-10">
-
                         </div>
                         <div class="card-footer bg-light border-0 p-3 pt-0">
                             <div class="row g-2">

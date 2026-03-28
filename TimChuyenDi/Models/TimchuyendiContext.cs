@@ -179,7 +179,7 @@ public partial class TimchuyendiContext : DbContext
 
             entity.HasOne(d => d.Req).WithOne(p => p.Chatsession)
                 .HasForeignKey<Chatsession>(d => d.ReqId)
-                .HasConstraintName("fk_chat_req");
+                .HasConstraintName("fk_chat_request");
         });
 
         modelBuilder.Entity<District>(entity =>
@@ -281,7 +281,7 @@ public partial class TimchuyendiContext : DbContext
             entity.HasOne(d => d.Req).WithMany(p => p.Reports)
                 .HasForeignKey(d => d.ReqId)
                 .OnDelete(DeleteBehavior.SetNull)
-                .HasConstraintName("reports_ibfk_3");
+                .HasConstraintName("fk_report_request");
         });
 
         modelBuilder.Entity<RequestTripMatch>(entity =>
@@ -311,7 +311,7 @@ public partial class TimchuyendiContext : DbContext
 
             entity.HasOne(d => d.Request).WithMany(p => p.RequestTripMatches)
                 .HasForeignKey(d => d.RequestId)
-                .HasConstraintName("request_trip_match_ibfk_1");
+                .HasConstraintName("fk_match_request");
 
             entity.HasOne(d => d.Trip).WithMany(p => p.RequestTripMatches)
                 .HasForeignKey(d => d.TripId)
@@ -331,7 +331,7 @@ public partial class TimchuyendiContext : DbContext
             entity.Property(e => e.Id).HasColumnType("int(11)");
             entity.Property(e => e.CreatedAt)
                 .HasDefaultValueSql("current_timestamp()")
-                .HasColumnType("datetime");
+                .HasColumnType("timestamp");
             entity.Property(e => e.Note).HasColumnType("text");
             entity.Property(e => e.Status)
                 .HasDefaultValueSql("'0'")
@@ -346,12 +346,12 @@ public partial class TimchuyendiContext : DbContext
             entity.HasOne(d => d.User).WithMany(p => p.Shiprequests)
                 .HasForeignKey(d => d.UserId)
                 .OnDelete(DeleteBehavior.ClientSetNull)
-                .HasConstraintName("shiprequest_ibfk_1");
+                .HasConstraintName("fk_shiprequest_user");
 
             entity.HasOne(d => d.Trip).WithMany(p => p.Shiprequests)
                 .HasForeignKey(d => d.TripId)
                 .OnDelete(DeleteBehavior.SetNull)
-                .HasConstraintName("shiprequest_ibfk_2");
+                .HasConstraintName("fk_shiprequest_trip");
         });
 
         modelBuilder.Entity<Cargodetail>(entity =>
@@ -373,7 +373,7 @@ public partial class TimchuyendiContext : DbContext
             entity.HasOne(d => d.Request).WithMany(p => p.Cargodetails)
                 .HasForeignKey(d => d.RequestId)
                 .OnDelete(DeleteBehavior.ClientSetNull)
-                .HasConstraintName("cargodetail_ibfk_1");
+                .HasConstraintName("fk_cargodetail_request");
         });
 
         modelBuilder.Entity<Shippingroute>(entity =>
@@ -403,7 +403,7 @@ public partial class TimchuyendiContext : DbContext
             entity.HasOne(d => d.Request).WithMany(p => p.Shippingroutes)
                 .HasForeignKey(d => d.RequestId)
                 .OnDelete(DeleteBehavior.ClientSetNull)
-                .HasConstraintName("shippingroute_ibfk_1");
+                .HasConstraintName("fk_shippingroute_request");
         });
 
         modelBuilder.Entity<Station>(entity =>
@@ -470,6 +470,9 @@ public partial class TimchuyendiContext : DbContext
             entity.Property(e => e.StartTime).HasColumnType("datetime");
             entity.Property(e => e.ToStation).HasColumnType("int(11)");
             entity.Property(e => e.VehicleId).HasColumnType("int(11)");
+            entity.Property(e => e.TotalPrice).HasPrecision(10, 2);
+            entity.Property(e => e.PlatformFee).HasPrecision(10, 2);
+            entity.Property(e => e.DriverEarning).HasPrecision(10, 2);
 
             entity.HasOne(d => d.Driver).WithMany(p => p.TripsNavigation)
                 .HasForeignKey(d => d.DriverId)
