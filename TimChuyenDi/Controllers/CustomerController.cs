@@ -71,6 +71,13 @@ namespace TimChuyenDi.Controllers
 
             if (trip == null) return NotFound();
 
+            var userIdStr = User.FindFirstValue("UserId") ?? User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (!string.IsNullOrEmpty(userIdStr))
+            {
+                var user = _context.Users.Find(int.Parse(userIdStr));
+                ViewBag.UserPhone = user?.Phone;
+            }
+
             ViewBag.CargoTypes = new SelectList(_context.Cargotypes.ToList(), "CargoTypeId", "TypeName");
             return View(trip);
         }
