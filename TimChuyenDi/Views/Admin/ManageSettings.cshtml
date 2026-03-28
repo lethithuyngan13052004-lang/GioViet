@@ -1,0 +1,370 @@
+@{
+    ViewData["Title"] = "Cấu hình hệ thống";
+
+    var cargoTypes = (List<TimChuyenDi.Models.Cargotype>)ViewBag.CargoTypes;
+    var vehicleTypes = (List<TimChuyenDi.Models.VehicleType>)ViewBag.VehicleTypes;
+    var tripTypes = (List<TimChuyenDi.Models.TripType>)ViewBag.TripTypes;
+    var systemConfigs = (List<TimChuyenDi.Models.SystemConfig>)ViewBag.SystemConfigs;
+}
+
+<div class="container-fluid py-4" style="max-width: 1200px;">
+    <h3 class="fw-bold mb-4"><i class="bi bi-gear-fill me-2"></i>Cấu hình hệ thống</h3>
+
+    @if (TempData["SuccessMessage"] != null)
+    {
+        <div class="alert alert-success alert-dismissible fade show rounded-3 shadow-sm"><i class="bi bi-check-circle me-2"></i>@TempData["SuccessMessage"]<button type="button" class="btn-close" data-bs-dismiss="alert"></button></div>
+    }
+    @if (TempData["ErrorMessage"] != null)
+    {
+        <div class="alert alert-danger alert-dismissible fade show rounded-3 shadow-sm"><i class="bi bi-exclamation-triangle me-2"></i>@TempData["ErrorMessage"]<button type="button" class="btn-close" data-bs-dismiss="alert"></button></div>
+    }
+
+    <div class="row g-4">
+
+        <!-- ======== LOẠI HÀNG ======== -->
+        <div class="col-md-6">
+            <div class="card border-0 shadow-sm rounded-4 h-100">
+                <div class="card-header bg-primary text-white rounded-top-4 py-3 d-flex justify-content-between align-items-center">
+                    <span class="fw-bold"><i class="bi bi-box-seam me-2"></i>Loại hàng hóa</span>
+                    <button class="btn btn-sm btn-light rounded-pill text-primary fw-bold" data-bs-toggle="modal" data-bs-target="#cargoModal" onclick="resetCargoForm()">
+                        <i class="bi bi-plus-lg me-1"></i>Thêm mới
+                    </button>
+                </div>
+                <div class="card-body p-0">
+                    <table class="table table-hover mb-0 align-middle">
+                        <thead class="table-light">
+                            <tr><th>ID</th><th>Tên loại</th><th class="text-center">Hệ số giá</th><th class="text-center" style="width:120px">Thao tác</th></tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var c in cargoTypes)
+                            {
+                                <tr>
+                                    <td class="text-muted small">#@c.CargoTypeId</td>
+                                    <td class="fw-semibold">@c.TypeName</td>
+                                    <td class="text-center"><span class="badge bg-primary bg-opacity-10 text-primary fs-6">x@(c.PriceMultiplier)</span></td>
+                                    <td class="text-center">
+                                        <button class="btn btn-sm btn-outline-primary me-1" title="Sửa"
+                                                onclick="editCargo(@c.CargoTypeId, '@c.TypeName', @c.PriceMultiplier)"><i class="bi bi-pencil"></i></button>
+                                        <form method="post" asp-action="DeleteCargoType" class="d-inline"
+                                              onsubmit="return confirm('Xoá loại hàng &quot;@c.TypeName&quot;?')">
+                                            <input type="hidden" name="id" value="@c.CargoTypeId" />
+                                            <button class="btn btn-sm btn-outline-danger" title="Xoá"><i class="bi bi-trash"></i></button>
+                                        </form>
+                                    </td>
+                                </tr>
+                            }
+                            @if (!cargoTypes.Any())
+                            {
+                                <tr><td colspan="4" class="text-center text-muted py-3">Chưa có loại hàng nào</td></tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- ======== LOẠI XE ======== -->
+        <div class="col-md-6">
+            <div class="card border-0 shadow-sm rounded-4 h-100">
+                <div class="card-header bg-primary text-white rounded-top-4 py-3 d-flex justify-content-between align-items-center">
+                    <span class="fw-bold"><i class="bi bi-truck me-2"></i>Loại xe</span>
+                    <button class="btn btn-sm btn-light rounded-pill text-primary fw-bold" data-bs-toggle="modal" data-bs-target="#vehicleModal" onclick="resetVehicleForm()">
+                        <i class="bi bi-plus-lg me-1"></i>Thêm mới
+                    </button>
+                </div>
+                <div class="card-body p-0">
+                    <table class="table table-hover mb-0 align-middle">
+                        <thead class="table-light">
+                            <tr><th>ID</th><th>Tên loại</th><th>Mô tả</th><th class="text-center" style="width:120px">Thao tác</th></tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var v in vehicleTypes)
+                            {
+                                <tr>
+                                    <td class="text-muted small">#@v.VehicleTypeId</td>
+                                    <td class="fw-semibold">@v.TypeName</td>
+                                    <td class="text-muted small">@(v.Description ?? "—")</td>
+                                    <td class="text-center">
+                                        <button class="btn btn-sm btn-outline-primary me-1" title="Sửa"
+                                                onclick="editVehicle(@v.VehicleTypeId, '@v.TypeName', '@(v.Description ?? "")')"><i class="bi bi-pencil"></i></button>
+                                        <form method="post" asp-action="DeleteVehicleType" class="d-inline"
+                                              onsubmit="return confirm('Xoá loại xe &quot;@v.TypeName&quot;?')">
+                                            <input type="hidden" name="id" value="@v.VehicleTypeId" />
+                                            <button class="btn btn-sm btn-outline-danger" title="Xoá"><i class="bi bi-trash"></i></button>
+                                        </form>
+                                    </td>
+                                </tr>
+                            }
+                            @if (!vehicleTypes.Any())
+                            {
+                                <tr><td colspan="4" class="text-center text-muted py-3">Chưa có loại xe nào</td></tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- ======== LOẠI CHUYẾN / HỆ SỐ TÍNH TIỀN ======== -->
+        <div class="col-md-6">
+            <div class="card border-0 shadow-sm rounded-4 h-100">
+                <div class="card-header bg-primary text-white rounded-top-4 py-3 d-flex justify-content-between align-items-center">
+                    <span class="fw-bold"><i class="bi bi-currency-dollar me-2"></i>Loại chuyến & Hệ số tính tiền</span>
+                    <button class="btn btn-sm btn-light rounded-pill text-primary fw-bold" data-bs-toggle="modal" data-bs-target="#tripTypeModal" onclick="resetTripTypeForm()">
+                        <i class="bi bi-plus-lg me-1"></i>Thêm mới
+                    </button>
+                </div>
+                <div class="card-body p-0">
+                    <table class="table table-hover mb-0 align-middle">
+                        <thead class="table-light">
+                            <tr><th>ID</th><th>Tên loại chuyến</th><th class="text-center">Hệ số nhân</th><th class="text-center" style="width:120px">Thao tác</th></tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var t in tripTypes)
+                            {
+                                <tr>
+                                    <td class="text-muted small">#@t.IdType</td>
+                                    <td class="fw-semibold">@t.Type</td>
+                                    <td class="text-center"><span class="badge bg-primary bg-opacity-10 text-primary fs-6">x@(t.Multiplier)</span></td>
+                                    <td class="text-center">
+                                        <button class="btn btn-sm btn-outline-primary me-1" title="Sửa"
+                                                onclick="editTripType(@t.IdType, '@t.Type', @t.Multiplier)"><i class="bi bi-pencil"></i></button>
+                                        <form method="post" asp-action="DeleteTripType" class="d-inline"
+                                              onsubmit="return confirm('Xoá loại chuyến &quot;@t.Type&quot;?')">
+                                            <input type="hidden" name="id" value="@t.IdType" />
+                                            <button class="btn btn-sm btn-outline-danger" title="Xoá"><i class="bi bi-trash"></i></button>
+                                        </form>
+                                    </td>
+                                </tr>
+                            }
+                            @if (!tripTypes.Any())
+                            {
+                                <tr><td colspan="4" class="text-center text-muted py-3">Chưa có loại chuyến nào</td></tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- ======== CẤU HÌNH HỆ THỐNG ======== -->
+        <div class="col-md-6">
+            <div class="card border-0 shadow-sm rounded-4 h-100">
+                <div class="card-header bg-primary text-white rounded-top-4 py-3 d-flex justify-content-between align-items-center">
+                    <span class="fw-bold"><i class="bi bi-sliders me-2"></i>Cấu hình hệ thống</span>
+                    <button class="btn btn-sm btn-light rounded-pill text-primary fw-bold" data-bs-toggle="modal" data-bs-target="#configModal" onclick="resetConfigForm()">
+                        <i class="bi bi-plus-lg me-1"></i>Thêm mới
+                    </button>
+                </div>
+                <div class="card-body p-0">
+                    <table class="table table-hover mb-0 align-middle">
+                        <thead class="table-light">
+                            <tr><th>Tên cấu hình (Key)</th><th class="text-center">Giá trị</th><th class="text-center" style="width:120px">Thao tác</th></tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var s in systemConfigs)
+                            {
+                                <tr>
+                                    <td class="fw-semibold">@s.KeyName</td>
+                                    <td class="text-center"><span class="badge bg-primary bg-opacity-10 text-primary fs-6">@s.Value</span></td>
+                                    <td class="text-center">
+                                        <button class="btn btn-sm btn-outline-primary me-1" title="Sửa"
+                                                onclick="editConfig('@s.KeyName', @s.Value)"><i class="bi bi-pencil"></i></button>
+                                        <form method="post" asp-action="DeleteSystemConfig" class="d-inline"
+                                              onsubmit="return confirm('Xoá cấu hình &quot;@s.KeyName&quot;?')">
+                                            <input type="hidden" name="keyName" value="@s.KeyName" />
+                                            <button class="btn btn-sm btn-outline-danger" title="Xoá"><i class="bi bi-trash"></i></button>
+                                        </form>
+                                    </td>
+                                </tr>
+                            }
+                            @if (!systemConfigs.Any())
+                            {
+                                <tr><td colspan="3" class="text-center text-muted py-3">Chưa có cấu hình nào</td></tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ========== MODAL LOẠI HÀNG ========== -->
+<div class="modal fade" id="cargoModal" tabindex="-1">
+    <div class="modal-dialog">
+        <form method="post" asp-action="SaveCargoType" class="modal-content rounded-4 border-0 shadow">
+            <div class="modal-header bg-primary text-white rounded-top-4">
+                <h5 class="modal-title" id="cargoModalTitle"><i class="bi bi-box-seam me-2"></i>Thêm loại hàng</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" name="CargoTypeId" id="cargoId" value="0" />
+                <div class="mb-3">
+                    <label class="form-label fw-bold">Tên loại hàng</label>
+                    <input type="text" name="TypeName" id="cargoName" class="form-control rounded-3" required placeholder="VD: Hàng dễ vỡ" />
+                </div>
+                <div class="mb-3">
+                    <label class="form-label fw-bold">Hệ số giá (PriceMultiplier)</label>
+                    <input type="number" step="0.01" name="PriceMultiplier" id="cargoMultiplier" class="form-control rounded-3" required placeholder="VD: 1.5" />
+                    <small class="text-muted">Giá = BasePrice × Hệ số. VD: 1.0 = bình thường, 1.5 = tăng 50%</small>
+                </div>
+            </div>
+            <div class="modal-footer border-top-0">
+                <button type="button" class="btn btn-light rounded-pill" data-bs-dismiss="modal">Hủy</button>
+                <button type="submit" class="btn btn-primary rounded-pill fw-bold"><i class="bi bi-check-lg me-1"></i>Lưu</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- ========== MODAL LOẠI XE ========== -->
+<div class="modal fade" id="vehicleModal" tabindex="-1">
+    <div class="modal-dialog">
+        <form method="post" asp-action="SaveVehicleType" class="modal-content rounded-4 border-0 shadow">
+            <div class="modal-header bg-primary text-white rounded-top-4">
+                <h5 class="modal-title" id="vehicleModalTitle"><i class="bi bi-truck me-2"></i>Thêm loại xe</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" name="VehicleTypeId" id="vehicleId" value="0" />
+                <div class="mb-3">
+                    <label class="form-label fw-bold">Tên loại xe</label>
+                    <input type="text" name="TypeName" id="vehicleName" class="form-control rounded-3" required placeholder="VD: Xe tải 5 tấn" />
+                </div>
+                <div class="mb-3">
+                    <label class="form-label fw-bold">Mô tả</label>
+                    <input type="text" name="Description" id="vehicleDesc" class="form-control rounded-3" placeholder="Mô tả thêm (tùy chọn)" />
+                </div>
+            </div>
+            <div class="modal-footer border-top-0">
+                <button type="button" class="btn btn-light rounded-pill" data-bs-dismiss="modal">Hủy</button>
+                <button type="submit" class="btn btn-primary rounded-pill fw-bold"><i class="bi bi-check-lg me-1"></i>Lưu</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- ========== MODAL LOẠI CHUYẾN ========== -->
+<div class="modal fade" id="tripTypeModal" tabindex="-1">
+    <div class="modal-dialog">
+        <form method="post" asp-action="SaveTripType" class="modal-content rounded-4 border-0 shadow">
+            <div class="modal-header bg-primary text-white rounded-top-4">
+                <h5 class="modal-title" id="tripTypeModalTitle"><i class="bi bi-currency-dollar me-2"></i>Thêm loại chuyến</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" name="IdType" id="tripTypeId" value="0" />
+                <div class="mb-3">
+                    <label class="form-label fw-bold">Tên loại chuyến</label>
+                    <input type="text" name="Type" id="tripTypeName" class="form-control rounded-3" required placeholder="VD: Chuyến nhanh, Chuyến tiết kiệm" />
+                </div>
+                <div class="mb-3">
+                    <label class="form-label fw-bold">Hệ số nhân (Multiplier)</label>
+                    <input type="number" step="0.01" name="Multiplier" id="tripTypeMultiplier" class="form-control rounded-3" required placeholder="VD: 1.2" />
+                    <small class="text-muted">Tổng giá = BasePrice × Hệ số loại chuyến. VD: 1.0 = bình thường, 2.0 = gấp đôi</small>
+                </div>
+            </div>
+            <div class="modal-footer border-top-0">
+                <button type="button" class="btn btn-light rounded-pill" data-bs-dismiss="modal">Hủy</button>
+                <button type="submit" class="btn btn-primary rounded-pill fw-bold"><i class="bi bi-check-lg me-1"></i>Lưu</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- ========== MODAL CẤU HÌNH ========== -->
+<div class="modal fade" id="configModal" tabindex="-1">
+    <div class="modal-dialog">
+        <form method="post" asp-action="SaveSystemConfig" class="modal-content rounded-4 border-0 shadow">
+            <div class="modal-header bg-primary text-white rounded-top-4">
+                <h5 class="modal-title" id="configModalTitle"><i class="bi bi-sliders me-2"></i>Thêm cấu hình</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" name="isNew" id="configIsNew" value="true" />
+                <div class="mb-3">
+                    <label class="form-label fw-bold">Tên cấu hình (Key)</label>
+                    <input type="text" name="KeyName" id="configKey" class="form-control rounded-3" required placeholder="VD: PricePerKm" />
+                </div>
+                <div class="mb-3">
+                    <label class="form-label fw-bold">Giá trị</label>
+                    <input type="number" step="0.01" name="Value" id="configValue" class="form-control rounded-3" required placeholder="VD: 5000" />
+                </div>
+            </div>
+            <div class="modal-footer border-top-0">
+                <button type="button" class="btn btn-light rounded-pill" data-bs-dismiss="modal">Hủy</button>
+                <button type="submit" class="btn btn-primary rounded-pill fw-bold"><i class="bi bi-check-lg me-1"></i>Lưu</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+    // ---- Cargo Type ----
+    function resetCargoForm() {
+        document.getElementById('cargoId').value = 0;
+        document.getElementById('cargoName').value = '';
+        document.getElementById('cargoMultiplier').value = '';
+        document.getElementById('cargoModalTitle').innerHTML = '<i class="bi bi-box-seam me-2"></i>Thêm loại hàng';
+    }
+    function editCargo(id, name, multiplier) {
+        document.getElementById('cargoId').value = id;
+        document.getElementById('cargoName').value = name;
+        document.getElementById('cargoMultiplier').value = multiplier;
+        document.getElementById('cargoModalTitle').innerHTML = '<i class="bi bi-pencil me-2"></i>Sửa loại hàng';
+        new bootstrap.Modal(document.getElementById('cargoModal')).show();
+    }
+
+    // ---- Vehicle Type ----
+    function resetVehicleForm() {
+        document.getElementById('vehicleId').value = 0;
+        document.getElementById('vehicleName').value = '';
+        document.getElementById('vehicleDesc').value = '';
+        document.getElementById('vehicleModalTitle').innerHTML = '<i class="bi bi-truck me-2"></i>Thêm loại xe';
+    }
+    function editVehicle(id, name, desc) {
+        document.getElementById('vehicleId').value = id;
+        document.getElementById('vehicleName').value = name;
+        document.getElementById('vehicleDesc').value = desc;
+        document.getElementById('vehicleModalTitle').innerHTML = '<i class="bi bi-pencil me-2"></i>Sửa loại xe';
+        new bootstrap.Modal(document.getElementById('vehicleModal')).show();
+    }
+
+    // ---- Trip Type ----
+    function resetTripTypeForm() {
+        document.getElementById('tripTypeId').value = 0;
+        document.getElementById('tripTypeName').value = '';
+        document.getElementById('tripTypeMultiplier').value = '';
+        document.getElementById('tripTypeModalTitle').innerHTML = '<i class="bi bi-currency-dollar me-2"></i>Thêm loại chuyến';
+    }
+    function editTripType(id, name, multiplier) {
+        document.getElementById('tripTypeId').value = id;
+        document.getElementById('tripTypeName').value = name;
+        document.getElementById('tripTypeMultiplier').value = multiplier;
+        document.getElementById('tripTypeModalTitle').innerHTML = '<i class="bi bi-pencil me-2"></i>Sửa loại chuyến';
+        new bootstrap.Modal(document.getElementById('tripTypeModal')).show();
+    }
+
+    // ---- System Config ----
+    function resetConfigForm() {
+        document.getElementById('configIsNew').value = 'true';
+        document.getElementById('configKey').value = '';
+        document.getElementById('configKey').readOnly = false;
+        document.getElementById('configValue').value = '';
+        document.getElementById('configModalTitle').innerHTML = '<i class="bi bi-sliders me-2"></i>Thêm cấu hình';
+    }
+    function editConfig(key, value) {
+        document.getElementById('configIsNew').value = 'false';
+        document.getElementById('configKey').value = key;
+        document.getElementById('configKey').readOnly = true;
+        document.getElementById('configValue').value = value;
+        document.getElementById('configModalTitle').innerHTML = '<i class="bi bi-pencil me-2"></i>Sửa cấu hình';
+        new bootstrap.Modal(document.getElementById('configModal')).show();
+    }
+</script>
+
+<style>
+    body { background-color: #f0f2f5; }
+    .table th { font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.5px; }
+</style>

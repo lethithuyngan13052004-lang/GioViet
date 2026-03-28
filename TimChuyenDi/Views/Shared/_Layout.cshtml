@@ -16,7 +16,7 @@
     }
 
     <header>
-        <nav class="navbar navbar-expand-sm navbar-dark bg-primary mb-3">
+        <nav class="navbar navbar-expand-sm navbar-dark mb-4 shadow" style="background: linear-gradient(135deg, #0d6efd 0%, #0a58ca 100%); border-bottom: 3px solid #084298;">
             <div class="container">
                 <a class="navbar-brand fw-bold text-white" asp-controller="Home" asp-action="Index">
                     <i class="bi bi-truck"></i> Gió Việt
@@ -69,17 +69,20 @@
                         <!-- ADMIN (1) -->
                         @if (role == "1")
                         {
-                            <li class="nav-item">
-                                <a class="nav-link text-white" asp-controller="Admin" asp-action="Index">Quản lý Người dùng</a>
+                            <li class="nav-item mx-1">
+                                <a class="nav-link text-white px-3 rounded-pill hover-bg-light-alpha transition-all" asp-controller="Admin" asp-action="Index"><i class="bi bi-people-fill me-1"></i> Người dùng</a>
                             </li>
-                            <li class="nav-item">
-                                <a class="nav-link text-white" asp-controller="Admin" asp-action="ManageTrips">Quản lý Chuyến xe</a>
+                            <li class="nav-item mx-1">
+                                <a class="nav-link text-white px-3 rounded-pill hover-bg-light-alpha transition-all" asp-controller="Admin" asp-action="ManageTrips"><i class="bi bi-calendar-event me-1"></i> Chuyến xe</a>
                             </li>
-                            <li class="nav-item">
-                                <a class="nav-link text-white" asp-controller="Admin" asp-action="ManageStations">Quản lý Trạm</a>
+                            <li class="nav-item mx-1">
+                                <a class="nav-link text-white px-3 rounded-pill hover-bg-light-alpha transition-all" asp-controller="Admin" asp-action="ManageStations"><i class="bi bi-geo-alt-fill me-1"></i> Trạm</a>
                             </li>
-                            <li class="nav-item">
-                                <a class="nav-link text-white" asp-controller="Admin" asp-action="ManageVehicles">Kho Xe</a>
+                            <li class="nav-item mx-1">
+                                <a class="nav-link text-white px-3 rounded-pill hover-bg-light-alpha transition-all" asp-controller="Admin" asp-action="ManageVehicles"><i class="bi bi-truck-front-fill me-1"></i> Kho Xe</a>
+                            </li>
+                            <li class="nav-item mx-1">
+                                <a class="nav-link text-white fw-bold px-3 rounded-pill hover-bg-light-alpha transition-all" asp-controller="Admin" asp-action="ManageSettings"><i class="bi bi-gear-fill me-1"></i> Cấu hình</a>
                             </li>
                         }
 
@@ -227,6 +230,7 @@
         .ai-loading { font-style: italic; color: #718096; font-size: 0.8rem; }
         .hover-text-white:hover { color: #fff !important; }
         .hover-bg-primary:hover { background-color: var(--bs-primary) !important; color: #fff !important; opacity: 1 !important; }
+        .hover-bg-light-alpha:hover { background-color: rgba(255, 255, 255, 0.15); color: #fff; }
         .transition-all { transition: all 0.3s ease; }
     </style>
 

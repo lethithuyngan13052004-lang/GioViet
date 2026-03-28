@@ -16,38 +16,29 @@
         </div>
     </div>
 
-    <div class="row">
+    <h3 class="fw-bold mb-4 px-3"><i class="bi bi-geo-alt-fill me-2"></i>Quản lý Trạm</h3>
+    <div class="row px-3">
         <!-- CỘT TRÁI: FORM VÀ TÌM KIẾM -->
         <div class="col-md-4 mb-3 d-flex flex-column" style="height: 85vh;">
             
             <!-- Tìm kiếm Trạm đã lưu -->
-            <div class="card shadow-sm border-0 mb-3" style="flex-shrink: 0;">
-                <div class="card-header bg-success text-white">
-                    <h5 class="mb-0 fw-bold"><i class="bi bi-search"></i> Lọc & Tìm Kiếm Trạm</h5>
+            <div class="card shadow-sm border-0 rounded-4 mb-3" style="flex-shrink: 0;">
+                <div class="card-header bg-primary text-white rounded-top-4 py-3">
+                    <h6 class="mb-0 fw-bold"><i class="bi bi-funnel-fill me-2"></i> Lọc & Tìm Kiếm Trạm</h6>
                 </div>
                 <div class="card-body">
-                    <div class="row g-2">
+                    <div class="row g-3">
                         <div class="col-12">
-                            <div class="input-group mt-1">
-                                <input type="text" id="SearchStationName" class="form-control" placeholder="Nhập tên trạm hoặc địa chỉ trạm" onkeypress="if(event.key === 'Enter') loadStations();" />
-                                <button class="btn btn-success fw-bold" type="button" onclick="loadStations()"><i class="bi bi-funnel-fill"></i> Lọc</button>
-                                <button class="btn fw-bold btn-reset-search" type="button" onclick="resetSearch()"><i class="bi bi-x-circle"></i> Hủy</button>
+                            <label class="form-label text-muted fw-bold small">Từ khoá tìm kiếm</label>
+                            <div class="input-group">
+                                <input type="text" id="SearchStationName" class="form-control rounded-start-pill" placeholder="Tên trạm, địa chỉ..." onkeypress="if(event.key === 'Enter') loadStations();" />
+                                <button class="btn btn-primary" type="button" onclick="loadStations()"><i class="bi bi-search"></i> Lọc</button>
+                                <button class="btn btn-outline-danger btn-reset-search rounded-end-pill px-3" type="button" onclick="resetSearch()"><i class="bi bi-x-lg"></i> Hủy</button>
                             </div>
                         </div>
-                        <style>
-                            .btn-reset-search {
-                                background-color: #fff;
-                                color: #dc3545;
-                                border: 1px solid #ced4da;
-                            }
-                            .btn-reset-search:hover {
-                                background-color: #dc3545;
-                                color: #fff;
-                                border-color: #dc3545;
-                            }
-                        </style>
                         <div class="col-12">
-                            <select id="SearchProvinceId" class="form-select">
+                            <label class="form-label text-muted fw-bold small">Tỉnh/Thành phố</label>
+                            <select id="SearchProvinceId" class="form-select rounded-3">
                                 <option value="">-- Tất cả Tỉnh/Thành --</option>
                                 @foreach (var p in provinces)
                                 {
@@ -56,12 +47,14 @@
                             </select>
                         </div>
                         <div class="col-6">
-                            <select id="SearchDistrictId" class="form-select" disabled>
+                            <label class="form-label text-muted fw-bold small">Quận/Huyện</label>
+                            <select id="SearchDistrictId" class="form-select rounded-3" disabled>
                                 <option value="">-- Tất cả Quận/Huyện --</option>
                             </select>
                         </div>
                         <div class="col-6">
-                            <select id="SearchWardId" class="form-select" disabled>
+                            <label class="form-label text-muted fw-bold small">Phường/Xã</label>
+                            <select id="SearchWardId" class="form-select rounded-3" disabled>
                                 <option value="">-- Tất cả Phường/Xã --</option>
                             </select>
                         </div>
@@ -69,23 +62,21 @@
                 </div>
             </div>
 
-            <div class="card shadow-sm border-0 flex-grow-1 d-flex flex-column" style="min-height: 0;">
-                <div class="card-header bg-primary text-white" style="flex-shrink: 0;">
-                    <h5 class="mb-0 fw-bold" id="formTitle"><i class="bi bi-geo-alt-fill"></i> Thêm Trạm Mới</h5>
+            <div class="card shadow-sm border-0 rounded-4 flex-grow-1 d-flex flex-column" style="min-height: 0;">
+                <div class="card-header bg-primary text-white rounded-top-4 py-3" style="flex-shrink: 0;">
+                    <h6 class="mb-0 fw-bold" id="formTitle"><i class="bi bi-geo-alt-fill me-2"></i> Thêm/Sửa Trạm</h6>
                 </div>
-                <div class="card-body overflow-auto">
+                <div class="card-body overflow-auto custom-scrollbar">
                     
                     <!-- Search Address -->
-                    <div class="mb-4 p-3 bg-light rounded border">
-                        <label class="form-label fw-bold text-primary"><i class="bi bi-search"></i> Nhập địa chỉ tìm kiếm nhanh</label>
+                    <div class="mb-4 p-3 bg-light rounded-3 border border-primary border-opacity-25">
+                        <label class="form-label fw-bold text-primary"><i class="bi bi-search me-1"></i> Tìm nhanh trên bản đồ</label>
                         <div class="input-group">
-                            <input type="text" id="addressInput" class="form-control border-primary" placeholder="Ví dụ: 123 Cầu Giấy, Quận Cầu Giấy, Hà Nội">
+                            <input type="text" id="addressInput" class="form-control" placeholder="123 Cầu Giấy, Hà Nội">
                             <button class="btn btn-primary" type="button" onclick="searchAddress()">Tìm</button>
                         </div>
-                        <div id="searchStatus" class="small mt-1 text-muted"></div>
+                        <div id="searchStatus" class="small mt-2 text-muted fw-semibold"></div>
                     </div>
-
-                    <hr />
 
                     <!-- Station Form -->
                     <form id="stationForm">
@@ -93,57 +84,61 @@
                         
                         <div class="mb-3">
                             <label class="form-label fw-bold">Tên Trạm <span class="text-danger">*</span></label>
-                            <input type="text" id="StationName" class="form-control" placeholder="Ví dụ: Trạm xe Mỹ Đình"/>
+                            <input type="text" id="StationName" class="form-control rounded-3" placeholder="Nhập tên trạm..."/>
                         </div>
                         <div class="mb-3">
                             <label class="form-label fw-bold">Địa chỉ chi tiết <span class="text-danger">*</span></label>
-                            <input type="text" id="Address" class="form-control" placeholder="Số nhà, đường..."/>
+                            <input type="text" id="Address" class="form-control rounded-3" placeholder="Số nhà, đường..."/>
                         </div>
                         
-                        <div class="mb-3">
-                            <label class="form-label fw-bold">Tỉnh/Thành <span class="text-danger">*</span></label>
-                            <select id="ProvinceId" class="form-select" onchange="loadDistricts()">
-                                <option value="">-- Chọn Tỉnh --</option>
-                                @foreach (var p in provinces)
-                                {
-                                    <option value="@p.ProvinceId">@p.ProvinceName</option>
-                                }
-                            </select>
-                        </div>
-                        <div class="mb-3">
-                            <label class="form-label fw-bold">Quận/Huyện</label>
-                            <select id="DistrictId" class="form-select" onchange="loadWards()" disabled>
-                                <option value="">-- Chọn Huyện --</option>
-                            </select>
-                        </div>
-                        <div class="mb-3">
-                            <label class="form-label fw-bold">Phường/Xã</label>
-                            <select id="WardId" class="form-select" disabled>
-                                <option value="">-- Chọn Phường/Xã --</option>
-                            </select>
-                        </div>
-
-                        <div class="row mb-3">
-                            <div class="col-6">
-                                <label class="form-label text-muted small">Vĩ độ (Lat)</label>
-                                <input type="text" id="Latitude" class="form-control bg-light text-center fw-bold" readonly/>
+                        <div class="row g-2 mb-3">
+                            <div class="col-12">
+                                <label class="form-label fw-bold">Tỉnh/Thành <span class="text-danger">*</span></label>
+                                <select id="ProvinceId" class="form-select rounded-3" onchange="loadDistricts()">
+                                    <option value="">-- Chọn Tỉnh --</option>
+                                    @foreach (var p in provinces)
+                                    {
+                                        <option value="@p.ProvinceId">@p.ProvinceName</option>
+                                    }
+                                </select>
                             </div>
                             <div class="col-6">
-                                <label class="form-label text-muted small">Kinh độ (Lng)</label>
-                                <input type="text" id="Longitude" class="form-control bg-light text-center fw-bold" readonly/>
+                                <label class="form-label fw-bold">Quận/Huyện</label>
+                                <select id="DistrictId" class="form-select rounded-3" onchange="loadWards()" disabled>
+                                    <option value="">-- Chọn Huyện --</option>
+                                </select>
+                            </div>
+                            <div class="col-6">
+                                <label class="form-label fw-bold">Phường/Xã</label>
+                                <select id="WardId" class="form-select rounded-3" disabled>
+                                    <option value="">-- Chọn Phường/Xã --</option>
+                                </select>
                             </div>
                         </div>
 
-                        <div class="d-flex justify-content-between mt-4">
-                            <button type="button" class="btn btn-outline-danger" id="btnDelete" style="display:none;" onclick="deleteStation()">
+                        <div class="row g-2 mb-4">
+                            <div class="col-6">
+                                <label class="form-label text-muted small fw-bold">Vĩ độ (Lat)</label>
+                                <input type="text" id="Latitude" class="form-control bg-light text-center" readonly/>
+                            </div>
+                            <div class="col-6">
+                                <label class="form-label text-muted small fw-bold">Kinh độ (Lng)</label>
+                                <input type="text" id="Longitude" class="form-control bg-light text-center" readonly/>
+                            </div>
+                        </div>
+
+                        <div class="d-flex justify-content-between mt-auto">
+                            <button type="button" class="btn btn-outline-danger rounded-pill fw-bold" id="btnDelete" style="display:none;" onclick="deleteStation()">
                                 <i class="bi bi-trash"></i> Xoá Trạm
                             </button>
-                            <button type="button" class="btn btn-secondary" onclick="resetForm()">
-                                 Huỷ
-                            </button>
-                            <button type="button" class="btn btn-primary fw-bold" onclick="saveStation()">
-                                <i class="bi bi-floppy"></i> Lưu Trạm
-                            </button>
+                            <div class="ms-auto">
+                                <button type="button" class="btn btn-light rounded-pill me-2 px-3 fw-bold" onclick="resetForm()">
+                                     Huỷ
+                                </button>
+                                <button type="button" class="btn btn-primary rounded-pill fw-bold px-4 shadow-sm" onclick="saveStation()">
+                                    <i class="bi bi-save me-1"></i> Lưu
+                                </button>
+                            </div>
                         </div>
                     </form>
                 </div>
@@ -152,10 +147,19 @@
 
         <!-- CỘT PHẢI: BẢN ĐỒ -->
         <div class="col-md-8">
-            <div id="stationMap" style="height: 85vh; width: 100%; border-radius: 12px; border: 2px solid #dee2e6; box-shadow: 0 4px 6px rgba(0,0,0,0.1);"></div>
+            <div id="stationMap" class="shadow-sm border-0" style="height: 85vh; width: 100%; border-radius: 1rem;"></div>
         </div>
     </div>
 </div>
+
+<style>
+    body { background-color: #f0f2f5; }
+    .select2-container--bootstrap-5 .select2-selection {
+        border-radius: 0.5rem;
+    }
+    .custom-scrollbar::-webkit-scrollbar { width: 6px; }
+    .custom-scrollbar::-webkit-scrollbar-thumb { background-color: #dee2e6; border-radius: 10px; }
+</style>
 
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
 <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />

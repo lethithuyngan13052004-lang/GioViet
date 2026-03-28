@@ -3,45 +3,75 @@
     ViewData["Title"] = "Quản lý Chuyến Xe";
 }
 
-<div class="d-flex justify-content-between align-items-center mt-4 mb-4">
-    <h4><i class="bi bi-map-fill"></i> Quản lý Toàn Bộ Chuyến Xe</h4>
-</div>
+<div class="container-fluid py-4" style="max-width: 1200px;">
+    <h3 class="fw-bold mb-4"><i class="bi bi-calendar-event me-2"></i>Quản lý Tất Cả Chuyến Xe</h3>
 
-<div class="card shadow-sm border-0">
-    <div class="card-body p-0">
-        <div class="table-responsive">
-            <table class="table table-hover align-middle mb-0">
-                <thead class="table-dark">
-                    <tr>
-                        <th>Mã chuyến</th>
-                        <th>Tài xế</th>
-                        <th>Xe vận chuyển</th>
-                        <th>Tuyến đường</th>
-                        <th>Khởi hành</th>
-                        <th>Giá (VNĐ/kg)</th>
-                        <th>Chỗ trống</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    @foreach (var item in Model)
-                    {
+    <div class="card border-0 shadow-sm rounded-4 overflow-hidden">
+        <div class="card-header bg-primary text-white rounded-top-4 py-3 d-flex justify-content-between align-items-center">
+            <span class="fw-bold"><i class="bi bi-truck me-2"></i>Danh sách chuyến đang hoạt động / đã chạy</span>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="table-light">
                         <tr>
-                            <td class="fw-bold">#@item.TripId</td>
-                            <td>
-                                @item.Driver.Name<br />
-                                <small class="text-muted">@item.Driver.Phone</small>
-                            </td>
-                            <td><span class="badge bg-secondary">@item.Vehicle.PlateNumber</span></td>
-                            <td class="fw-bold text-primary">
-                                @item.FromStationNavigation.Province <i class="bi bi-arrow-right"></i> @item.ToStationNavigation.Province
-                            </td>
-                            <td>@item.StartTime.ToString("dd/MM/yyyy HH:mm")</td>
-                            <td class="text-success fw-bold">@item.BasePrice.ToString("N0")</td>
-                            <td class="text-danger fw-bold">@item.AvaiCapacityKg kg</td>
+                            <th class="ps-3 text-muted">Mã chuyến</th>
+                            <th>Tài xế</th>
+                            <th class="text-center">SĐT</th>
+                            <th class="text-center">Biển số xe</th>
+                            <th>Tuyến vận chuyển</th>
+                            <th class="text-center">TG Khởi hành</th>
+                            <th class="text-end">Base Price / km</th>
+                            <th class="text-end pe-3">Chỗ trống (kg)</th>
                         </tr>
-                    }
-                </tbody>
-            </table>
+                    </thead>
+                    <tbody>
+                        @foreach (var item in Model)
+                        {
+                            <tr>
+                                <td class="ps-3 fw-bold text-muted small">#@item.TripId</td>
+                                <td class="fw-semibold text-dark">
+                                    <i class="bi bi-person-circle text-primary me-2"></i>@item.Driver.Name
+                                </td>
+                                <td class="text-center">@item.Driver.Phone</td>
+                                <td class="text-center">
+                                    <span class="badge bg-secondary bg-opacity-10 text-secondary border border-secondary border-opacity-25 rounded-pill px-3">@item.Vehicle.PlateNumber</span>
+                                </td>
+                                <td>
+                                    <span class="text-primary fw-bold">@item.FromStationNavigation.Province</span> 
+                                    <i class="bi bi-arrow-right text-muted mx-1"></i> 
+                                    <span class="text-success fw-bold">@item.ToStationNavigation.Province</span>
+                                </td>
+                                <td class="text-center small">
+                                    <div class="bg-light rounded p-1 d-inline-block">
+                                        <i class="bi bi-clock me-1 text-muted"></i>@item.StartTime.ToString("dd/MM/yyyy HH:mm")
+                                    </div>
+                                </td>
+                                <td class="text-end fw-bold text-success">@item.BasePrice.ToString("N0") ₫</td>
+                                <td class="text-end pe-3">
+                                    @if(item.AvaiCapacityKg > 0)
+                                    {
+                                        <span class="badge bg-success rounded-pill px-3">Còn @item.AvaiCapacityKg kg</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="badge bg-danger rounded-pill px-3">Đã Đầy</span>
+                                    }
+                                </td>
+                            </tr>
+                        }
+                        @if (!Model.Any())
+                        {
+                            <tr><td colspan="8" class="text-center py-4 text-muted">Hệ thống chưa có chuyến xe nào!</td></tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
         </div>
     </div>
 </div>
+
+<style>
+    body { background-color: #f0f2f5; }
+    .table th { font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.5px; }
+</style>

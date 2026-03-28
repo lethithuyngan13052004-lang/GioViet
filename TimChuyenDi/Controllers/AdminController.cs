@@ -341,5 +341,177 @@ namespace TimChuyenDi.Controllers
 
             return Json(new { provinceId = pId, districtId = dId, wardId = wId });
         }
+
+        // ==================================================
+        // QUẢN LÝ CẤU HÌNH HỆ THỐNG (loại hàng, loại xe, hệ số)
+        // ==================================================
+        public IActionResult ManageSettings()
+        {
+            ViewBag.CargoTypes = _context.Cargotypes.OrderBy(c => c.CargoTypeId).ToList();
+            ViewBag.VehicleTypes = _context.VehicleTypes.OrderBy(v => v.VehicleTypeId).ToList();
+            ViewBag.TripTypes = _context.TripTypes.OrderBy(t => t.IdType).ToList();
+            ViewBag.SystemConfigs = _context.SystemConfigs.ToList();
+            return View();
+        }
+
+        // ---- LOẠI HÀNG (CargoType) ----
+        [HttpPost]
+        public IActionResult SaveCargoType(int CargoTypeId, string TypeName, decimal PriceMultiplier)
+        {
+            if (CargoTypeId == 0)
+            {
+                _context.Cargotypes.Add(new Cargotype { TypeName = TypeName, PriceMultiplier = PriceMultiplier });
+                TempData["SuccessMessage"] = $"Đã thêm loại hàng \"{TypeName}\"";
+            }
+            else
+            {
+                var item = _context.Cargotypes.Find(CargoTypeId);
+                if (item != null)
+                {
+                    item.TypeName = TypeName;
+                    item.PriceMultiplier = PriceMultiplier;
+                    TempData["SuccessMessage"] = $"Đã cập nhật loại hàng \"{TypeName}\"";
+                }
+            }
+            _context.SaveChanges();
+            return RedirectToAction("ManageSettings");
+        }
+
+        [HttpPost]
+        public IActionResult DeleteCargoType(int id)
+        {
+            var item = _context.Cargotypes.Find(id);
+            if (item != null)
+            {
+                _context.Cargotypes.Remove(item);
+                _context.SaveChanges();
+                TempData["SuccessMessage"] = $"Đã xoá loại hàng \"{item.TypeName}\"";
+            }
+            return RedirectToAction("ManageSettings");
+        }
+
+        // ---- LOẠI XE (VehicleType) ----
+        [HttpPost]
+        public IActionResult SaveVehicleType(int VehicleTypeId, string TypeName, string? Description)
+        {
+            if (VehicleTypeId == 0)
+            {
+                _context.VehicleTypes.Add(new VehicleType { TypeName = TypeName, Description = Description });
+                TempData["SuccessMessage"] = $"Đã thêm loại xe \"{TypeName}\"";
+            }
+            else
+            {
+                var item = _context.VehicleTypes.Find(VehicleTypeId);
+                if (item != null)
+                {
+                    item.TypeName = TypeName;
+                    item.Description = Description;
+                    TempData["SuccessMessage"] = $"Đã cập nhật loại xe \"{TypeName}\"";
+                }
+            }
+            _context.SaveChanges();
+            return RedirectToAction("ManageSettings");
+        }
+
+        [HttpPost]
+        public IActionResult DeleteVehicleType(int id)
+        {
+            var item = _context.VehicleTypes.Find(id);
+            if (item != null)
+            {
+                bool inUse = _context.Vehicles.Any(v => v.VehicleTypeId == id);
+                if (inUse)
+                {
+                    TempData["ErrorMessage"] = "Không thể xoá vì có xe đang sử dụng loại xe này!";
+                    return RedirectToAction("ManageSettings");
+                }
+                _context.VehicleTypes.Remove(item);
+                _context.SaveChanges();
+                TempData["SuccessMessage"] = $"Đã xoá loại xe \"{item.TypeName}\"";
+            }
+            return RedirectToAction("ManageSettings");
+        }
+
+        // ---- LOẠI CHUYẾN / HỆ SỐ (TripType) ----
+        [HttpPost]
+        public IActionResult SaveTripType(int IdType, string Type, decimal Multiplier)
+        {
+            if (IdType == 0)
+            {
+                _context.TripTypes.Add(new TripType { Type = Type, Multiplier = Multiplier });
+                TempData["SuccessMessage"] = $"Đã thêm loại chuyến \"{Type}\"";
+            }
+            else
+            {
+                var item = _context.TripTypes.Find(IdType);
+                if (item != null)
+                {
+                    item.Type = Type;
+                    item.Multiplier = Multiplier;
+                    TempData["SuccessMessage"] = $"Đã cập nhật loại chuyến \"{Type}\"";
+                }
+            }
+            _context.SaveChanges();
+            return RedirectToAction("ManageSettings");
+        }
+
+        [HttpPost]
+        public IActionResult DeleteTripType(int id)
+        {
+            var item = _context.TripTypes.Find(id);
+            if (item != null)
+            {
+                bool inUse = _context.Trips.Any(t => t.RouteType == id);
+                if (inUse)
+                {
+                    TempData["ErrorMessage"] = "Không thể xoá vì có chuyến xe đang sử dụng loại chuyến này!";
+                    return RedirectToAction("ManageSettings");
+                }
+                _context.TripTypes.Remove(item);
+                _context.SaveChanges();
+                TempData["SuccessMessage"] = $"Đã xoá loại chuyến \"{item.Type}\"";
+            }
+            return RedirectToAction("ManageSettings");
+        }
+
+        // ---- CẤU HÌNH HỆ THỐNG (SystemConfig) ----
+        [HttpPost]
+        public IActionResult SaveSystemConfig(string KeyName, decimal Value, bool isNew = false)
+        {
+            if (isNew)
+            {
+                if (_context.SystemConfigs.Any(c => c.KeyName == KeyName))
+                {
+                    TempData["ErrorMessage"] = "Key đã tồn tại!";
+                    return RedirectToAction("ManageSettings");
+                }
+                _context.SystemConfigs.Add(new SystemConfig { KeyName = KeyName, Value = Value });
+                TempData["SuccessMessage"] = $"Đã thêm cấu hình \"{KeyName}\"";
+            }
+            else
+            {
+                var item = _context.SystemConfigs.Find(KeyName);
+                if (item != null)
+                {
+                    item.Value = Value;
+                    TempData["SuccessMessage"] = $"Đã cập nhật cấu hình \"{KeyName}\" = {Value}";
+                }
+            }
+            _context.SaveChanges();
+            return RedirectToAction("ManageSettings");
+        }
+
+        [HttpPost]
+        public IActionResult DeleteSystemConfig(string keyName)
+        {
+            var item = _context.SystemConfigs.Find(keyName);
+            if (item != null)
+            {
+                _context.SystemConfigs.Remove(item);
+                _context.SaveChanges();
+                TempData["SuccessMessage"] = $"Đã xoá cấu hình \"{keyName}\"";
+            }
+            return RedirectToAction("ManageSettings");
+        }
     }
 }
