@@ -28,9 +28,10 @@
     .trip-type-card { cursor: pointer; border: 2px solid #f1f3f5; transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1); background: #fdfdfe; border-radius: 12px !important; }
     .trip-type-card:hover { border-color: #0d6efd; transform: translateY(-2px); box-shadow: 0 5px 15px rgba(13, 110, 253, 0.08); }
     .trip-type-radio:checked + .trip-type-card { border-color: #0d6efd; background-color: #f0f7ff; box-shadow: 0 5px 15px rgba(13, 110, 253, 0.12); }
+    
     .intermediate-station { display: flex; align-items: center; background: #fff; border: 1px solid #e9ecef; padding: 12px; border-radius: 12px; margin-bottom: 10px; transition: 0.2s; }
     .intermediate-station:hover { border-color: #ffc107; background: #fffcf5; }
-    .station-marker-label { font-weight: bold; color: #0d6efd; }
+    
     .select-highlight { animation: highlight-fade 1.5s ease-out; }
     @@keyframes highlight-fade {
         0% { background-color: rgba(13, 110, 253, 0.15); box-shadow: 0 0 0 3px rgba(13, 110, 253, 0.2); }
@@ -38,6 +39,7 @@
     }
     .leaflet-popup-content-wrapper { border-radius: 12px; padding: 5px; }
     .leaflet-popup-tip { box-shadow: none; }
+
 </style>
 
 <div class="container-fluid py-4">
@@ -67,43 +69,43 @@
                         </div>
 
                         <div class="mb-4">
-    <label class="form-label fw-bold">Chọn loại chuyến đi</label>
+                            <label class="form-label fw-bold">Chọn loại chuyến đi</label>
 
-    <div class="d-flex flex-column gap-2">
-        @foreach (var type in ViewBag.TripTypes)
-        {
-            <div>
-                <input type="radio"
-                       name="RouteType"
-                       value="@type.IdType"
-                       id="type-@type.IdType"
-                       class="d-none trip-type-radio"
-                       required
-                       @(type.IdType == 1 ? "checked" : "")>
+                            <div class="d-flex flex-column gap-2">
+                                @foreach (var type in ViewBag.TripTypes)
+                                {
+                                    <div>
+                                        <input type="radio"
+                                            name="RouteType"
+                                            value="@type.IdType"
+                                            id="type-@type.IdType"
+                                            class="d-none trip-type-radio"
+                                            required
+                                            @(type.IdType == 1 ? "checked" : "")>
 
-                <label for="type-@type.IdType" class="trip-type-card p-2 rounded w-100">
-                    <div class="d-flex align-items-center gap-2">
-                        <div class="fs-5">
-                            @(type.Type == "Direct" ? "🚗" : "📦")
-                        </div>
+                                        <label for="type-@type.IdType" class="trip-type-card p-2 rounded w-100">
+                                            <div class="d-flex align-items-center gap-2">
+                                                <div class="fs-5">
+                                                    @(type.Type == "Direct" ? "🚗" : "📦")
+                                                </div>
 
-                        <div>
-                            <div class="fw-bold">
-                                @(type.Type == "Direct" ? "Chuyến riêng" : "Chuyến ghép")
+                                                <div>
+                                                    <div class="fw-bold">
+                                                        @(type.Type == "Direct" ? "Chuyến riêng" : "Chuyến ghép")
+                                                    </div>
+
+                                                    <small class="text-muted">
+                                                        @(type.Type == "Direct"
+                                                            ? "Không ghép đơn, đi thẳng đến điểm đến"
+                                                            : "Nhận thêm đơn khác trên cùng tuyến đường")
+                                                    </small>
+                                                </div>
+                                            </div>
+                                        </label>
+                                    </div>
+                                }
                             </div>
-
-                            <small class="text-muted">
-                                @(type.Type == "Direct"
-                                    ? "Không ghép đơn, đi thẳng đến điểm đến"
-                                    : "Nhận thêm đơn khác trên cùng tuyến đường")
-                            </small>
                         </div>
-                    </div>
-                </label>
-            </div>
-        }
-    </div>
-</div>
 
                         <div class="form-section-title">2. Lập Lộ Trình</div>
 
@@ -111,7 +113,7 @@
                         <div class="p-3 bg-light rounded border border-primary border-opacity-25 mb-3">
                             <label class="form-label fw-bold text-primary"><i class="bi bi-geo-alt-fill"></i> ĐIỂM XUẤT PHÁT</label>
                             <select id="provinceStart" class="form-select select2-bootstrap mb-2" onchange="filterStations('start')">
-                                <option value="">-- Chọn Tình/Thành --</option>
+                                <option value="">-- Chọn Tỉnh/Thành --</option>
                                 @foreach (var p in ViewBag.Provinces)
                                 {
                                     <option value="@p.ProvinceId">@p.ProvinceName</option>
@@ -137,7 +139,7 @@
                         <div class="p-3 bg-light rounded border border-success border-opacity-25 mb-4">
                             <label class="form-label fw-bold text-success"><i class="bi bi-flag-fill"></i> ĐIỂM ĐẾN NƠI</label>
                             <select id="provinceEnd" class="form-select select2-bootstrap mb-2" onchange="filterStations('end')">
-                                <option value="">-- Chọn Tình/Thành --</option>
+                                <option value="">-- Chọn Tỉnh/Thành --</option>
                                 @foreach (var p in ViewBag.Provinces)
                                 {
                                     <option value="@p.ProvinceId">@p.ProvinceName</option>
@@ -200,11 +202,11 @@
                                     <span class="h5 fw-bold mb-0 text-success" id="totalTime">0 h</span>
                                 </div>
                                 <div class="vr"></div>
-                                <div class="text-center px-4">
-                                    <button type="button" class="btn btn-sm btn-outline-secondary" onclick="resetMap()">
-                                        <i class="bi bi-arrow-repeat"></i> Reset Map
-                                    </button>
-                                </div>
+                                 <div class="text-center px-4">
+                                     <button type="button" class="btn btn-sm btn-outline-secondary" onclick="resetMap()">
+                                         <i class="bi bi-arrow-repeat"></i> Reset Map
+                                     </button>
+                                 </div>
                             </div>
                         </div>
                     </div>
@@ -214,47 +216,89 @@
     </form>
 </div>
 
+<!-- Scripts -->
 <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0/dist/js/select2.min.js"></script>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="https://unpkg.com/leaflet-routing-machine/dist/leaflet-routing-machine.js"></script>
 
 <script>
     var map, routingControl;
-    var allStations = []; // Sẽ chứa data từ API
     var locationMarkers = L.layerGroup();
-    var routeMarkers = {}; // Để ghim các điểm đã chọn trong lộ trình
+    var persistentMarkers = L.layerGroup(); // Layer for selected/permanent stations
+    var lastTotalTimeSeconds = 0;
 
-    $(document).ready(function() {
-        initMap();
-        initSelect2();
-        
-        $('#vehicleSelect').change(function() {
-            var kg = $(this).find(':selected').data('kg'); // Bắt Capacity từ thuộc tính data-kg
+    // Fixed Icon Definitions
+    const iconBase = "https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-";
+    const shadowUrl = "https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png";
+    const createIcon = (color) => L.icon({
+        iconUrl: iconBase + color + ".png", shadowUrl: shadowUrl,
+        iconSize: [25, 41], iconAnchor: [12, 41], popupAnchor: [1, -34], shadowSize: [41, 41]
+    });
+
+    const startIcon = createIcon('blue');
+    const endIcon = createIcon('green');
+    const stopIcon = createIcon('orange');
+
+    /* ============================================================
+       🔥 CRITICAL: TOGGLE LISTENER (TOP PRIORITY - DO NOT MOVE)
+       Placed here to ensure it binds even if other UI plugins fail.
+    ============================================================ */
+    $(document).on('change', 'input[name="RouteType"]', function () {
+        var val = $(this).val();
+        console.log("TripType Changed to:", val);
+        updateIntermediateSection(val);
+    });
+
+    $(document).ready(function () {
+        try {
+            console.log("Initializing UI Components...");
+            initMap();
+            locationMarkers.addTo(map);
+            persistentMarkers.addTo(map);
+        } catch(e) { console.error("Map Init Error:", e); }
+
+        try {
+            initSelect2();
+        } catch(e) { console.error("Select2 Init Error:", e); }
+
+        // Initial state check
+        var initVal = $('input[name="RouteType"]:checked').val();
+        if (initVal) updateIntermediateSection(initVal);
+
+        // Vehicle Capacity Auto-fill
+        $(document).on('change', '#vehicleSelect', function () {
+            var kg = $(this).find(':selected').data('kg');
             $('#capacityInput').val(kg);
         });
-
-        // Xử lý ẩn hiện Trạm dừng phụ theo Loại chuyến đi
-        $('input[name="RouteType"]').change(function() {
-            if ($(this).val() == "2") { // Ghép chuyến
-                $('#intermediateStationsContainer').slideDown(300);
-            } else {
-                $('#intermediateStationsContainer').slideUp(300);
-            }
-        });
-        // Kích hoạt ngay lúc nạp (đề phòng browser cache form)
-        if ($('input[name="RouteType"]:checked').val() == "2") {
-            $('#intermediateStationsContainer').show();
-        }
 
         $('#fromStation, #toStation').on('change', updateRoute);
         $('#startTime').on('change', () => calculateArrivalTime(lastTotalTimeSeconds));
     });
 
-    var lastTotalTimeSeconds = 0;
+    /* ✅ LOGIC ẨN TRẠM PHỤ (ROBUST VERSION) */
+    function updateIntermediateSection(val) {
+        let container = $('#intermediateStationsContainer');
+        if (!container.length) return;
+
+        // Ensure val is compared as a string and handle whitespace
+        var value = (val || "").toString().trim();
+
+        if (value == "2") { // 2 = Shared (Ghép chuyến)
+            container.stop(true, true).slideDown(250);
+            console.log("Showing Intermediate Container");
+        } else { // 1 = Direct (Chuyến riêng)
+            container.stop(true, true).slideUp(250, function() {
+                $('#stopsList').empty();
+                updateRoute();
+            });
+            console.log("Hiding Intermediate Container");
+        }
+    }
 
     function initMap() {
         map = L.map('map').setView([16.0544, 108.2022], 6);
+
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
             attribution: '&copy; OpenStreetMap contributors'
         }).addTo(map);
@@ -264,17 +308,21 @@
         map.setMaxBounds(vnBounds);
         map.options.minZoom = 5;
 
-        locationMarkers.addTo(map);
-
         routingControl = L.Routing.control({
             waypoints: [],
             routeWhileDragging: false,
             show: false,
-            lineOptions: { styles: [{ color: '#0d6efd', opacity: 0.8, weight: 6 }] },
-            createMarker: function() { return null; }
+            router: L.Routing.osrmv1({
+                serviceUrl: 'https://router.project-osrm.org/trip/v1/driving', // Optimized for route calculation
+                profile: 'driving'
+            }),
+            lineOptions: { 
+                styles: [{ color: '#0d6efd', opacity: 0.8, weight: 6 }] 
+            },
+            createMarker: () => null // We handle our own persistent markers
         }).addTo(map);
 
-        routingControl.on('routesfound', function(e) {
+        routingControl.on('routesfound', function (e) {
             var summary = e.routes[0].summary;
             lastTotalTimeSeconds = summary.totalTime;
             $('#totalDistance').text((summary.totalDistance / 1000).toFixed(1) + " km");
@@ -285,16 +333,20 @@
     }
 
     function initSelect2() {
-        $('.select2-bootstrap').select2({ theme: 'bootstrap-5', width: '100%' });
-        $('.select2-stations').select2({ theme: 'bootstrap-5', width: '100%' });
-        
-        // Auto-focus cho Select2 search
-        $(document).on('select2:open', () => {
-            setTimeout(() => {
-                let searchField = document.querySelector('.select2-container--open .select2-search__field');
-                if (searchField) searchField.focus();
-            }, 50);
-        });
+        if ($.fn.select2) {
+            $('.select2-bootstrap').select2({ theme: 'bootstrap-5', width: '100%' });
+            $('.select2-stations').select2({ theme: 'bootstrap-5', width: '100%' });
+
+            $(document).on('select2:open', () => {
+                setTimeout(() => {
+                    let searchField = document.querySelector('.select2-container--open .select2-search__field');
+                    if (searchField) searchField.focus();
+                }, 50);
+            });
+            console.log("Select2 Initialized Successfully.");
+        } else {
+            console.warn("Select2 plugin not found. Falling back to native selects.");
+        }
     }
 
     function showToast(message, isError = false) {
@@ -303,11 +355,11 @@
         toastMsg.innerText = message;
         
         if (isError) {
-            toastEl.style.backgroundColor = 'rgba(248, 215, 218, 0.9)'; // Đỏ nhạt 90%
+            toastEl.style.backgroundColor = 'rgba(248, 215, 218, 0.9)'; 
             toastEl.style.color = '#842029'; 
             toastEl.style.borderLeftColor = '#dc3545'; 
         } else {
-            toastEl.style.backgroundColor = 'rgba(209, 231, 221, 0.9)'; // Xanh lá nhạt 90%
+            toastEl.style.backgroundColor = 'rgba(209, 231, 221, 0.9)'; 
             toastEl.style.color = '#0f5132'; 
             toastEl.style.borderLeftColor = '#198754';
         }
@@ -315,190 +367,155 @@
         toast.show();
     }
 
-    // --- HÀM 1: LỌC TRẠM THEO TỈNH ---
-    async function filterStations(type, pIdArg) {
-        var pId = pIdArg || (type === 'start' ? $('#provinceStart').val() : (type === 'end' ? $('#provinceEnd').val() : null));
-        var targetSelect = type === 'start' ? $('#fromStation') : (type === 'end' ? $('#toStation') : null);
-
-        if (!pId) return;
-
-        targetSelect.prop('disabled', false).html('<option value="">-- Đang nạp trạm... --</option>');
+    function updateRoute() {
+        persistentMarkers.clearLayers();
+        var waypoints = [];
         
-        try {
-            const response = await fetch(`/Driver/GetStationsByProvince?provinceId=${pId}`);
-            const stations = await response.json();
-            
-            let html = '<option value="">-- Chọn trạm --</option>';
-            stations.forEach(s => {
-                html += `<option value="${s.id}" data-lat="${s.lat}" data-lng="${s.lng}">${s.name}</option>`;
-            });
-            targetSelect.html(html).trigger('change.select2');
+        // 1. Start Station (Blue)
+        var start = $('#fromStation option:selected');
+        if (start.val()) {
+            var latLng = L.latLng(parseFloat(start.data('lat')), parseFloat(start.data('lng')));
+            waypoints.push(latLng);
+            L.marker(latLng, { icon: startIcon }).addTo(persistentMarkers).bindPopup("<b>Điểm bắt đầu</b>: " + start.text());
+        }
 
-            // Hiển thị markers của TỈNH ĐÓ lên map
-            showProvinceMarkers(stations, type);
-        } catch (error) {
-            console.error('Lỗi tải trạm:', error);
+        // 2. Intermediate Stations (Orange)
+        $('.intermediate-select').each(function () {
+            var opt = $(this).find('option:selected');
+            if (opt.val()) {
+                var latLng = L.latLng(parseFloat(opt.data('lat')), parseFloat(opt.data('lng')));
+                waypoints.push(latLng);
+                L.marker(latLng, { icon: stopIcon }).addTo(persistentMarkers).bindPopup("<b>Trạm dừng phụ</b>: " + opt.text());
+            }
+        });
+
+        // 3. End Station (Green)
+        var end = $('#toStation option:selected');
+        if (end.val()) {
+            var latLng = L.latLng(parseFloat(end.data('lat')), parseFloat(end.data('lng')));
+            waypoints.push(latLng);
+            L.marker(latLng, { icon: endIcon }).addTo(persistentMarkers).bindPopup("<b>Điểm đến</b>: " + end.text());
+        }
+
+        if (waypoints.length >= 2) {
+            routingControl.setWaypoints(waypoints);
+            
+            // Auto focus viewport to fit new markers if they are changed significantly
+            if (waypoints.length > 0) {
+                var group = L.featureGroup(waypoints.map(w => L.marker(w)));
+                map.fitBounds(group.getBounds().pad(0.2));
+            }
         }
     }
 
-    // --- HÀM 2: HIỂN THỊ MARKERS TRẠM TRÊN MAP ---
+    /* ✅ LOGIC ADD STOP (Restored) */
+    function addStop() {
+        var stopCount = $('.intermediate-select').length + 1;
+        var html = `
+        <div class="intermediate-station" id="stopRow_${stopCount}">
+            <select class="form-select select2-bootstrap mb-2 province-stop" onchange="loadStopStations(${stopCount})">
+                <option value="">-- Tỉnh dừng --</option>
+                @foreach (var p in ViewBag.Provinces) {
+                    <option value="@p.ProvinceId">@p.ProvinceName</option>
+                }
+            </select>
+            <select class="form-select select2-stations intermediate-select" onchange="updateRoute()" disabled>
+                <option value="">-- Trạm phụ --</option>
+            </select>
+            <button type="button" class="btn btn-link text-danger p-0 ms-2" onclick="removeStop(${stopCount})">
+                <i class="bi bi-trash"></i>
+            </button>
+        </div>
+        `;
+        $('#stopsList').append(html);
+        initSelect2();
+        let el = $(`#stopRow_${stopCount}`);
+        el.hide().slideDown(250).css('opacity', 0).animate({ opacity: 1 }, 200);
+    }
+
+    function removeStop(id) {
+        $(`#stopRow_${id}`).animate({ opacity: 0, height: 0 }, 200, function () { $(this).remove(); updateRoute(); });
+    }
+
+    async function loadStopStations(id) {
+        var pId = $(`#stopRow_${id} .province-stop`).val();
+        var target = $(`#stopRow_${id} .intermediate-select`);
+        if (!pId) return;
+        target.prop('disabled', false).html('<option>Loading...</option>');
+        const res = await fetch(`/Driver/GetStationsByProvince?provinceId=${pId}`);
+        const data = await res.json();
+        let html = '<option value="">-- Chọn trạm --</option>';
+        data.forEach(s => { html += `<option value="${s.id}" data-lat="${s.lat}" data-lng="${s.lng}">${s.name}</option>`; });
+        target.html(html).trigger('change.select2');
+    }
+
+    function calculateArrivalTime(seconds) {
+        var start = $('#startTime').val();
+        if (!start || !seconds) return;
+        var arrival = new Date(new Date(start).getTime() + seconds * 1000);
+        var formatted = arrival.getFullYear() + '-' + ('0' + (arrival.getMonth() + 1)).slice(-2) + '-' + ('0' + arrival.getDate()).slice(-2) + 'T' + ('0' + arrival.getHours()).slice(-2) + ':' + ('0' + arrival.getMinutes()).slice(-2);
+        $('#arrivalTime').val(formatted);
+        $('#etaMessage').html(`<i class="bi bi-lightning-auto"></i> ETA tự động cập nhật`);
+    }
+
+    async function filterStations(type) {
+        var pId = type === 'start' ? $('#provinceStart').val() : $('#provinceEnd').val();
+        var targetSelect = type === 'start' ? $('#fromStation') : $('#toStation');
+        if (!pId) return;
+        targetSelect.prop('disabled', false).html('<option value="">-- Đang nạp trạm... --</option>');
+        try {
+            const response = await fetch(`/Driver/GetStationsByProvince?provinceId=${pId}`);
+            const stations = await response.json();
+            let html = '<option value="">-- Chọn trạm --</option>';
+            stations.forEach(s => { html += `<option value="${s.id}" data-lat="${s.lat}" data-lng="${s.lng}">${s.name}</option>`; });
+            targetSelect.html(html).trigger('change.select2');
+            showProvinceMarkers(stations, type);
+        } catch (error) { console.error('Lỗi tải trạm:', error); }
+    }
+
     function showProvinceMarkers(stations, type) {
         locationMarkers.clearLayers();
         var bounds = [];
-
         stations.forEach(s => {
             if (s.lat && s.lng) {
                 bounds.push([s.lat, s.lng]);
                 var iconUrl = (type === 'start') ? 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-blue.png' : 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-green.png';
-                
                 var marker = L.marker([s.lat, s.lng], {
-                    icon: L.icon({
-                        iconUrl: iconUrl,
-                        shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png',
-                        iconSize: [25, 41],
-                        iconAnchor: [12, 41],
-                        popupAnchor: [1, -34],
-                        shadowSize: [41, 41]
-                    })
+                    icon: L.icon({ iconUrl: iconUrl, shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png', iconSize: [25, 41], iconAnchor: [12, 41], popupAnchor: [1, -34], shadowSize: [41, 41] })
                 }).bindPopup(`
                     <div class="text-center p-1">
                         <h6 class="fw-bold mb-1 text-primary">${s.name}</h6>
-                        <p class="small text-muted mb-2">
-                            ${s.address}<br/>
-                            <span class="badge bg-light text-dark border fw-normal">
-                                ${s.wardName ? s.wardName + ', ' : ''}${s.districtName ? s.districtName + ', ' : ''}${s.province}
-                            </span>
+                        <p class="small text-muted mb-2">${s.address}<br/>
+                            <span class="badge bg-light text-dark border fw-normal">${s.wardName ? s.wardName + ', ' : ''}${s.districtName ? s.districtName + ', ' : ''}${s.province}</span>
                         </p>
-                        <button type='button' class='btn btn-sm btn-primary w-100 rounded-pill fw-bold shadow-sm' 
-                                onclick='selectFromMap(${s.id}, "${type}", "${s.name}")'>
-                            <i class="bi bi-pin-angle-fill me-1"></i> Chọn Trạm Này
-                        </button>
+                        <button type='button' class='btn btn-sm btn-primary w-100 rounded-pill fw-bold shadow-sm' onclick='selectFromMap(${s.id}, "${type}", "${s.name}")'>Chọn Trạm Này</button>
                     </div>
                 `);
-                
                 locationMarkers.addLayer(marker);
             }
         });
-
-        if (bounds.length > 0) {
-            map.fitBounds(bounds, { padding: [50, 50], maxZoom: 16 });
-        }
+        if (bounds.length > 0) { map.fitBounds(bounds, { padding: [50, 50], maxZoom: 16 }); }
     }
 
-    // --- HÀM 3: CHỌN TRẠM TỪ MAP ---
     function selectFromMap(id, type, stationName) {
         var targetSelect = (type === 'start') ? $('#fromStation') : (type === 'end') ? $('#toStation') : null;
         if (targetSelect) {
             targetSelect.val(id).trigger('change');
             map.closePopup();
-            
-            // Visual feedback
             showToast(`Đã chọn trạm: ${stationName}`);
-            
-            // Highlight select box
             var selectContainer = targetSelect.next('.select2-container');
             selectContainer.addClass('select-highlight');
             setTimeout(() => selectContainer.removeClass('select-highlight'), 1500);
         }
     }
 
-    // --- HÀM 4: CẬP NHẬT LỘ TRÌNH (VẼ ĐƯỜNG) ---
-    function updateRoute() {
-        var waypoints = [];
-        
-        // Start Station
-        var startId = $('#fromStation').val();
-        if (startId) {
-            var opt = $('#fromStation option:selected');
-            waypoints.push(L.latLng(opt.data('lat'), opt.data('lng')));
-        }
-
-        // Stops
-        $('.intermediate-select').each(function() {
-            var id = $(this).val();
-            if (id) {
-                var opt = $(this).find('option:selected');
-                waypoints.push(L.latLng(opt.data('lat'), opt.data('lng')));
-            }
-        });
-
-        // End Station
-        var endId = $('#toStation').val();
-        if (endId) {
-            var opt = $('#toStation option:selected');
-            waypoints.push(L.latLng(opt.data('lat'), opt.data('lng')));
-        }
-
-        if (waypoints.length >= 2) {
-            routingControl.setWaypoints(waypoints);
-        }
-    }
-
-    // --- HÀM 5: THÊM TRẠM PHỤ ---
-    function addStop() {
-        var stopCount = $('.intermediate-select').length + 1;
-        var html = `
-            <div class="intermediate-station" id="stopRow_${stopCount}">
-                <select class="form-select select2-bootstrap mb-2 province-stop" onchange="loadStopStations(${stopCount})">
-                    <option value="">-- Tỉnh dừng --</option>
-                    @foreach (var p in ViewBag.Provinces) { <option value="@p.ProvinceId">@p.ProvinceName</option> }
-                </select>
-                <select class="form-select select2-stations intermediate-select" onchange="updateRoute()" disabled>
-                    <option value="">-- Trạm phụ --</option>
-                </select>
-                <button type="button" class="btn btn-link text-danger p-0 ms-2" onclick="removeStop(${stopCount})"><i class="bi bi-trash"></i></button>
-            </div>
-        `;
-        $('#stopsList').append(html);
-        initSelect2();
-    }
-
-    async function loadStopStations(id) {
-        var pId = $(`#stopRow_${id} .province-stop`).val();
-        var targetSelect = $(`#stopRow_${id} .intermediate-select`);
-        if (!pId) return;
-
-        targetSelect.prop('disabled', false).html('<option value="">-- Đang nạp... --</option>');
-        const res = await fetch(`/Driver/GetStationsByProvince?provinceId=${pId}`);
-        const stations = await res.json();
-        
-        let html = '<option value="">-- Chọn trạm --</option>';
-        stations.forEach(s => html += `<option value="${s.id}" data-lat="${s.lat}" data-lng="${s.lng}">${s.name}</option>`);
-        targetSelect.html(html).trigger('change.select2');
-    }
-
-    function removeStop(id) {
-        $(`#stopRow_${id}`).remove();
-        updateRoute();
-    }
-
-    function calculateArrivalTime(seconds) {
-        var startTimeVal = $('#startTime').val();
-        if (!startTimeVal || !seconds) return;
-
-        var start = new Date(startTimeVal);
-        var arrival = new Date(start.getTime() + seconds * 1000);
-        
-        var formatted = arrival.getFullYear() + '-' + ('0' + (arrival.getMonth() + 1)).slice(-2) + '-' + ('0' + arrival.getDate()).slice(-2) + 'T' + ('0' + arrival.getHours()).slice(-2) + ':' + ('0' + arrival.getMinutes()).slice(-2);
-        $('#arrivalTime').val(formatted);
-        $('#etaMessage').html(`<i class="bi bi-lightning-auto"></i> ETA tự động cập nhật`);
-    }
-
     function validateAndSubmit() {
         var stops = [];
         $('.intermediate-select').each(function() { if ($(this).val()) stops.push($(this).val()); });
         $('#hiddenStops').val(stops.join(','));
-
-        if (!$('#fromStation').val() || !$('#toStation').val()) {
-            alert("Vui lòng chọn trạm đi và trạm đến!");
-            return false;
-        }
+        if (!$('#fromStation').val() || !$('#toStation').val()) { alert("Vui lòng chọn trạm đi và trạm đến!"); return false; }
         return true;
     }
 
-    function resetMap() {
-        locationMarkers.clearLayers();
-        routingControl.setWaypoints([]);
-        map.setView([16.0544, 108.2022], 6);
-    }
+    function resetMap() { locationMarkers.clearLayers(); routingControl.setWaypoints([]); map.setView([16.0544, 108.2022], 6); }
 </script>
