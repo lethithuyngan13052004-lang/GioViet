@@ -3,6 +3,8 @@ using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using System.Security.Claims;
+using System.Text.Json;
+using System.Collections.Generic;
 using TimChuyenDi.Models;
 
 namespace TimChuyenDi.Controllers
@@ -191,23 +193,36 @@ namespace TimChuyenDi.Controllers
                     _context.Trips.Add(model);
                     await _context.SaveChangesAsync();
 
-                    // Xử lý trạm trung gian
+                    // Xử lý trạm trung gian (Dạng JSON)
                     if (!string.IsNullOrEmpty(intermediateStations))
                     {
-                        var stationIds = intermediateStations.Split(',', StringSplitOptions.RemoveEmptyEntries)
-                                          .Select(int.Parse).ToList();
-                        
-                        for (int i = 0; i < stationIds.Count; i++)
+                        try 
                         {
-                            var ts = new TripStation
+                            var options = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
+                            var stops = JsonSerializer.Deserialize<List<IntermediateStationDto>>(intermediateStations, options);
+                            if (stops != null)
                             {
-                                TripId = model.TripId,
-                                StationId = stationIds[i],
-                                StopOrder = i + 1
-                            };
-                            _context.TripStations.Add(ts);
+                                for (int i = 0; i < stops.Count; i++)
+                                {
+                                    var ts = new TripStation
+                                    {
+                                        TripId = model.TripId,
+                                        StationId = stops[i].stationId,
+                                        StopOrder = i + 1,
+                                        DistanceFromPrev = stops[i].distance,
+                                        EstArrivalTime = stops[i].estArrivalTime
+                                    };
+                                    _context.TripStations.Add(ts);
+                                }
+                                await _context.SaveChangesAsync();
+                            }
                         }
-                        await _context.SaveChangesAsync();
+                        catch (Exception ex)
+                        {
+                            // Ghi log lỗi để debug nếu cần
+                            System.Diagnostics.Debug.WriteLine("JSON Parse Error: " + ex.Message);
+                            // Có thể log vào Database hoặc file log ở đây
+                        }
                     }
 
                     await transaction.CommitAsync();
@@ -625,5 +640,11 @@ namespace TimChuyenDi.Controllers
 
             return RedirectToAction("Index");
         }
+        public class IntermediateStationDto
+    {
+        public int stationId { get; set; }
+        public double? distance { get; set; }
+        public DateTime? estArrivalTime { get; set; }
     }
+}
 }

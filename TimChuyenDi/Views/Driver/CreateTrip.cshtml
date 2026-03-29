@@ -309,6 +309,13 @@
         $('#fromStation, #toStation').on('change', updateRoute);
         $('#startTime').on('change', () => calculateArrivalTime(lastTotalTimeSeconds));
 
+        // Date/Time restriction
+        const now = new Date();
+        const offset = now.getTimezoneOffset() * 60000;
+        const localISOTime = (new Date(now - offset)).toISOString().slice(0, 16);
+        $('#startTime').attr('min', localISOTime);
+        if (!$('#startTime').val()) $('#startTime').val(localISOTime);
+
         // Context-Aware Map Sync for Start/End
         $('#provinceStart, #fromStation').on('select2:opening focus', function() {
             let pId = $('#provinceStart').val();
@@ -380,12 +387,50 @@
         }).addTo(map);
 
         routingControl.on('routesfound', function (e) {
-            var summary = e.routes[0].summary;
+            var route = e.routes[0];
+            var summary = route.summary;
             lastTotalTimeSeconds = summary.totalTime;
             $('#totalDistance').text((summary.totalDistance / 1000).toFixed(1) + " km");
             $('#totalTime').text((summary.totalTime / 3600).toFixed(1) + " h");
             $('#distanceInput').val((summary.totalDistance / 1000).toFixed(1));
             calculateArrivalTime(summary.totalTime);
+
+            // Calculate intermediate stations data
+            if (window.lastRealIndices && window.lastRawWaypoints) {
+                let indices = route.waypointIndices;
+                let coords = route.coordinates;
+                let startTimeStr = $('#startTime').val();
+                let startTime = startTimeStr ? new Date(startTimeStr) : new Date();
+                let stopsData = [];
+
+                for (let i = 1; i < window.lastRawWaypoints.length - 1; i++) {
+                    let currIdx = indices[window.lastRealIndices[i]];
+                    let prevIdx = indices[window.lastRealIndices[i - 1]];
+                    
+                    // Simple segment distance calculation from coordinates
+                    let segmentDist = 0;
+                    for (let j = prevIdx; j < currIdx; j++) {
+                        segmentDist += coords[j].distanceTo(coords[j+1]);
+                    }
+
+                    // Estimate time based on distance ratio (best effort if legs aren't detailed)
+                    let distFromStart = 0;
+                    for (let j = 0; j < currIdx; j++) {
+                        distFromStart += coords[j].distanceTo(coords[j+1]);
+                    }
+                    let timeRatio = distFromStart / summary.totalDistance;
+                    let timeOffset = summary.totalTime * timeRatio;
+                    let estArrival = new Date(startTime.getTime() + timeOffset * 1000);
+
+                    stopsData.push({
+                        stationId: window.lastRawWaypoints[i].stationId,
+                        distance: parseFloat((segmentDist / 1000).toFixed(2)),
+                        estArrivalTime: estArrival.toISOString()
+                    });
+                }
+                $('#hiddenStops').val(JSON.stringify(stopsData));
+                console.log("Intermediate Stations Data Calculated:", stopsData);
+            }
         });
     }
 
@@ -431,20 +476,24 @@
         
         // 1. Collect Point Data (Start, Stops, End)
         var start = $('#fromStation option:selected');
-        if (start.val()) rawWaypoints.push({ type: 'start', lat: parseFloat(start.data('lat')), lng: parseFloat(start.data('lng')), name: start.text(), icon: startIcon });
+        if (start.val()) rawWaypoints.push({ type: 'start', stationId: parseInt(start.val()), lat: parseFloat(start.data('lat')), lng: parseFloat(start.data('lng')), name: start.text(), icon: startIcon });
 
         $('.intermediate-select').each(function () {
             var opt = $(this).find('option:selected');
-            if (opt.val()) rawWaypoints.push({ type: 'stop', lat: parseFloat(opt.data('lat')), lng: parseFloat(opt.data('lng')), name: opt.text(), icon: stopIcon });
+            if (opt.val()) rawWaypoints.push({ type: 'stop', stationId: parseInt(opt.val()), lat: parseFloat(opt.data('lat')), lng: parseFloat(opt.data('lng')), name: opt.text(), icon: stopIcon });
         });
 
         var end = $('#toStation option:selected');
-        if (end.val()) rawWaypoints.push({ type: 'end', lat: parseFloat(end.data('lat')), lng: parseFloat(end.data('lng')), name: end.text(), icon: endIcon });
+        if (end.val()) rawWaypoints.push({ type: 'end', stationId: parseInt(end.val()), lat: parseFloat(end.data('lat')), lng: parseFloat(end.data('lng')), name: end.text(), icon: endIcon });
 
-        if (rawWaypoints.length < 1) return;
+        if (rawWaypoints.length < 1) {
+            $('#hiddenStops').val('');
+            return;
+        }
 
         // 2. Build Routing Waypoints with "Corridor Injection" to keep routes in Vietnam
         var finalWaypoints = [];
+        var realIndices = []; // Track actual station positions in finalWaypoints
         for (var i = 0; i < rawWaypoints.length; i++) {
             var curr = rawWaypoints[i];
             if (!curr) continue;
@@ -453,6 +502,7 @@
             var latLng = L.latLng(curr.lat, curr.lng);
             L.marker(latLng, { icon: curr.icon }).addTo(persistentMarkers).bindPopup(`<b>${curr.type === 'start' ? 'Bắt đầu' : curr.type === 'end' ? 'Kết thúc' : 'Trạm phụ'}</b>: ${curr.name}`);
             
+            realIndices.push(finalWaypoints.length);
             finalWaypoints.push(latLng);
 
             // If there's a next point and it's far away (Hanoi-Da Nang distance), inject corridor
@@ -490,6 +540,8 @@
         }
 
         if (finalWaypoints.length >= 2) {
+            window.lastRawWaypoints = rawWaypoints;
+            window.lastRealIndices = realIndices;
             routingControl.setWaypoints(finalWaypoints);
             
             // Fit map bounds
@@ -673,9 +725,32 @@
             return false;
         }
 
-        var stops = [];
-        $('.intermediate-select').each(function() { if ($(this).val()) stops.push($(this).val()); });
-        $('#hiddenStops').val(stops.join(','));
+        // Logic check: Nếu đã có JSON từ Leaflet (có khoảng cách/thời gian) thì giữ lại.
+        // Nếu chưa có hoặc bị sai lệch số lượng, mới tạo JSON cơ bản từ các Select box.
+        var currentJson = $('#hiddenStops').val();
+        var selectedStops = [];
+        $('.intermediate-select').each(function() { 
+            var val = $(this).val();
+            if (val) selectedStops.push({ stationId: parseInt(val) }); 
+        });
+
+        try {
+            var isJson = currentJson && currentJson.trim().startsWith('[');
+            if (!isJson) {
+                // Nếu không phải JSON (trường hợp chuỗi cũ 1,2,3 hoặc trống)
+                $('#hiddenStops').val(JSON.stringify(selectedStops));
+            } else {
+                var parsed = JSON.parse(currentJson);
+                // Nếu số lượng trạm trong JSON khác số lượng trạm đang chọn -> Cập nhật lại JSON cơ bản
+                if (parsed.length !== selectedStops.length) {
+                    $('#hiddenStops').val(JSON.stringify(selectedStops));
+                }
+                // Nếu bằng nhau và là JSON rồi thì giữ nguyên để bảo toàn distance/estArrivalTime
+            }
+        } catch (e) {
+            $('#hiddenStops').val(JSON.stringify(selectedStops));
+        }
+
         if (!$('#fromStation').val() || !$('#toStation').val()) { 
             showToast("Vui lòng chọn trạm đi và trạm đến!", true);
             return false; 

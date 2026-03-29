@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 
 namespace TimChuyenDi.Models;
@@ -15,6 +15,7 @@ public partial class TripStation
 
     public DateTime? EstArrivalTime { get; set; }
     public DateTime? ArrivalTime { get; set; }
+    public double? DistanceFromPrev { get; set; }
     public virtual Station Station { get; set; } = null!;
 
     public virtual Trip Trip { get; set; } = null!;

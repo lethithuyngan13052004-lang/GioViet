@@ -512,6 +512,8 @@ public partial class TimchuyendiContext : DbContext
 
             entity.Property(e => e.TripStationId).HasColumnType("int(11)");
             entity.Property(e => e.EstArrivalTime).HasColumnType("datetime");
+            entity.Property(e => e.ArrivalTime).HasColumnType("datetime");
+            entity.Property(e => e.DistanceFromPrev).HasColumnType("double").HasDefaultValue(0.0);
             entity.Property(e => e.StationId).HasColumnType("int(11)");
             entity.Property(e => e.StopOrder).HasColumnType("int(11)");
             entity.Property(e => e.TripId).HasColumnType("int(11)");
