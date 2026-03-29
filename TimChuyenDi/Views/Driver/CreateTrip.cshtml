@@ -237,15 +237,13 @@
     var persistentMarkers = L.layerGroup();
     var lastTotalTimeSeconds = 0;
 
-    // Vietnam Coastal Corridor Points (to force routes into Vietnam)
+    // Vietnam backbone (AH1 / Expressway spine) anchor points
     const VN_CORRIDOR = [
-        { name: "Vinh", lat: 18.67, lng: 105.68 },
-        { name: "Đồng Hới", lat: 17.47, lng: 106.60 },
-        { name: "Đà Nẵng", lat: 16.05, lng: 108.20 },
-        { name: "Quy Nhơn", lat: 13.78, lng: 109.21 },
-        { name: "Nha Trang", lat: 12.24, lng: 109.19 },
-        { name: "Phan Thiết", lat: 10.92, leather: 108.10 } // misspelled "leather" fixed to lng below
-    ].map(p => ({ ...p, lng: p.lng || p.leather }));
+        { name: "Hà Tĩnh (AH1)", lat: 18.06, lng: 106.31 },
+        { name: "Quảng Ngãi (AH1)", lat: 15.12, lng: 108.79 },
+        { name: "Phú Yên (AH1)", lat: 13.10, lng: 109.28 },
+        { name: "Ninh Thuận (AH1)", lat: 11.58, lng: 108.98 }
+    ];
 
     // Fixed Icon Definitions
     const iconBase = "https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-";
@@ -331,10 +329,10 @@
             attribution: '&copy; OpenStreetMap contributors'
         }).addTo(map);
 
-        // Khóa map tại Việt Nam theo yêu cầu Admin
-        var vnBounds = [[8.18, 102.14], [23.4, 109.46]];
+        // Mở rộng vùng kéo (MaxBounds) để người dùng có thể kéo Việt Nam ra giữa bản đồ
+        var vnBounds = [[4.5, 95.0], [26.0, 115.0]];
         map.setMaxBounds(vnBounds);
-        map.options.minZoom = 5;
+        map.options.minZoom = 4.5;
 
         routingControl = L.Routing.control({
             waypoints: [],
@@ -363,8 +361,9 @@
 
     function initSelect2() {
         if ($.fn.select2) {
-            $('.select2-bootstrap').select2({ theme: 'bootstrap-5', width: '100%' });
-            $('.select2-stations').select2({ theme: 'bootstrap-5', width: '100%' });
+            $('.select2-bootstrap').select2({ theme: 'bootstrap-5', width: '100%', placeholder: '-- Chọn --', allowClear: true });
+            $('.select2-stations').select2({ theme: 'bootstrap-5', width: '100%', placeholder: '-- Tìm trạm... --', allowClear: true });
+            $('.intermediate-select').select2({ theme: 'bootstrap-5', width: '100%', placeholder: '-- Chọn trạm phụ --', allowClear: true });
 
             $(document).on('select2:open', () => {
                 setTimeout(() => {
@@ -372,9 +371,7 @@
                     if (searchField) searchField.focus();
                 }, 50);
             });
-            console.log("Select2 Initialized Successfully.");
-        } else {
-            console.warn("Select2 plugin not found. Falling back to native selects.");
+            console.log("Select2 Initialized Success.");
         }
     }
 
@@ -433,18 +430,26 @@
                 var next = rawWaypoints[i+1];
                 var latDiff = Math.abs(curr.lat - next.lat);
                 
-                if (latDiff > 2.5) { // Threshold for long-haul in VN
+                // Check if segment crosses the "waist" of Vietnam (approx 16.5N - 19.5N) where detour risk is high
+                var crossesWaist = (Math.min(curr.lat, next.lat) < 16.5 && Math.max(curr.lat, next.lat) > 19.5);
+                
+                if (latDiff > 3.0 && crossesWaist) { 
                     var minLat = Math.min(curr.lat, next.lat);
                     var maxLat = Math.max(curr.lat, next.lat);
                     
                     // Filter and Sort corridor points based on travel direction
                     var isNorthbound = (next.lat > curr.lat);
-                    var applicablePoints = VN_CORRIDOR.filter(cp => cp.lat > minLat + 0.3 && cp.lat < maxLat - 0.3);
+                    var applicablePoints = VN_CORRIDOR.filter(cp => cp.lat > minLat + 0.5 && cp.lat < maxLat - 0.5);
                     
                     if (isNorthbound) {
-                        applicablePoints.sort((a,b) => a.lat - b.lat); // Northbound (Ascending Latitude)
+                        applicablePoints.sort((a,b) => a.lat - b.lat);
                     } else {
-                        applicablePoints.sort((a,b) => b.lat - a.lat); // Southbound (Descending Latitude)
+                        applicablePoints.sort((a,b) => b.lat - a.lat);
+                    }
+
+                    // Only take at most 2 anchor points from the corridor to ensure smoothness
+                    if (applicablePoints.length > 2) {
+                        applicablePoints = [applicablePoints[0], applicablePoints[applicablePoints.length - 1]];
                     }
 
                     applicablePoints.forEach(cp => {
