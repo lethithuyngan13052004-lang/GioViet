@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Máy chủ: 127.0.0.1
--- Thời gian đã tạo: Th3 28, 2026 lúc 05:35 AM
+-- Thời gian đã tạo: Th3 29, 2026 lúc 11:34 AM
 -- Phiên bản máy phục vụ: 10.4.32-MariaDB
 -- Phiên bản PHP: 8.0.30
 
@@ -1314,7 +1314,7 @@ CREATE TABLE `trips` (
 --
 
 INSERT INTO `trips` (`TripId`, `DriverId`, `VehicleId`, `RouteType`, `FromStation`, `ToStation`, `StartTime`, `ArrivalTime`, `AvaiCapacityKg`, `AvaiCapacityM3`, `BasePrice`, `Distance`, `TotalPrice`, `PlatformFee`, `DriverEarning`) VALUES
-(1, 9, 5, 1, 150, 233, '2026-03-28 18:14:00', '2026-03-29 18:14:00', 5000, 10, 50000.00, NULL, NULL, NULL, NULL);
+(4, 9, 5, 1, 54, 222, '2026-03-28 17:26:00', '2026-03-29 15:41:00', 2500, 10, 50000.00, 1706.80, NULL, NULL, NULL);
 
 -- --------------------------------------------------------
 
@@ -11824,13 +11824,13 @@ ALTER TABLE `stations`
 -- AUTO_INCREMENT cho bảng `trips`
 --
 ALTER TABLE `trips`
-  MODIFY `TripId` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=2;
+  MODIFY `TripId` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=5;
 
 --
 -- AUTO_INCREMENT cho bảng `trip_stations`
 --
 ALTER TABLE `trip_stations`
-  MODIFY `TripStationId` int(11) NOT NULL AUTO_INCREMENT;
+  MODIFY `TripStationId` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=2;
 
 --
 -- AUTO_INCREMENT cho bảng `trip_types`

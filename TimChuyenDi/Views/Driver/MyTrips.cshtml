@@ -1,53 +1,258 @@
 @model IEnumerable<TimChuyenDi.Models.Trip>
 @{
-    ViewData["Title"] = "Chuyến xe của tôi";
+    ViewData["Title"] = "Quản lý Chuyến Xe";
+
+    int currentPage = ViewBag.CurrentPage ?? 1;
+    int totalPages = ViewBag.TotalPages ?? 1;
 }
 
-<div class="d-flex justify-content-between align-items-center mt-4 mb-3">
-    <h4><i class="bi bi-card-list"></i> Quản lý Chuyến Xe</h4>
-    @if (TempData["Error"] != null)
-    {
-        <div class="alert alert-danger mt-2">@TempData["Error"]</div>
+<style>
+    body {
+        background: #f6f8fb;
     }
+
+    .trip-card {
+        border-radius: 16px;
+        background: #fff;
+        transition: 0.2s;
+        border: 1px solid #eef1f4;
+    }
+
+        .trip-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 10px 25px rgba(0,0,0,0.08);
+        }
+
+    .trip-header {
+        padding: 12px 16px;
+        border-bottom: 1px solid #f1f3f5;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .route {
+        font-weight: 700;
+        font-size: 0.95rem;
+    }
+
+        .route small {
+            display: block;
+            font-size: 0.75rem;
+            color: #6c757d;
+            font-weight: 500;
+        }
+
+    .badge-type {
+        font-size: 0.65rem;
+        padding: 4px 10px;
+        border-radius: 50px;
+        font-weight: 700;
+    }
+
+    .direct {
+        background: #e7f1ff;
+        color: #0d6efd;
+    }
+
+    .shared {
+        background: #fff3e6;
+        color: #fd7e14;
+    }
+
+    .trip-body {
+        padding: 12px 16px;
+        font-size: 0.85rem;
+    }
+
+    .trip-row {
+        display: flex;
+        justify-content: space-between;
+        margin-bottom: 6px;
+    }
+
+        .trip-row span {
+            color: #6c757d;
+        }
+
+        .trip-row b {
+            color: #212529;
+            font-weight: 600;
+        }
+
+    .price {
+        color: #0d6efd;
+        font-weight: 700;
+    }
+
+    .progress {
+        height: 6px;
+        border-radius: 10px;
+        background: #e9ecef;
+        margin-top: 6px;
+    }
+
+    .progress-bar {
+        border-radius: 10px;
+    }
+
+    .trip-footer {
+        padding: 10px 16px;
+        border-top: 1px solid #f1f3f5;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .btn-sm-custom {
+        padding: 4px 12px;
+        font-size: 0.8rem;
+        border-radius: 8px;
+    }
+
+    /* Pagination */
+    .pagination {
+        margin-top: 20px;
+        justify-content: center;
+    }
+
+    .page-link {
+        border-radius: 8px !important;
+        margin: 0 3px;
+        color: #0d6efd;
+        border: none;
+        background: #f1f5ff;
+    }
+
+    .page-item.active .page-link {
+        background: #0d6efd;
+        color: white;
+    }
+</style>
+
+<div class="container py-4">
+
+    <!-- HEADER -->
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <div>
+            <h4 class="fw-bold mb-0">Chuyến xe của bạn</h4>
+            <small class="text-muted">Quản lý nhanh & gọn</small>
+        </div>
+        <a asp-action="CreateTrip" class="btn btn-primary rounded-pill px-3 py-1">
+            + Đăng chuyến
+        </a>
+    </div>
+
+    <!-- ALERT -->
     @if (TempData["Success"] != null)
     {
-        <div class="alert alert-success mt-2">@TempData["Success"]</div>
+        <div class="alert alert-success py-2">@TempData["Success"]</div>
     }
-    <a asp-action="CreateTrip" class="btn btn-primary fw-bold"><i class="bi bi-plus-circle"></i> Đăng chuyến mới</a>
-</div>
 
-<div class="row">
-    @foreach (var item in Model)
+    @if (TempData["Error"] != null)
     {
-        <div class="col-md-6 mb-3">
-            <div class="card shadow-sm border-info">
-                <div class="card-header bg-info text-white fw-bold">
-                    @item.FromStationNavigation.Province <i class="bi bi-arrow-right"></i> @item.ToStationNavigation.Province
-                </div>
-                <div class="card-body">
-                    <div class="card-footer bg-white border-top-0 text-end">
-                        <a asp-action="EditTrip" asp-route-id="@item.TripId" class="btn btn-sm btn-outline-primary">
-                            <i class="bi bi-pencil-square"></i> Sửa
-                        </a>
-
-                        <form asp-action="DeleteTrip" method="post" class="d-inline">
-                            <input type="hidden" name="id" value="@item.TripId" />
-                            <button type="submit" class="btn btn-sm btn-outline-danger" onclick="return confirm('Bạn có chắc chắn muốn xóa/hủy chuyến xe này không?');">
-                                <i class="bi bi-trash"></i> Xóa
-                            </button>
-                        </form>
-                    </div>
-                    <p class="mb-1"><strong>Xe tải:</strong> @item.Vehicle.PlateNumber</p>
-                    <p class="mb-1">
-                        <strong>Lịch trình:</strong>
-                        @item.StartTime.ToString("dd/MM/yyyy HH:mm")
-                        -
-                        @(item.ArrivalTime?.ToString("dd/MM/yyyy HH:mm") ?? "Chưa cập nhật")
-                    </p>
-                    <p class="mb-1"><strong>Giá mở đầu:</strong> <span class="text-success">@item.BasePrice.ToString("N0") đ</span></p>
-                    <p class="mb-0"><strong>Chỗ trống hiện tại:</strong> <span class="text-danger fw-bold">@item.AvaiCapacityKg kg</span></p>
-                </div>
-            </div>
-        </div>
+        <div class="alert alert-danger py-2">@TempData["Error"]</div>
     }
+
+    <!-- LIST -->
+    <div class="row g-3">
+        @if (!Model.Any())
+        {
+            <div class="text-center py-5">
+                <p class="text-muted">Chưa có chuyến xe</p>
+            </div>
+        }
+        else
+        {
+            @foreach (var item in Model)
+            {
+                var isDirect = item.RouteType == 1;
+
+                var totalKg = item.Vehicle?.CapacityKg ?? 0;
+                var avaiKg = item.AvaiCapacityKg;
+                var filledKg = totalKg - avaiKg;
+                var percent = totalKg > 0 ? (int)Math.Round((double)filledKg / totalKg * 100) : 0;
+
+                <div class="col-md-6 col-lg-4">
+                    <div class="trip-card">
+
+                        <!-- HEADER -->
+                        <div class="trip-header">
+                            <div class="route">
+                                @item.FromStationNavigation.Province.ProvinceName → @item.ToStationNavigation.Province.ProvinceName
+                                <small>
+                                    @item.FromStationNavigation.StationName - @item.ToStationNavigation.StationName
+                                </small>
+                            </div>
+
+                            <span class="badge-type @(isDirect ? "direct" : "shared")">
+                                @(isDirect ? "Riêng" : "Ghép")
+                            </span>
+                        </div>
+
+                        <!-- BODY -->
+                        <div class="trip-body">
+                            <div class="trip-row">
+                                <span>Giờ chạy</span>
+                                <b>@item.StartTime.ToString("HH:mm dd/MM")</b>
+                            </div>
+
+                            <div class="trip-row">
+                                <span>Xe</span>
+                                <b>@item.Vehicle.PlateNumber</b>
+                            </div>
+
+                            <div class="trip-row">
+                                <span>Giá</span>
+                                <b class="price">@item.BasePrice.ToString("N0") đ</b>
+                            </div>
+
+                            <div class="trip-row">
+                                <span>Khoảng cách</span>
+                                <b>@(item.Distance?.ToString("N0") ?? "--") km</b>
+                            </div>
+
+                            <div class="trip-row">
+                                <span>Còn trống</span>
+                                <b>@avaiKg / @totalKg kg</b>
+                            </div>
+
+                            <div class="progress">
+                                <div class="progress-bar bg-primary" style="width:@percent%"></div>
+                            </div>
+                        </div>
+
+                        <!-- FOOTER -->
+                        <div class="trip-footer">
+                            <a asp-action="EditTrip" asp-route-id="@item.TripId" class="btn btn-outline-dark btn-sm-custom">
+                                Sửa
+                            </a>
+
+                            <form asp-action="DeleteTrip" method="post">
+                                <input type="hidden" name="id" value="@item.TripId" />
+                                <button class="btn btn-outline-danger btn-sm-custom"
+                                        onclick="return confirm('Xóa chuyến này?')">
+                                    Xóa
+                                </button>
+                            </form>
+                        </div>
+
+                    </div>
+                </div>
+            }
+        }
+    </div>
+
+    <!-- PAGINATION -->
+    <nav>
+        <ul class="pagination">
+            @for (int i = 1; i <= totalPages; i++)
+            {
+                <li class="page-item @(i == currentPage ? "active" : "")">
+                    <a class="page-link" asp-action="ManageTrip" asp-route-page="@i">@i</a>
+                </li>
+            }
+        </ul>
+    </nav>
+
 </div>

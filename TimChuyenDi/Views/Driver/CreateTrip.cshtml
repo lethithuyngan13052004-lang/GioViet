@@ -22,6 +22,11 @@
 </div>
 
 <style>
+    #intermediateStationsContainer {
+    transition: all 0.2s ease;
+    will-change: opacity, transform;
+    }
+
     #map { height: 650px; border-radius: 20px; border: 1px solid rgba(0,0,0,0.08); box-shadow: 0 10px 30px rgba(0,0,0,0.05); }
     .card-trip { border: none; border-radius: 20px; overflow: hidden; }
     .form-section-title { font-weight: 700; color: #0d6efd; border-left: 4px solid #0d6efd; padding-left: 10px; margin-bottom: 20px; font-size: 0.95rem; text-transform: uppercase; letter-spacing: 0.5px; }
@@ -157,7 +162,7 @@
                                 <label class="form-label fw-bold small text-muted">Giới hạn tải trọng: <span id="vehicleLimits" class="text-primary">Chưa chọn xe</span></label>
                             </div>
                             <div class="col-12">
-                                <label class="form-label fw-bold">Trọng tải đăng ký cho chuyến này (kg)</label>
+                                <label class="form-label fw-bold">Trọng tải còn lại của chuyến này (kg)</label>
                                 <div class="input-group">
                                     <input type="number" name="AvaiCapacityKg" id="capacityKgInput" class="form-control" required placeholder="Nhập số kg" oninput="checkCapacity()">
                                     <span class="input-group-text bg-light text-muted">kg</span>
@@ -245,17 +250,22 @@
         { name: "Ninh Thuận (AH1)", lat: 11.58, lng: 108.98 }
     ];
 
-    // Fixed Icon Definitions
     const iconBase = "https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-";
     const shadowUrl = "https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png";
-    const createIcon = (color) => L.icon({
+    const createIcon = (color, isLarge = false) => L.icon({
         iconUrl: iconBase + color + ".png", shadowUrl: shadowUrl,
-        iconSize: [25, 41], iconAnchor: [12, 41], popupAnchor: [1, -34], shadowSize: [41, 41]
+        iconSize: isLarge ? [35, 57] : [25, 41], 
+        iconAnchor: isLarge ? [17, 57] : [12, 41], 
+        popupAnchor: [1, isLarge ? -48 : -34], 
+        shadowSize: isLarge ? [50, 50] : [41, 41]
     });
 
-    const startIcon = createIcon('blue');
-    const endIcon = createIcon('green');
-    const stopIcon = createIcon('orange');
+    const startIcon = createIcon('blue', true);
+    const endIcon = createIcon('green', true);
+    const stopIcon = createIcon('orange', true);
+    const searchStartIcon = createIcon('blue', false);
+    const searchEndIcon = createIcon('green', false);
+    const searchStopIcon = createIcon('orange', false);
 
     /* ============================================================
        🔥 CRITICAL: TOGGLE LISTENER (TOP PRIORITY - DO NOT MOVE)
@@ -286,12 +296,10 @@
         // Vehicle Capacity Auto-fill & Limit Display
         $(document).on('change', '#vehicleSelect', function () {
             var kg = $(this).find(':selected').data('kg');
-            var m3 = $(this).find(':selected').data('m3');
             
-            if (kg && m3) {
+            if (kg) {
                 $('#capacityKgInput').val(kg);
-                $('#capacityM3Input').val(m3);
-                $('#vehicleLimits').text(`Tối đa ${kg}kg / ${m3}m³`).removeClass('text-danger').addClass('text-primary');
+                $('#vehicleLimits').text(`Tối đa ${kg}kg`).removeClass('text-danger').addClass('text-primary');
             } else {
                 $('#vehicleLimits').text('Chưa chọn xe').removeClass('text-danger');
             }
@@ -300,7 +308,26 @@
 
         $('#fromStation, #toStation').on('change', updateRoute);
         $('#startTime').on('change', () => calculateArrivalTime(lastTotalTimeSeconds));
+
+        // Context-Aware Map Sync for Start/End
+        $('#provinceStart, #fromStation').on('select2:opening focus', function() {
+            let pId = $('#provinceStart').val();
+            if (pId) syncMapWithProvince(pId, 'start');
+        });
+        $('#provinceEnd, #toStation').on('select2:opening focus', function() {
+            let pId = $('#provinceEnd').val();
+            if (pId) syncMapWithProvince(pId, 'end');
+        });
     });
+
+    async function syncMapWithProvince(pId, type) {
+        if (!pId) return;
+        try {
+            const response = await fetch(`/Driver/GetStationsByProvince?provinceId=${pId}`);
+            const stations = await response.json();
+            showProvinceMarkers(stations, type);
+        } catch (e) { console.error("Sync Map Error:", e); }
+    }
 
     /* ✅ LOGIC ẨN TRẠM PHỤ (ROBUST VERSION) */
     function updateIntermediateSection(val) {
@@ -310,16 +337,19 @@
         // Ensure val is compared as a string and handle whitespace
         var value = (val || "").toString().trim();
 
-        if (value == "2") { // 2 = Shared (Ghép chuyến)
-            container.stop(true, true).slideDown(250);
-            console.log("Showing Intermediate Container");
-        } else { // 1 = Direct (Chuyến riêng)
-            container.stop(true, true).slideUp(250, function() {
-                $('#stopsList').empty();
-                updateRoute();
-            });
-            console.log("Hiding Intermediate Container");
-        }
+        if (value == "2") {
+    container
+        .css({ display: 'block', opacity: 0, transform: 'translateY(-10px)' })
+        .animate({ opacity: 1 }, 200)
+        .css({ transform: 'translateY(0)' });
+
+} else {
+    container.animate({ opacity: 0 }, 150, function () {
+        container.css('display', 'none');
+        $('#stopsList').empty();
+        updateRoute();
+    });
+}
     }
 
     function initMap() {
@@ -473,23 +503,38 @@
     function addStop() {
         var stopCount = $('.intermediate-select').length + 1;
         var html = `
-        <div class="intermediate-station" id="stopRow_${stopCount}">
-            <select class="form-select select2-bootstrap mb-2 province-stop" onchange="loadStopStations(${stopCount})">
-                <option value="">-- Tỉnh dừng --</option>
-                @foreach (var p in ViewBag.Provinces) {
-                    <option value="@p.ProvinceId">@p.ProvinceName</option>
-                }
-            </select>
-            <select class="form-select select2-stations intermediate-select" onchange="updateRoute()" disabled>
-                <option value="">-- Trạm phụ --</option>
-            </select>
-            <button type="button" class="btn btn-link text-danger p-0 ms-2" onclick="removeStop(${stopCount})">
-                <i class="bi bi-trash"></i>
+        <div class="intermediate-station d-flex gap-2 align-items-center" id="stopRow_${stopCount}">
+    
+            <div style="flex: 1;">
+                <select class="form-select select2-bootstrap province-stop" onchange="loadStopStations(${stopCount})">
+                    <option value="">-- Tỉnh dừng --</option>
+                    @foreach (var p in ViewBag.Provinces) {
+                        <option value="@p.ProvinceId">@p.ProvinceName</option>
+                    }
+                </select>
+            </div>
+
+            <div style="flex: 1;">
+                <select class="form-select select2-stations intermediate-select" onchange="updateRoute()" disabled>
+                    <option value="">-- Trạm phụ --</option>
+                </select>
+            </div>
+
+            <button type="button" class="btn btn-link text-danger p-0" onclick="removeStop(${stopCount})">
+                <i class="bi bi-trash fs-5"></i>
             </button>
+
         </div>
         `;
         $('#stopsList').append(html);
         initSelect2();
+
+        // Sync map for new stop
+        $(`#stopRow_${stopCount} .province-stop, #stopRow_${stopCount} .intermediate-select`).on('select2:opening focus', function() {
+            let pId = $(`#stopRow_${stopCount} .province-stop`).val();
+            if (pId) syncMapWithProvince(pId, 'stop');
+        });
+
         let el = $(`#stopRow_${stopCount}`);
         el.hide().slideDown(250).css('opacity', 0).animate({ opacity: 1 }, 200);
     }
@@ -516,6 +561,7 @@
         let html = '<option value="">-- Chọn trạm --</option>';
         data.forEach(s => { html += `<option value="${s.id}" data-lat="${s.lat}" data-lng="${s.lng}">${s.name}</option>`; });
         target.html(html).trigger('change.select2');
+        showProvinceMarkers(data, 'stop');
     }
 
     function calculateArrivalTime(seconds) {
@@ -556,7 +602,9 @@
         stations.forEach(s => {
             if (s.lat && s.lng) {
                 bounds.push([s.lat, s.lng]);
-                var iconUrl = (type === 'start') ? 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-blue.png' : 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-green.png';
+                var iconUrl = (type === 'start') ? 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-blue.png' : 
+                              (type === 'end') ? 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-green.png' :
+                              'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-orange.png';
                 var marker = L.marker([s.lat, s.lng], {
                     icon: L.icon({ iconUrl: iconUrl, shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png', iconSize: [25, 41], iconAnchor: [12, 41], popupAnchor: [1, -34], shadowSize: [41, 41] })
                 }).bindPopup(`
@@ -575,7 +623,15 @@
     }
 
     function selectFromMap(id, type, stationName) {
-        var targetSelect = (type === 'start') ? $('#fromStation') : (type === 'end') ? $('#toStation') : null;
+        var targetSelect;
+        if (type === 'start') targetSelect = $('#fromStation');
+        else if (type === 'end') targetSelect = $('#toStation');
+        else if (type === 'stop') {
+            // Find the active stop row (one that's likely being edited)
+            // For stops, we usually want the one that current province markers belong to
+            targetSelect = $('.intermediate-select:not(:disabled)').last(); 
+        }
+
         if (targetSelect) {
             targetSelect.val(id).trigger('change');
             map.closePopup();

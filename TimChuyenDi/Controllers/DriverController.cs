@@ -83,6 +83,7 @@ namespace TimChuyenDi.Controllers
                 .Include(t => t.FromStationNavigation).ThenInclude(s => s.Province)
                 .Include(t => t.ToStationNavigation).ThenInclude(s => s.Province)
                 .Include(t => t.Vehicle)
+                .Include(t => t.RouteTypeNavigation)
                 .Where(t => t.DriverId == driverId)
                 .OrderByDescending(t => t.StartTime)
                 .ToList();
