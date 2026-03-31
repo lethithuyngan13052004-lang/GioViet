@@ -50,7 +50,8 @@ namespace TimChuyenDi.Controllers
             if (ToProvinceId > 0) query = query.Where(t => t.ToStationNavigation.ProvinceId == ToProvinceId);
             if (StartDate.HasValue) query = query.Where(t => t.StartTime.Date >= StartDate.Value.Date);
 
-            var trips = query.Where(t => t.AvaiCapacityKg > 0).OrderBy(t => t.StartTime).ToList();
+            var trips = query.Where(t => t.AvaiCapacityKg > 0 && t.StartTime > DateTime.Now).OrderBy(t => t.StartTime).ToList();
+
 
             ViewBag.Provinces = new SelectList(_context.Provinces.OrderBy(p => p.ProvinceName).ToList(), "ProvinceId", "ProvinceName");
             return View("FindTripsResult", trips);
@@ -79,14 +80,17 @@ namespace TimChuyenDi.Controllers
             }
 
             ViewBag.CargoTypes = new SelectList(_context.Cargotypes.ToList(), "CargoTypeId", "TypeName");
+            ViewBag.OrderCode = GenerateOrderCode();
             return View(trip);
+
         }
 
         [HttpPost]
         public async Task<IActionResult> BookTrip(int TripId, int CargoTypeId, string ReceiverName, string ReceiverPhone,
             string SenderPhone, int PickupType, int DeliveryType, string PickupAddress, string DeliveryAddress,
             int? FromStationId, int? ToStationId, decimal Weight, decimal Length, decimal Width, decimal Height,
-            string Description, int Quantity = 1, string Note = "")
+            string Description, string OrderCode, DateTime? ExpectedDeliveryDate, int Quantity = 1, string Note = "")
+
         {
             var trip = _context.Trips
                 .Include(t => t.RouteTypeNavigation)
@@ -120,14 +124,23 @@ namespace TimChuyenDi.Controllers
             {
                 UserId = customerId,
                 TripId = TripId,
+                OrderCode = OrderCode,
                 TotalPrice = totalPrice,
                 Status = 0,
                 Note = Note,
-                CreatedAt = DateTime.Now
+                CreatedAt = DateTime.Now,
+                ExpectedDeliveryDate = ExpectedDeliveryDate ?? trip.ArrivalTime
             };
+
+
 
             _context.Shiprequests.Add(request);
             await _context.SaveChangesAsync();
+
+            // Đồng bộ OrderCode với Id tự tăng
+            request.OrderCode = "TC" + request.Id;
+            await _context.SaveChangesAsync();
+
 
             var cargo = new Cargodetail
             {
@@ -180,6 +193,8 @@ namespace TimChuyenDi.Controllers
                 var user = _context.Users.Find(int.Parse(userIdStr));
                 ViewBag.UserPhone = user?.Phone;
             }
+            ViewBag.OrderCode = GenerateOrderCode();
+
 
             return View();
         }
@@ -191,22 +206,32 @@ namespace TimChuyenDi.Controllers
         public async Task<IActionResult> CreateRequest(int fromProvinceId, int toProvinceId, int cargoTypeId,
             string ReceiverName, string ReceiverPhone, string SenderPhone, int PickupType, int DeliveryType,
             string PickupAddress, string DeliveryAddress, int? FromStationId, int? ToStationId,
-            decimal Weight, decimal Length, decimal Width, decimal Height, string Description, string Note)
+            decimal Weight, decimal Length, decimal Width, decimal Height, string Description, string Note,
+            string OrderCode, DateTime? ExpectedDeliveryDate)
+
         {
             var userIdStr = User.FindFirstValue("UserId") ?? User.FindFirstValue(ClaimTypes.NameIdentifier);
             int customerId = int.Parse(userIdStr);
 
-            // BƯỚC 1: Lưu shiprequest (TripId = null vì chưa có xe)
             var request = new Shiprequest
             {
                 UserId = customerId,
                 TripId = null,
+                OrderCode = OrderCode,
                 Status = 0,
                 Note = Note,
-                CreatedAt = DateTime.Now
+                CreatedAt = DateTime.Now,
+                ExpectedDeliveryDate = ExpectedDeliveryDate
             };
+
+
             _context.Shiprequests.Add(request);
             await _context.SaveChangesAsync();
+
+            // Đồng bộ OrderCode với Id tự tăng
+            request.OrderCode = "TC" + request.Id;
+            await _context.SaveChangesAsync();
+
 
             // BƯỚC 2: Lưu hàng hóa
             var cargo = new Cargodetail
@@ -265,9 +290,11 @@ namespace TimChuyenDi.Controllers
                 .Include(t => t.Driver)
                 .Include(t => t.Vehicle).ThenInclude(v => v.VehicleType)
                 .Where(t => t.AvaiCapacityKg >= (cargo != null ? cargo.Weight : 0)
-                       && (route == null || (t.FromStationNavigation.ProvinceId == route.FromProvinceId && t.ToStationNavigation.ProvinceId == route.ToProvinceId)))
+                       && (route == null || (t.FromStationNavigation.ProvinceId == route.FromProvinceId && t.ToStationNavigation.ProvinceId == route.ToProvinceId))
+                       && t.StartTime > DateTime.Now)
                 .OrderBy(t => t.StartTime)
                 .ToList();
+
 
             ViewBag.RequestId = id;
             return View(matchingTrips);
@@ -291,6 +318,13 @@ namespace TimChuyenDi.Controllers
             if (request != null && trip != null)
             {
                 request.TripId = tripId;
+                request.ExpectedDeliveryDate = trip.ArrivalTime;
+
+                // Đồng bộ OrderCode nếu chưa có
+                if (string.IsNullOrEmpty(request.OrderCode))
+                {
+                    request.OrderCode = "TC" + request.Id;
+                }
                 
                 // Cập nhật lại giá
                 var cargo = request.Cargodetails.FirstOrDefault();
@@ -300,6 +334,7 @@ namespace TimChuyenDi.Controllers
                 }
 
                 await _context.SaveChangesAsync();
+
                 TempData["SuccessMessage"] = "Đã chọn chuyến xe! Vui lòng chờ tài xế xác nhận.";
             }
 
@@ -462,12 +497,24 @@ namespace TimChuyenDi.Controllers
         // ==========================================
         // MISC
         // ==========================================
+        private string GenerateOrderCode()
+        {
+            return "TC" + DateTime.Now.ToString("yyyyMMdd") + new Random().Next(1000, 9999);
+        }
+
         [HttpGet]
         public IActionResult GetStations(int provinceId)
+
         {
             var stations = _context.Stations
                 .Where(s => s.ProvinceId == provinceId)
-                .Select(s => new { s.StationId, s.StationName })
+                .Select(s => new { 
+                    s.StationId, 
+                    s.StationName,
+                    s.Address,
+                    s.Latitude,
+                    s.Longitude
+                })
                 .ToList();
             return Json(stations);
         }

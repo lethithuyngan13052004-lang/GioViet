@@ -25,19 +25,41 @@
         <!-- THÔNG TIN GIAO NHẬN -->
         <div class="custom-card border-0">
             <div class="section-title">Thông tin giao nhận</div>
-            
-            <label class="form-label mt-2">Tỉnh xuất phát <span class="required-star">*</span></label>
-            <select name="fromProvinceId" id="fromProv" class="form-select custom-input" asp-items="ViewBag.Provinces" required>
-                <option value="">-- Chọn Tỉnh --</option>
-            </select>
 
-            <label class="form-label mt-2">Tỉnh đích <span class="required-star">*</span></label>
-            <select name="toProvinceId" id="toProv" class="form-select custom-input" asp-items="ViewBag.Provinces" required>
-                <option value="">-- Chọn Tỉnh --</option>
-            </select>
+            <div class="row">
+                <div class="col-12">
+                    <label class="form-label">Mã đơn hàng (Tự động)</label>
+                    <input type="text" name="OrderCode" class="form-control custom-input bg-light fw-bold text-muted" value="TC-[Hệ thống tự cấp]" readonly />
 
-            <label class="form-label mt-2">Ngày mong muốn <span class="required-star">*</span></label>
-            <input type="date" name="startDate" class="form-control custom-input" value="@ViewBag.CurrentDate" required id="requestDate"/>
+                </div>
+            </div>
+
+            <div class="row mt-2">
+                <div class="col-6">
+                    <label class="form-label">Tỉnh xuất phát <span class="required-star">*</span></label>
+                    <select name="fromProvinceId" id="fromProv" class="form-select custom-input" asp-items="ViewBag.Provinces" required>
+                        <option value="">-- Chọn Tỉnh --</option>
+                    </select>
+                </div>
+                <div class="col-6">
+                    <label class="form-label">Tỉnh đích <span class="required-star">*</span></label>
+                    <select name="toProvinceId" id="toProv" class="form-select custom-input" asp-items="ViewBag.Provinces" required>
+                        <option value="">-- Chọn Tỉnh --</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="row mt-2">
+                <div class="col-6">
+                    <label class="form-label">Ngày lấy hàng mong muốn <span class="required-star">*</span></label>
+                    <input type="date" name="startDate" class="form-control custom-input" value="@ViewBag.CurrentDate" required id="requestDate"/>
+                </div>
+                <div class="col-6">
+                    <label class="form-label">Ngày giao mong muốn</label>
+                    <input type="date" name="ExpectedDeliveryDate" class="form-control custom-input" id="expectedDeliveryDate"/>
+                </div>
+            </div>
+
 
             <label class="form-label mt-2">Hình thức lấy hàng <span class="required-star">*</span></label>
             <select name="PickupType" id="pickupType" class="form-select custom-input" required>
@@ -50,15 +72,6 @@
                 <input type="text" name="PickupAddress" id="pickupAddrInput" class="form-control custom-input" placeholder="Chọn vị trí trên bản đồ..." readonly required />
                 <input type="hidden" name="PickupLat" id="pickupLat" />
                 <input type="hidden" name="PickupLng" id="pickupLng" />
-                <div class="cr-map-panel mt-2" id="pickupMapPanel">
-                    <div class="cr-map-search">
-                        <input type="text" id="pickupSearch" placeholder="Nhập địa chỉ hoặc kéo ghim..." />
-                        <button type="button" class="btn btn-primary btn-sm" onclick="crSearchMap('pickup')"><i class="bi bi-search"></i></button>
-                    </div>
-                    <div id="pickupMap" class="cr-map-canvas"></div>
-                    <button type="button" class="cr-gps-btn" onclick="crUseGPS('pickup')"><i class="bi bi-cursor-fill me-1"></i> Lấy vị trí GPS</button>
-                    <div class="cr-map-result" id="pickupResult"></div>
-                </div>
             </div>
 
             <div id="pickupStationSection" class="d-none">
@@ -66,7 +79,20 @@
                 <select name="FromStationId" id="fromStation" class="form-select custom-input">
                     <option value="">-- Chọn kho/bến xe --</option>
                 </select>
+                <div id="fromStationAddress" class="mt-2 text-primary small fw-bold"></div>
             </div>
+
+            <div class="cr-map-panel mt-2" id="pickupMapPanel">
+                <div class="cr-map-search" id="pickupSearchBox">
+                    <input type="text" id="pickupSearch" placeholder="Nhập địa chỉ hoặc kéo ghim..." />
+                    <button type="button" class="btn btn-primary btn-sm" onclick="crSearchMap('pickup')"><i class="bi bi-search"></i></button>
+                </div>
+                <div id="pickupMap" class="cr-map-canvas"></div>
+                <button type="button" class="cr-gps-btn" id="pickupGpsBtn" onclick="crUseGPS('pickup')"><i class="bi bi-cursor-fill me-1"></i> Lấy vị trí GPS</button>
+                <div class="cr-map-result" id="pickupResult"></div>
+            </div>
+
+
 
             <label class="form-label mt-2">Hình thức nhận hàng <span class="required-star">*</span></label>
             <select name="DeliveryType" id="deliveryType" class="form-select custom-input" required>
@@ -79,15 +105,6 @@
                 <input type="text" name="DeliveryAddress" id="deliveryAddrInput" class="form-control custom-input" placeholder="Chọn vị trí trên bản đồ..." readonly required />
                 <input type="hidden" name="DeliveryLat" id="deliveryLat" />
                 <input type="hidden" name="DeliveryLng" id="deliveryLng" />
-                <div class="cr-map-panel mt-2" id="deliveryMapPanel">
-                    <div class="cr-map-search">
-                        <input type="text" id="deliverySearch" placeholder="Nhập địa chỉ hoặc kéo ghim..." />
-                        <button type="button" class="btn btn-primary btn-sm" onclick="crSearchMap('delivery')"><i class="bi bi-search"></i></button>
-                    </div>
-                    <div id="deliveryMap" class="cr-map-canvas"></div>
-                    <button type="button" class="cr-gps-btn" onclick="crUseGPS('delivery')"><i class="bi bi-cursor-fill me-1"></i> Lấy vị trí GPS</button>
-                    <div class="cr-map-result" id="deliveryResult"></div>
-                </div>
             </div>
 
             <div id="deliveryStationSection" class="d-none">
@@ -95,7 +112,20 @@
                 <select name="ToStationId" id="toStation" class="form-select custom-input">
                     <option value="">-- Chọn kho/bến xe --</option>
                 </select>
+                <div id="toStationAddress" class="mt-2 text-primary small fw-bold"></div>
             </div>
+
+            <div class="cr-map-panel mt-2" id="deliveryMapPanel">
+                <div class="cr-map-search" id="deliverySearchBox">
+                    <input type="text" id="deliverySearch" placeholder="Nhập địa chỉ hoặc kéo ghim..." />
+                    <button type="button" class="btn btn-primary btn-sm" onclick="crSearchMap('delivery')"><i class="bi bi-search"></i></button>
+                </div>
+                <div id="deliveryMap" class="cr-map-canvas"></div>
+                <button type="button" class="cr-gps-btn" id="deliveryGpsBtn" onclick="crUseGPS('delivery')"><i class="bi bi-cursor-fill me-1"></i> Lấy vị trí GPS</button>
+                <div class="cr-map-result" id="deliveryResult"></div>
+            </div>
+
+
         </div>
 
         <!-- THÔNG TIN LIÊN HỆ -->
@@ -188,6 +218,7 @@
         // CR MAP LOGIC (CreateRequest page)
         // ============================================================
         const crMaps = {}, crMarkers = {};
+        const crModes = { pickup: 1, delivery: 1 }; // 1 = Address, 2 = Station
 
         function crInitMap(type) {
             if (crMaps[type]) return;
@@ -197,8 +228,16 @@
                 attribution: '&copy; OpenStreetMap'
             }).addTo(m);
             const marker = L.marker(center, { draggable: true }).addTo(m);
-            marker.on('dragend', () => { const p = marker.getLatLng(); crReverseGeocode(type, p.lat, p.lng); });
-            m.on('click', e => { marker.setLatLng(e.latlng); crReverseGeocode(type, e.latlng.lat, e.latlng.lng); });
+            marker.on('dragend', () => { 
+                if (crModes[type] == 2) return;
+                const p = marker.getLatLng(); 
+                crReverseGeocode(type, p.lat, p.lng); 
+            });
+            m.on('click', e => { 
+                if (crModes[type] == 2) return;
+                marker.setLatLng(e.latlng); 
+                crReverseGeocode(type, e.latlng.lat, e.latlng.lng); 
+            });
             crMaps[type] = m; crMarkers[type] = marker;
             setTimeout(() => m.invalidateSize(), 300);
         }
@@ -255,6 +294,15 @@
             res.textContent = '📍 ' + name; res.classList.add('visible');
         }
 
+        function crPlaceStation(type, lat, lng, name) {
+            if (!crMaps[type]) crInitMap(type);
+            crMaps[type].setView([lat, lng], 16);
+            crMarkers[type].setLatLng([lat, lng]);
+            const res = document.getElementById(type + 'Result');
+            res.textContent = '📍 ' + name; 
+            res.classList.add('visible');
+        }
+
         // ============================================================
         // EXISTING LOGIC (date, station load, volume)
         // ============================================================
@@ -274,29 +322,43 @@
             const toStationSelect = document.getElementById('toStation');
 
             pickupType.addEventListener('change', function() {
+                crModes['pickup'] = this.value;
                 if (this.value == '2') {
                     pickupAddr.classList.add('d-none'); pickupStat.classList.remove('d-none');
                     document.getElementById('pickupAddrInput').required = false;
                     fromStationSelect.required = true;
+                    document.getElementById('pickupSearchBox').classList.add('d-none');
+                    document.getElementById('pickupGpsBtn').classList.add('d-none');
+                    if (crMarkers['pickup']) crMarkers['pickup'].dragging.disable();
                     loadStations(fromProv.value, fromStationSelect);
                 } else {
                     pickupAddr.classList.remove('d-none'); pickupStat.classList.add('d-none');
                     document.getElementById('pickupAddrInput').required = true;
                     fromStationSelect.required = false;
+                    document.getElementById('pickupSearchBox').classList.remove('d-none');
+                    document.getElementById('pickupGpsBtn').classList.remove('d-none');
+                    if (crMarkers['pickup']) crMarkers['pickup'].dragging.enable();
                     setTimeout(() => crInitMap('pickup'), 100);
                 }
             });
 
             deliveryType.addEventListener('change', function() {
+                crModes['delivery'] = this.value;
                 if (this.value == '2') {
                     deliveryAddr.classList.add('d-none'); deliveryStat.classList.remove('d-none');
                     document.getElementById('deliveryAddrInput').required = false;
                     toStationSelect.required = true;
+                    document.getElementById('deliverySearchBox').classList.add('d-none');
+                    document.getElementById('deliveryGpsBtn').classList.add('d-none');
+                    if (crMarkers['delivery']) crMarkers['delivery'].dragging.disable();
                     loadStations(toProv.value, toStationSelect);
                 } else {
                     deliveryAddr.classList.remove('d-none'); deliveryStat.classList.add('d-none');
                     document.getElementById('deliveryAddrInput').required = true;
                     toStationSelect.required = false;
+                    document.getElementById('deliverySearchBox').classList.remove('d-none');
+                    document.getElementById('deliveryGpsBtn').classList.remove('d-none');
+                    if (crMarkers['delivery']) crMarkers['delivery'].dragging.enable();
                     setTimeout(() => crInitMap('delivery'), 100);
                 }
             });
@@ -309,9 +371,35 @@
                 fetch(`/Customer/GetStations?provinceId=${provId}`)
                     .then(r => r.json()).then(data => {
                         selectElem.innerHTML = '<option value="">-- Chọn kho/bến xe --</option>';
-                        data.forEach(s => { selectElem.innerHTML += `<option value="${s.stationId}">${s.stationName}</option>`; });
+                        data.forEach(s => { 
+                            selectElem.innerHTML += `<option value="${s.stationId}" data-lat="${s.latitude || ''}" data-lng="${s.longitude || ''}" data-address="${s.address || s.stationName}">${s.stationName}</option>`; 
+                        });
+                        // trigger change to clear/update map
+                        selectElem.dispatchEvent(new Event('change'));
                     });
             }
+
+            fromStationSelect.addEventListener('change', function() {
+                const opt = this.options[this.selectedIndex];
+                const addrLabel = document.getElementById('fromStationAddress');
+                if (opt && opt.value && opt.dataset.lat && opt.dataset.lng) {
+                    addrLabel.textContent = opt.dataset.address;
+                    crPlaceStation('pickup', parseFloat(opt.dataset.lat), parseFloat(opt.dataset.lng), opt.dataset.address);
+                } else {
+                    addrLabel.textContent = '';
+                }
+            });
+
+            toStationSelect.addEventListener('change', function() {
+                const opt = this.options[this.selectedIndex];
+                const addrLabel = document.getElementById('toStationAddress');
+                if (opt && opt.value && opt.dataset.lat && opt.dataset.lng) {
+                    addrLabel.textContent = opt.dataset.address;
+                    crPlaceStation('delivery', parseFloat(opt.dataset.lat), parseFloat(opt.dataset.lng), opt.dataset.address);
+                } else {
+                    addrLabel.textContent = '';
+                }
+            });
 
             // Volume calculator
             const ids = ['len', 'wid', 'hei'];

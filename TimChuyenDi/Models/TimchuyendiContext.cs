@@ -342,6 +342,9 @@ public partial class TimchuyendiContext : DbContext
                 .HasPrecision(18, 2);
             entity.Property(e => e.TripId).HasColumnType("int(11)");
             entity.Property(e => e.UserId).HasColumnType("int(11)");
+            entity.Property(e => e.OrderCode).HasMaxLength(50);
+            entity.Property(e => e.ExpectedDeliveryDate).HasColumnType("datetime");
+
 
             entity.HasOne(d => d.User).WithMany(p => p.Shiprequests)
                 .HasForeignKey(d => d.UserId)

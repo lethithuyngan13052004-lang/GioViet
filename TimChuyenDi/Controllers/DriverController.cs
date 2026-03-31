@@ -569,6 +569,49 @@ namespace TimChuyenDi.Controllers
             return RedirectToAction("ManageVehicles");
         }
 
+        // GET: Hiển thị các đơn hàng chờ ghép (chưa có chuyến) có lộ trình phù hợp với tài xế
+        [HttpGet]
+        public IActionResult AvailableOrders()
+        {
+            var userIdStr = User.FindFirstValue("UserId");
+            if (string.IsNullOrEmpty(userIdStr)) return RedirectToAction("Login", "Auth");
+            int driverId = int.Parse(userIdStr);
+
+            // BƯỚC 1: Lấy danh sách các chuyến xe sắp chạy của tài xế này
+            var activeTrips = _context.Trips
+                .Include(t => t.FromStationNavigation).ThenInclude(s => s.Province)
+                .Include(t => t.ToStationNavigation).ThenInclude(s => s.Province)
+                .Where(t => t.DriverId == driverId && t.StartTime > DateTime.Now)
+                .ToList();
+
+
+            if (!activeTrips.Any())
+            {
+                ViewBag.Message = "Bạn chưa có chuyến xe nào sắp khởi hành. Vui lòng đăng chuyến xe trước để tìm đơn ghép!";
+                return View(new List<Shiprequest>());
+            }
+
+            // Lấy danh sách các cặp Tỉnh đi - Tỉnh đến mà tài xế đang chạy
+            var activeRoutes = activeTrips.Select(t => new { From = t.FromStationNavigation.ProvinceId, To = t.ToStationNavigation.ProvinceId }).Distinct().ToList();
+
+            // BƯỚC 2: Tìm các đơn hàng chưa có chuyến (TripId == null) và khớp lộ trình
+            var availableRequests = _context.Shiprequests
+                .Include(r => r.User)
+                .Include(r => r.Cargodetails)
+                .Include(r => r.Shippingroutes)
+                .Where(r => r.TripId == null && (r.Status == 0 || r.Status == null))
+                .ToList() // Thực hiện lọc nốt phía Client nếu logic route phức tạp
+                .Where(r => {
+                    var route = r.Shippingroutes.FirstOrDefault();
+                    return route != null && activeRoutes.Any(ar => ar.From == route.FromProvinceId && ar.To == route.ToProvinceId);
+                })
+                .OrderBy(r => r.ExpectedDeliveryDate ?? DateTime.MaxValue) // Ưu tiên ngày giao hàng mong muốn
+                .ToList();
+
+            ViewBag.ActiveTrips = activeTrips;
+            return View(availableRequests);
+        }
+
         // POST: Xóa xe
         [HttpPost]
         public IActionResult DeleteVehicle(int id)
@@ -622,6 +665,8 @@ namespace TimChuyenDi.Controllers
             {
                 request.TripId = tripId;
                 request.Status = 1; // Đã xác nhận
+                request.ExpectedDeliveryDate = trip.ArrivalTime;
+
                 
                 var cargo = request.Cargodetails.FirstOrDefault();
                 if (cargo != null)
@@ -631,7 +676,13 @@ namespace TimChuyenDi.Controllers
                 }
 
                 await _context.SaveChangesAsync();
+
+                // Đồng bộ OrderCode
+                request.OrderCode = "TC" + request.Id;
+                await _context.SaveChangesAsync();
+
                 TempData["Success"] = $"Đã ghép đơn hàng #{requestId} vào chuyến xe của bạn thành công!";
+
             }
             else
             {

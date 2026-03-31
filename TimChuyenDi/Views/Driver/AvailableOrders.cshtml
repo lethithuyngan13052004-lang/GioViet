@@ -1,0 +1,181 @@
+@model IEnumerable<TimChuyenDi.Models.Shiprequest>
+@{
+    ViewData["Title"] = "Tìm Đơn Hàng Phù Hợp";
+    var activeTrips = ViewBag.ActiveTrips as IEnumerable<TimChuyenDi.Models.Trip>;
+}
+
+<div class="container mt-4">
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center">
+                <h2 class="fw-bold text-primary mb-0"><i class="bi bi-search me-2"></i>Chợ Đơn Hàng</h2>
+                <span class="badge bg-primary rounded-pill px-3 py-2">@Model.Count() đơn hàng khả dụng</span>
+            </div>
+            <p class="text-muted mt-2">Dưới đây là các đơn hàng chưa có chuyến xe, có lộ trình khớp với các chuyến xe sắp tới của bạn.</p>
+        </div>
+    </div>
+
+    @if (!string.IsNullOrEmpty(ViewBag.Message))
+    {
+        <div class="alert alert-info border-0 shadow-sm rounded-4 p-4 text-center">
+            <i class="bi bi-info-circle fs-2 d-block mb-3"></i>
+            <h5 class="fw-bold">@ViewBag.Message</h5>
+            <a asp-action="CreateTrip" class="btn btn-primary mt-3 px-4 rounded-pill">Đăng chuyến xe mới</a>
+        </div>
+    }
+    else if (!Model.Any())
+    {
+        <div class="alert alert-warning border-0 shadow-sm rounded-4 p-4 text-center">
+            <i class="bi bi-emoji-frown fs-2 d-block mb-3"></i>
+            <h5 class="fw-bold">Hiện chưa có đơn hàng nào khớp với lộ trình của bạn.</h5>
+            <p class="mb-0">Hãy quay lại sau hoặc đăng thêm các lộ trình khác nhé!</p>
+        </div>
+    }
+    else
+    {
+        <div class="row g-4">
+            @foreach (var item in Model)
+            {
+                var route = item.Shippingroutes.FirstOrDefault();
+                var cargo = item.Cargodetails.FirstOrDefault();
+                
+                <div class="col-lg-6">
+                    <div class="card h-100 border-0 shadow-sm rounded-4 overflow-hidden order-card">
+                        <div class="card-header bg-white border-0 p-3 pt-4 d-flex justify-content-between align-items-start">
+                            <div>
+                                <span class="badge bg-light text-primary border border-primary-subtle rounded-pill mb-2">#@(item.OrderCode ?? ("TC" + item.Id))</span>
+                                <div class="text-muted small"><i class="bi bi-clock me-1"></i>Đăng lúc: @item.CreatedAt.ToString("dd/MM/yyyy HH:mm")</div>
+                            </div>
+                            <div class="text-end">
+                                <div class="fw-bold text-danger fs-5">@(item.ExpectedDeliveryDate?.ToString("dd/MM/yyyy") ?? "Giao ngay")</div>
+                                <div class="small text-muted text-uppercase tracking-wider">Ngày giao mong muốn</div>
+                            </div>
+                        </div>
+                        
+                        <div class="card-body p-4">
+                            <!-- ROUTE DISPLAY -->
+                            <div class="route-container mb-4">
+                                <div class="d-flex align-items-center mb-3">
+                                    <div class="route-dot bg-success"></div>
+                                    <div class="ms-3">
+                                        <div class="text-muted small">Điểm lấy hàng</div>
+                                        <div class="fw-bold">@(route?.PickupAddress ?? "Chưa xác định")</div>
+                                    </div>
+                                </div>
+                                <div class="route-line mx-2"></div>
+                                <div class="d-flex align-items-center mt-3">
+                                    <div class="route-dot bg-danger"></div>
+                                    <div class="ms-3">
+                                        <div class="text-muted small">Điểm giao hàng</div>
+                                        <div class="fw-bold">@(route?.DeliveryAddress ?? "Chưa xác định")</div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <hr class="my-4 opacity-10">
+
+                            <!-- DETAILS -->
+                            <div class="row g-3">
+                                <div class="col-6">
+                                    <div class="d-flex align-items-center">
+                                        <div class="icon-box bg-info-subtle text-info rounded-3 p-2 me-3">
+                                            <i class="bi bi-box-seam"></i>
+                                        </div>
+                                        <div>
+                                            <div class="small text-muted">Hàng hóa</div>
+                                            <div class="fw-bold">@(cargo?.Weight ?? 0) kg</div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-6">
+                                    <div class="d-flex align-items-center">
+                                        <div class="icon-box bg-warning-subtle text-warning rounded-3 p-2 me-3">
+                                            <i class="bi bi-person"></i>
+                                        </div>
+                                        <div>
+                                            <div class="small text-muted">Người gửi</div>
+                                            <div class="fw-bold">@item.User.Name</div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            @if (!string.IsNullOrEmpty(item.Note))
+                            {
+                                <div class="mt-4 p-3 bg-light rounded-3 small text-muted">
+                                    <i class="bi bi-info-circle me-1"></i> <strong>Ghi chú:</strong> @item.Note
+                                </div>
+                            }
+                        </div>
+
+                        <div class="card-footer bg-white border-0 p-4 pt-0">
+                            <div class="dropdown w-100">
+                                <button class="btn btn-primary w-100 rounded-pill py-2 fw-bold" type="button" id="dropdownMenuButton@item.Id" data-bs-toggle="dropdown" aria-expanded="false">
+                                    <i class="bi bi-check2-circle me-2"></i>Nhận đơn ngay
+                                </button>
+                                <ul class="dropdown-menu dropdown-menu-end shadow border-0 rounded-3 w-100 p-2" aria-labelledby="dropdownMenuButton@item.Id">
+                                    <li class="dropdown-header border-bottom mb-2 pb-2">Chọn chuyến xe của bạn để ghép:</li>
+                                    @foreach (var trip in activeTrips)
+                                    {
+                                        var tripRoute = item.Shippingroutes.FirstOrDefault();
+                                        if (tripRoute != null && trip.FromStationNavigation.ProvinceId == tripRoute.FromProvinceId && trip.ToStationNavigation.ProvinceId == tripRoute.ToProvinceId)
+                                        {
+                                            <li>
+                                                <a class="dropdown-item rounded-2 py-2 d-flex justify-content-between align-items-center" 
+                                                   asp-action="AcceptGenericOrder" asp-route-requestId="@item.Id" asp-route-tripId="@trip.TripId">
+                                                    <div>
+                                                        <div class="fw-bold">@trip.FromStationNavigation.Province.ProvinceName → @trip.ToStationNavigation.Province.ProvinceName</div>
+                                                        <div class="small text-muted">Khởi hành: @trip.StartTime.ToString("dd/MM HH:mm")</div>
+                                                    </div>
+                                                    <i class="bi bi-plus-circle text-primary"></i>
+                                                </a>
+                                            </li>
+                                        }
+                                    }
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            }
+        </div>
+    }
+</div>
+
+<style>
+    .order-card {
+        transition: transform 0.3s ease, shadow 0.3s ease;
+    }
+    .order-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 10px 30px rgba(0,0,0,0.1) !important;
+    }
+    .route-container {
+        position: relative;
+    }
+    .route-dot {
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+        z-index: 2;
+    }
+    .route-line {
+        position: absolute;
+        top: 24px;
+        left: 5px;
+        bottom: 24px;
+        width: 2px;
+        background: repeating-linear-gradient(to bottom, #dee2e6 0, #dee2e6 5px, transparent 5px, transparent 10px);
+        z-index: 1;
+    }
+    .icon-box {
+        width: 40px;
+        height: 40px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    .tracking-wider {
+        letter-spacing: 0.05em;
+    }
+</style>
