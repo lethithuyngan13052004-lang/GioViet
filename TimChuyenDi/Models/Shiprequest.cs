@@ -22,8 +22,9 @@ public partial class Shiprequest
 
     public string? Note { get; set; }
 
-    public DateTime CreatedAt { get; set; }
-    public DateTime? ExpectedDeliveryDate { get; set; }
+    public DateTime PickupTimeFrom { get; set; }
+    public DateTime? PickupTimeTo { get; set; }
+
     public virtual Chatsession? Chatsession { get; set; }
 
 

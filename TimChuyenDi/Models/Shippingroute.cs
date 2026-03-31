@@ -33,4 +33,7 @@ public partial class Shippingroute
     public string? DeliveryAddress { get; set; }
 
     public virtual Shiprequest Request { get; set; } = null!;
+    public virtual Station? FromStation { get; set; }
+    public virtual Station? ToStation { get; set; }
 }
+

@@ -80,8 +80,8 @@ namespace TimChuyenDi.Controllers
             }
 
             ViewBag.CargoTypes = new SelectList(_context.Cargotypes.ToList(), "CargoTypeId", "TypeName");
-            ViewBag.OrderCode = GenerateOrderCode();
             return View(trip);
+
 
         }
 
@@ -89,7 +89,7 @@ namespace TimChuyenDi.Controllers
         public async Task<IActionResult> BookTrip(int TripId, int CargoTypeId, string ReceiverName, string ReceiverPhone,
             string SenderPhone, int PickupType, int DeliveryType, string PickupAddress, string DeliveryAddress,
             int? FromStationId, int? ToStationId, decimal Weight, decimal Length, decimal Width, decimal Height,
-            string Description, string OrderCode, DateTime? ExpectedDeliveryDate, int Quantity = 1, string Note = "")
+            string Description, DateTime? ExpectedDeliveryDate, int Quantity = 1, string Note = "")
 
         {
             var trip = _context.Trips
@@ -124,22 +124,16 @@ namespace TimChuyenDi.Controllers
             {
                 UserId = customerId,
                 TripId = TripId,
-                OrderCode = OrderCode,
                 TotalPrice = totalPrice,
                 Status = 0,
                 Note = Note,
-                CreatedAt = DateTime.Now,
-                ExpectedDeliveryDate = ExpectedDeliveryDate ?? trip.ArrivalTime
+                PickupTimeFrom = DateTime.Now,
+                PickupTimeTo = ExpectedDeliveryDate ?? trip.ArrivalTime
             };
-
-
 
             _context.Shiprequests.Add(request);
             await _context.SaveChangesAsync();
 
-            // Đồng bộ OrderCode với Id tự tăng
-            request.OrderCode = "TC" + request.Id;
-            await _context.SaveChangesAsync();
 
 
             var cargo = new Cargodetail
@@ -170,6 +164,20 @@ namespace TimChuyenDi.Controllers
                 ReceiverPhone = ReceiverPhone
             };
 
+            // Nếu lấy hàng tại kho mà địa chỉ chuỗi đang trống -> Lấy tên của Kho/Trạm đó làm địa chỉ
+            if (route.PickupType == 2 && string.IsNullOrEmpty(route.PickupAddress) && route.FromStationId.HasValue)
+            {
+                var st = _context.Stations.Find(route.FromStationId);
+                if (st != null) route.PickupAddress = st.StationName;
+            }
+            // Nếu nhận hàng tại bến mà địa chỉ chuỗi đang trống -> Lấy tên của Kho/Trạm đó làm địa chỉ
+            if (route.DeliveryType == 2 && string.IsNullOrEmpty(route.DeliveryAddress) && route.ToStationId.HasValue)
+            {
+                var st = _context.Stations.Find(route.ToStationId);
+                if (st != null) route.DeliveryAddress = st.StationName;
+            }
+
+
             _context.Shippingroutes.Add(route);
             await _context.SaveChangesAsync();
 
@@ -193,11 +201,10 @@ namespace TimChuyenDi.Controllers
                 var user = _context.Users.Find(int.Parse(userIdStr));
                 ViewBag.UserPhone = user?.Phone;
             }
-            ViewBag.OrderCode = GenerateOrderCode();
-
 
             return View();
         }
+
 
         // ==========================================
         // 5. ĐĂNG TIN CHỜ XE (POST - Lấy hàng tận nơi)
@@ -207,7 +214,7 @@ namespace TimChuyenDi.Controllers
             string ReceiverName, string ReceiverPhone, string SenderPhone, int PickupType, int DeliveryType,
             string PickupAddress, string DeliveryAddress, int? FromStationId, int? ToStationId,
             decimal Weight, decimal Length, decimal Width, decimal Height, string Description, string Note,
-            string OrderCode, DateTime? ExpectedDeliveryDate)
+            DateTime? ExpectedDeliveryDate)
 
         {
             var userIdStr = User.FindFirstValue("UserId") ?? User.FindFirstValue(ClaimTypes.NameIdentifier);
@@ -217,20 +224,15 @@ namespace TimChuyenDi.Controllers
             {
                 UserId = customerId,
                 TripId = null,
-                OrderCode = OrderCode,
                 Status = 0,
                 Note = Note,
-                CreatedAt = DateTime.Now,
-                ExpectedDeliveryDate = ExpectedDeliveryDate
+                PickupTimeFrom = DateTime.Now,
+                PickupTimeTo = ExpectedDeliveryDate
             };
-
 
             _context.Shiprequests.Add(request);
             await _context.SaveChangesAsync();
 
-            // Đồng bộ OrderCode với Id tự tăng
-            request.OrderCode = "TC" + request.Id;
-            await _context.SaveChangesAsync();
 
 
             // BƯỚC 2: Lưu hàng hóa
@@ -261,6 +263,20 @@ namespace TimChuyenDi.Controllers
                 ReceiverName = ReceiverName,
                 ReceiverPhone = ReceiverPhone
             };
+
+            // Nếu lấy hàng tại bến mà địa chỉ đang trống -> Lấy tên bến/kho làm địa chỉ hiển thị
+            if (route.PickupType == 2 && string.IsNullOrEmpty(route.PickupAddress) && route.FromStationId.HasValue)
+            {
+                var st = _context.Stations.Find(route.FromStationId.Value);
+                if (st != null) route.PickupAddress = st.StationName;
+            }
+            // Nếu nhận hàng tại bến mà địa chỉ đang trống -> Lấy tên bến/kho làm địa chỉ hiển thị
+            if (route.DeliveryType == 2 && string.IsNullOrEmpty(route.DeliveryAddress) && route.ToStationId.HasValue)
+            {
+                var st = _context.Stations.Find(route.ToStationId.Value);
+                if (st != null) route.DeliveryAddress = st.StationName;
+            }
+
             _context.Shippingroutes.Add(route);
 
             await _context.SaveChangesAsync();
@@ -318,7 +334,8 @@ namespace TimChuyenDi.Controllers
             if (request != null && trip != null)
             {
                 request.TripId = tripId;
-                request.ExpectedDeliveryDate = trip.ArrivalTime;
+                request.PickupTimeTo = trip.ArrivalTime;
+
 
                 // Đồng bộ OrderCode nếu chưa có
                 if (string.IsNullOrEmpty(request.OrderCode))
@@ -406,9 +423,13 @@ namespace TimChuyenDi.Controllers
                 .Include(r => r.Trip).ThenInclude(t => t.Driver)
                 .Include(r => r.Cargodetails)
                 .Include(r => r.Shippingroutes)
+                    .ThenInclude(sr => sr.FromStation)
+                .Include(r => r.Shippingroutes)
+                    .ThenInclude(sr => sr.ToStation)
                 .Where(r => r.UserId == customerId)
-                .OrderByDescending(r => r.CreatedAt)
+                .OrderByDescending(r => r.PickupTimeFrom)
                 .ToList();
+
 
             return View(requests);
         }
@@ -423,9 +444,14 @@ namespace TimChuyenDi.Controllers
                 .Include(r => r.Trip).ThenInclude(t => t.FromStationNavigation).ThenInclude(s => s.Province)
                 .Include(r => r.Trip).ThenInclude(t => t.ToStationNavigation).ThenInclude(s => s.Province)
                 .Include(r => r.Trip).ThenInclude(t => t.Driver)
-                .Include(r => r.Trip).ThenInclude(t => t.Vehicle)
+                .Include(r => r.Trip).ThenInclude(t => t.Vehicle).ThenInclude(v => v.VehicleType)
+                .Include(r => r.Trip).ThenInclude(t => t.TripStations).ThenInclude(ts => ts.Station)
                 .Include(r => r.Cargodetails)
                 .Include(r => r.Shippingroutes)
+                    .ThenInclude(sr => sr.FromStation)
+                .Include(r => r.Shippingroutes)
+                    .ThenInclude(sr => sr.ToStation)
+
                 .FirstOrDefault(r => r.Id == id && r.UserId == customerId);
 
             if (requestDetail == null) return NotFound("Không tìm thấy đơn hàng!");
@@ -497,10 +523,7 @@ namespace TimChuyenDi.Controllers
         // ==========================================
         // MISC
         // ==========================================
-        private string GenerateOrderCode()
-        {
-            return "TC" + DateTime.Now.ToString("yyyyMMdd") + new Random().Next(1000, 9999);
-        }
+
 
         [HttpGet]
         public IActionResult GetStations(int provinceId)

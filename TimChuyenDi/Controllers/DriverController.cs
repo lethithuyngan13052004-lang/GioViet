@@ -38,8 +38,9 @@ namespace TimChuyenDi.Controllers
                     .ThenInclude(t => t.ToStationNavigation)
                         .ThenInclude(s => s.Province)
                 .Where(r => r.Trip.DriverId == driverId)
-                .OrderByDescending(r => r.CreatedAt)
+                .OrderByDescending(r => r.PickupTimeFrom)
                 .ToList();
+
 
             return View(requests);
         }
@@ -209,6 +210,7 @@ namespace TimChuyenDi.Controllers
                                         TripId = model.TripId,
                                         StationId = stops[i].stationId,
                                         StopOrder = i + 1,
+
                                         DistanceFromPrev = stops[i].distance,
                                         EstArrivalTime = stops[i].estArrivalTime
                                     };
@@ -351,6 +353,10 @@ namespace TimChuyenDi.Controllers
                 .Include(r => r.User)
                 .Include(r => r.Cargodetails)
                 .Include(r => r.Shippingroutes)
+                    .ThenInclude(sr => sr.FromStation)
+                .Include(r => r.Shippingroutes)
+                    .ThenInclude(sr => sr.ToStation)
+
                 .Include(r => r.Trip)
                     .ThenInclude(t => t.FromStationNavigation)
                         .ThenInclude(s => s.Province)
@@ -599,14 +605,19 @@ namespace TimChuyenDi.Controllers
                 .Include(r => r.User)
                 .Include(r => r.Cargodetails)
                 .Include(r => r.Shippingroutes)
+                    .ThenInclude(sr => sr.FromStation)
+                .Include(r => r.Shippingroutes)
+                    .ThenInclude(sr => sr.ToStation)
+
                 .Where(r => r.TripId == null && (r.Status == 0 || r.Status == null))
                 .ToList() // Thực hiện lọc nốt phía Client nếu logic route phức tạp
                 .Where(r => {
                     var route = r.Shippingroutes.FirstOrDefault();
                     return route != null && activeRoutes.Any(ar => ar.From == route.FromProvinceId && ar.To == route.ToProvinceId);
                 })
-                .OrderBy(r => r.ExpectedDeliveryDate ?? DateTime.MaxValue) // Ưu tiên ngày giao hàng mong muốn
+                .OrderBy(r => r.PickupTimeTo ?? DateTime.MaxValue) // Ưu tiên hạn giao dự kiến
                 .ToList();
+
 
             ViewBag.ActiveTrips = activeTrips;
             return View(availableRequests);
@@ -665,7 +676,7 @@ namespace TimChuyenDi.Controllers
             {
                 request.TripId = tripId;
                 request.Status = 1; // Đã xác nhận
-                request.ExpectedDeliveryDate = trip.ArrivalTime;
+                request.PickupTimeTo = trip.ArrivalTime;
 
                 
                 var cargo = request.Cargodetails.FirstOrDefault();
@@ -677,13 +688,10 @@ namespace TimChuyenDi.Controllers
 
                 await _context.SaveChangesAsync();
 
-                // Đồng bộ OrderCode
-                request.OrderCode = "TC" + request.Id;
-                await _context.SaveChangesAsync();
-
                 TempData["Success"] = $"Đã ghép đơn hàng #{requestId} vào chuyến xe của bạn thành công!";
 
             }
+
             else
             {
                 TempData["Error"] = "Không thể nhận đơn hàng này. Có thể đơn đã được người khác nhận hoặc không hợp lệ.";

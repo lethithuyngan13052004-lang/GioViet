@@ -329,7 +329,7 @@ public partial class TimchuyendiContext : DbContext
             entity.HasIndex(e => e.TripId, "TripId");
 
             entity.Property(e => e.Id).HasColumnType("int(11)");
-            entity.Property(e => e.CreatedAt)
+            entity.Property(e => e.PickupTimeFrom)
                 .HasDefaultValueSql("current_timestamp()")
                 .HasColumnType("timestamp");
             entity.Property(e => e.Note).HasColumnType("text");
@@ -342,8 +342,11 @@ public partial class TimchuyendiContext : DbContext
                 .HasPrecision(18, 2);
             entity.Property(e => e.TripId).HasColumnType("int(11)");
             entity.Property(e => e.UserId).HasColumnType("int(11)");
-            entity.Property(e => e.OrderCode).HasMaxLength(50);
-            entity.Property(e => e.ExpectedDeliveryDate).HasColumnType("datetime");
+            entity.Property(e => e.OrderCode)
+                .HasMaxLength(10)
+                .ValueGeneratedOnAddOrUpdate();
+            entity.Property(e => e.PickupTimeTo).HasColumnType("datetime");
+
 
 
             entity.HasOne(d => d.User).WithMany(p => p.Shiprequests)
@@ -407,7 +410,16 @@ public partial class TimchuyendiContext : DbContext
                 .HasForeignKey(d => d.RequestId)
                 .OnDelete(DeleteBehavior.ClientSetNull)
                 .HasConstraintName("fk_shippingroute_request");
+
+            entity.HasOne(d => d.FromStation).WithMany(p => p.ShippingroutesFrom)
+                .HasForeignKey(d => d.FromStationId)
+                .HasConstraintName("fk_shippingroute_from_station");
+
+            entity.HasOne(d => d.ToStation).WithMany(p => p.ShippingroutesTo)
+                .HasForeignKey(d => d.ToStationId)
+                .HasConstraintName("fk_shippingroute_to_station");
         });
+
 
         modelBuilder.Entity<Station>(entity =>
         {

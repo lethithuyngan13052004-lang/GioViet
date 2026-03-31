@@ -1,7 +1,8 @@
 @model TimChuyenDi.Models.Shiprequest
 
 @{
-    ViewData["Title"] = "Chi tiết đơn hàng #" + (Model.OrderCode ?? ("TC" + Model.Id));
+    ViewData["Title"] = "Chi tiết đơn hàng " + (Model.OrderCode ?? ("#MD" + Model.Id));
+
 
 
 
@@ -24,11 +25,28 @@
         4 => "🎉 Đã giao thành công",
         _ => "⛔ Đã hủy"
     };
+    
+    // Sắp xếp các điểm dừng theo StopOrder
+    var tripStations = Model.Trip?.TripStations?.OrderBy(ts => ts.StopOrder).ToList() ?? new List<TimChuyenDi.Models.TripStation>();
 }
+
+<style>
+    .timeline-container { position: relative; padding-left: 20px; border-left: 2px dashed #dee2e6; margin-left: 10px; }
+    .timeline-item { position: relative; margin-bottom: 25px; }
+    .timeline-item:last-child { margin-bottom: 0; }
+    .timeline-dot { position: absolute; left: -26px; top: 0; width: 12px; height: 12px; border-radius: 50%; background: #dee2e6; border: 2px solid white; z-index: 1; }
+    .timeline-dot.active { background: #0d6efd; box-shadow: 0 0 0 4px rgba(13, 110, 253, 0.2); }
+    .timeline-dot.start { background: #198754; }
+    .timeline-dot.end { background: #dc3545; }
+    .timeline-content { background: white; border-radius: 8px; padding: 0 0 0 10px; }
+    .timeline-content h6 { margin: 0; font-size: 0.9rem; font-weight: 700; color: #212529; }
+    .timeline-content p { margin: 0; font-size: 0.75rem; color: #6c757d; }
+</style>
 
 <div class="container mt-5 mb-5">
     <div class="d-flex justify-content-between align-items-center mb-4">
-        <h3 class="fw-bold text-primary"><i class="bi bi-receipt-cutoff me-2"></i>Chi tiết đơn hàng #@(Model.OrderCode ?? ("TC" + Model.Id))</h3>
+        <h3 class="fw-bold text-primary"><i class="bi bi-receipt-cutoff me-2"></i>Chi tiết đơn hàng @(Model.OrderCode ?? ("#MD" + Model.Id))</h3>
+
 
 
         <a asp-action="RequestHistory" class="btn btn-outline-secondary"><i class="bi bi-arrow-left"></i> Quay lại</a>
@@ -37,8 +55,15 @@
     <div class="card shadow border-0 rounded-4 overflow-hidden">
         <div class="card-header bg-light p-4 border-bottom-0 d-flex justify-content-between align-items-center">
             <div>
-                <span class="text-muted d-block">Ngày đặt hàng: @Model.CreatedAt.ToString("dd/MM/yyyy HH:mm")</span>
+                <span class="text-muted d-block small">Thời gian lấy hàng: </span>
+                <span class="fw-bold">@Model.PickupTimeFrom.ToString("dd/MM/yyyy")</span>
+                @if (Model.PickupTimeTo.HasValue)
+                {
+                    <span class="text-muted"> - </span>
+                    <span class="fw-bold">@Model.PickupTimeTo.Value.ToString("dd/MM/yyyy")</span>
+                }
             </div>
+
             <span class="badge @badgeClass fs-5 px-4 py-2 rounded-pill shadow-sm">@statusText</span>
         </div>
 
@@ -48,25 +73,45 @@
                     <h5 class="fw-bold border-bottom pb-2 mb-3"><i class="bi bi-box-seam text-primary me-2"></i>Thông tin vận chuyển</h5>
 
                     <div class="mb-3">
+                        @{ var r1 = Model.Shippingroutes.FirstOrDefault(); }
                         <label class="text-muted fw-bold small">📍 ĐỊA CHỈ LẤY HÀNG @(Model.Trip != null ? $"({Model.Trip.FromStationNavigation.Province.ProvinceName})" : "")</label>
                         <div class="d-flex align-items-center">
-                            <span class="badge bg-secondary me-2">@(Model.Shippingroutes.FirstOrDefault()?.PickupType == 1 ? "Lấy tận nơi" : "Gửi tại kho")</span>
-                            <p class="fs-6 mb-0">@(Model.Shippingroutes.FirstOrDefault()?.PickupAddress)</p>
+                            <span class="badge bg-secondary me-2">@(r1?.PickupType == 1 ? "Lấy tận nơi" : "Gửi tại trạm")</span>
+                            <div>
+                                <p class="fs-6 fw-bold mb-0">@(!string.IsNullOrEmpty(r1?.PickupAddress) ? r1.PickupAddress : (r1?.FromStation?.StationName ?? "Nơi lấy hàng"))</p>
+                                @if (r1?.PickupType == 2 && r1?.FromStation != null)
+                                {
+                                    <small class="text-muted">@r1.FromStation.Address</small>
+                                }
+                            </div>
                         </div>
+
                     </div>
 
+
                     <div class="mb-3">
+                        @{ var r2 = Model.Shippingroutes.FirstOrDefault(); }
                         <label class="text-muted fw-bold small">🚩 ĐỊA CHỈ GIAO HÀNG @(Model.Trip != null ? $"({Model.Trip.ToStationNavigation.Province.ProvinceName})" : "")</label>
                         <div class="d-flex align-items-center">
-                            <span class="badge bg-secondary me-2">@(Model.Shippingroutes.FirstOrDefault()?.DeliveryType == 1 ? "Giao tận nơi" : "Nhận tại kho")</span>
-                            <p class="fs-6 mb-0">@(Model.Shippingroutes.FirstOrDefault()?.DeliveryAddress)</p>
+                            <span class="badge bg-secondary me-2">@(r2?.DeliveryType == 1 ? "Giao tận nơi" : "Nhận tại trạm")</span>
+                            <div>
+                                <p class="fs-6 fw-bold mb-0">@(!string.IsNullOrEmpty(r2?.DeliveryAddress) ? r2.DeliveryAddress : (r2?.ToStation?.StationName ?? "Nơi giao hàng"))</p>
+                                @if (r2?.DeliveryType == 2 && r2?.ToStation != null)
+                                {
+                                    <small class="text-muted">@r2.ToStation.Address</small>
+                                }
+                            </div>
                         </div>
+
                     </div>
+
 
                     <div class="mb-3 bg-light p-3 rounded-3">
                         <label class="text-muted fw-bold small">👤 NGƯỜI NHẬN</label>
-                        <p class="fs-6 fw-bold text-dark mb-0">@(Model.Shippingroutes.FirstOrDefault()?.ReceiverName)</p>
+                        <p class="fs-6 fw-bold text-dark mb-1">@(Model.Shippingroutes.FirstOrDefault()?.ReceiverName)</p>
+                        <p class="fs-6 text-primary mb-0 fw-bold"><i class="bi bi-telephone-fill me-1"></i> @(Model.Shippingroutes.FirstOrDefault()?.ReceiverPhone)</p>
                     </div>
+
 
                     @if (!string.IsNullOrEmpty(Model.Cargodetails.FirstOrDefault()?.Description))
                     {
@@ -81,35 +126,79 @@
 
                     @if (Model.Trip != null)
                     {
-                        <ul class="list-group list-group-flush mb-4">
+                        <ul class="list-group list-group-flush mb-3">
                             <li class="list-group-item bg-transparent px-0 d-flex justify-content-between">
-                                <span class="text-muted">Tài xế:</span>
+                                <span class="text-muted small">Tài xế:</span>
                                 <span class="fw-bold">@Model.Trip.Driver.Name</span>
                             </li>
                             <li class="list-group-item bg-transparent px-0 d-flex justify-content-between">
-                                <span class="text-muted">Biển số xe:</span>
-                                <span class="badge bg-secondary fs-6">@Model.Trip.Vehicle.PlateNumber</span>
+                                <span class="text-muted small">Biển số xe:</span>
+                                <span class="badge bg-secondary fs-6 rounded-pill">@Model.Trip.Vehicle.PlateNumber</span>
                             </li>
                             <li class="list-group-item bg-transparent px-0 d-flex justify-content-between">
-                                <span class="text-muted">Khởi hành:</span>
-                                <span>@Model.Trip.StartTime.ToString("dd/MM/yyyy HH:mm")</span>
-                            </li>
-                            <li class="list-group-item bg-transparent px-0 d-flex justify-content-between">
-                                <span class="text-muted">Khối lượng gửi:</span>
+                                <span class="text-muted small">Khối lượng gửi:</span>
                                 <span class="fw-bold text-dark">@(Model.Cargodetails.FirstOrDefault()?.Weight) kg</span>
                             </li>
-                            @if (Model.ExpectedDeliveryDate.HasValue)
-                            {
-                                <li class="list-group-item bg-transparent px-0 d-flex justify-content-between">
-                                    <span class="text-muted">Dự kiến nhận:</span>
-                                    <span class="fw-bold text-primary">@Model.ExpectedDeliveryDate.Value.ToString("dd/MM/yyyy HH:mm")</span>
-                                </li>
-                            }
                         </ul>
+
+                        <h5 class="fw-bold border-bottom pb-2 mb-3 mt-4"><i class="bi bi-geo-alt text-danger me-2"></i>Lộ trình xe chạy</h5>
+
+                        
+                        <div class="timeline-container mt-3">
+                            <!-- Xuất phát -->
+                            <div class="timeline-item">
+                                <div class="timeline-dot start active"></div>
+                                <div class="timeline-content">
+                                    <h6>@Model.Trip.FromStationNavigation.StationName</h6>
+                                    <p class="mb-0 text-success small">Xuất phát lúc @Model.Trip.StartTime.ToString("HH:mm dd/MM")</p>
+                                    <p>@Model.Trip.FromStationNavigation.Address</p>
+                                </div>
+                            </div>
+
+                            <!-- Các trạm dừng -->
+                            @foreach (var ts in tripStations)
+                            {
+                                <div class="timeline-item">
+                                    <div class="timeline-dot active"></div>
+                                    <div class="timeline-content">
+                                        <h6>@ts.Station.StationName</h6>
+                                        @if (ts.EstArrivalTime.HasValue)
+                                        {
+                                            <p class="mb-0 small">Dự kiến đến: @ts.EstArrivalTime.Value.ToString("HH:mm dd/MM")</p>
+                                        }
+                                        <p>@ts.Station.Address</p>
+                                    </div>
+                                </div>
+                            }
+
+                            <!-- Trạm cuối -->
+                            <div class="timeline-item">
+                                <div class="timeline-dot end active"></div>
+                                <div class="timeline-content">
+                                    <h6>@Model.Trip.ToStationNavigation.StationName</h6>
+                                    @if (Model.Trip.ArrivalTime.HasValue)
+                                    {
+                                        <p class="mb-0 text-danger small">Kết thúc lúc @Model.Trip.ArrivalTime.Value.ToString("HH:mm dd/MM")</p>
+                                    }
+                                    <p>@Model.Trip.ToStationNavigation.Address</p>
+                                </div>
+                            </div>
+                        </div>
+
+
+                        <div class="alert alert-primary border-0 shadow-sm mt-4 p-3 rounded-4">
+                            <div class="d-flex align-items-center">
+                                <div class="bg-white rounded-circle p-2 me-3 shadow-sm">
+                                    <i class="bi bi-info-circle text-primary fs-4"></i>
+                                </div>
+                                <p class="mb-0 small">Đơn hàng của bạn sẽ được tài xế sắp xếp lộ trình tối ưu nhất dựa trên các điểm dừng trên.</p>
+                            </div>
+                        </div>
                     }
                     else
                     {
                         <div class="text-center py-4">
+
                             <div class="bg-light rounded-circle d-inline-block p-3 mb-3">
                                 <i class="bi bi-search fs-2 text-muted"></i>
                             </div>

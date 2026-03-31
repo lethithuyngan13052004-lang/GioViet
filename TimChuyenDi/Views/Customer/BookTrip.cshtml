@@ -43,17 +43,12 @@
         <div class="custom-card border-0">
             <div class="section-title">Thông tin giao nhận</div>
 
-            <div class="row">
-                <div class="col-12">
-                    <label class="form-label">Mã đơn hàng (Tự động)</label>
-                    <input type="text" name="OrderCode" class="form-control custom-input bg-light fw-bold text-muted" value="TC-[Hệ thống tự cấp]" readonly />
 
-                </div>
-            </div>
 
             <div class="row mt-2">
                 <div class="col-12">
-                    <label class="form-label">Ngày giao dự kiến (Dựa theo chuyến xe)</label>
+                    <label class="form-label">Hạn giao dự kiến (Dựa theo chuyến xe)</label>
+
                     <input type="date" name="ExpectedDeliveryDate" class="form-control custom-input" value="@Model.ArrivalTime?.ToString("yyyy-MM-dd")" />
 
                     <small class="text-muted d-block mt-1">Lưu ý: Bạn có thể thay đổi ngày giao nếu cần thiết.</small>
@@ -64,7 +59,8 @@
                 <label class="form-label">Hình thức lấy hàng <span class="required-star">*</span></label>
 
             <select name="PickupType" id="pickupType" class="form-select custom-input" required>
-                <option value="2">Gửi tại kho/bến xe (@Model.FromStationNavigation.StationName)</option>
+                <option value="2">Gửi tại trạm/bến xe (@Model.FromStationNavigation.StationName)</option>
+
                 <option value="1">Lấy hàng tận nhà (Bên thứ 3)</option>
             </select>
 
@@ -91,7 +87,8 @@
 
             <label class="form-label mt-2">Hình thức nhận hàng <span class="required-star">*</span></label>
             <select name="DeliveryType" id="deliveryType" class="form-select custom-input" required>
-                <option value="2">Nhận tại kho/bến xe (@Model.ToStationNavigation.StationName)</option>
+                <option value="2">Nhận tại trạm/bến xe (@Model.ToStationNavigation.StationName)</option>
+
                 <option value="1">Giao hàng tận nơi</option>
             </select>
 

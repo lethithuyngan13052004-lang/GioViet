@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 
 namespace TimChuyenDi.Models;
@@ -32,4 +32,7 @@ public partial class Station
     public virtual ICollection<Trip> TripToStationNavigations { get; set; } = new List<Trip>();
 
     public virtual Ward? Ward { get; set; }
+    public virtual ICollection<Shippingroute> ShippingroutesFrom { get; set; } = new List<Shippingroute>();
+    public virtual ICollection<Shippingroute> ShippingroutesTo { get; set; } = new List<Shippingroute>();
 }
+

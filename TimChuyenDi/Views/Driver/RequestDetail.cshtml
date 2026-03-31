@@ -1,7 +1,8 @@
 @model TimChuyenDi.Models.Shiprequest
 
 @{
-    ViewData["Title"] = "Chi tiết đơn hàng #" + (Model.OrderCode ?? ("TC" + Model.Id));
+    ViewData["Title"] = "Chi tiết đơn hàng " + (Model.OrderCode ?? ("#MD" + Model.Id));
+
 
 
 
@@ -34,12 +35,14 @@
     <div class="card shadow-sm border-0 rounded-4 overflow-hidden">
         <div class="card-header bg-light p-4 border-bottom d-flex justify-content-between align-items-center">
             <div>
-                <h5 class="mb-1 text-primary">Mã đơn: #@(Model.OrderCode ?? ("TC" + Model.Id))</h5>
+                <h5 class="mb-1 text-primary">Mã đơn: @(Model.OrderCode ?? ("#MD" + Model.Id))</h5>
+
 
 
                 <small class="text-muted">
-                    Ngày khách đặt: @Model.CreatedAt.ToString("dd/MM/yyyy HH:mm")
+                    Thời gian lấy hàng: @Model.PickupTimeFrom.ToString("dd/MM/yyyy") @(Model.PickupTimeTo.HasValue ? " - " + Model.PickupTimeTo.Value.ToString("dd/MM/yyyy") : "")
                 </small>
+
             </div>
             <span class="badge @badgeClass fs-5 px-4 py-2 rounded-pill shadow-sm">@statusText</span>
         </div>
@@ -57,18 +60,32 @@
 
                     <div class="mb-3">
                         <label class="text-muted fw-bold small">📍 ĐỊA CHỈ ĐẾN LẤY HÀNG</label>
-                        <p class="fs-6 mb-0"><strong>@(Model.Shippingroutes.FirstOrDefault()?.PickupAddress)</strong>, @Model.Trip.FromStationNavigation.Province</p>
+                        @{
+                            var r1 = Model.Shippingroutes.FirstOrDefault();
+                            string pAddr = !string.IsNullOrEmpty(r1?.PickupAddress) ? r1.PickupAddress : (r1?.FromStation?.StationName ?? "Chưa xác định");
+                        }
+                        <p class="fs-6 mb-0"><strong>@pAddr</strong>, @(Model.Trip.FromStationNavigation?.Province?.ProvinceName ?? "")</p>
                     </div>
 
-                        <p class="fs-6 mb-0"><strong>@(Model.Shippingroutes.FirstOrDefault()?.DeliveryAddress)</strong>, @Model.Trip.ToStationNavigation.Province.ProvinceName</p>
+
+                    <div class="mb-3">
+                        <label class="text-muted fw-bold small">📍 ĐỊA CHỈ GIAO HÀNG</label>
+                        @{
+                            var r2 = Model.Shippingroutes.FirstOrDefault();
+                            string dAddr = !string.IsNullOrEmpty(r2?.DeliveryAddress) ? r2.DeliveryAddress : (r2?.ToStation?.StationName ?? "Chưa xác định");
+                        }
+                        <p class="fs-6 mb-0"><strong>@dAddr</strong>, @(Model.Trip.ToStationNavigation?.Province?.ProvinceName ?? "")</p>
                     </div>
-                    @if (Model.ExpectedDeliveryDate.HasValue)
+
+                    </div>
+                    @if (Model.PickupTimeTo.HasValue)
                     {
                         <div class="mb-3">
-                            <label class="text-muted fw-bold small">📅 THỜI GIAN DỰ KIẾN GIAO</label>
-                            <p class="fs-6 mb-0 text-primary fw-bold">@Model.ExpectedDeliveryDate.Value.ToString("dd/MM/yyyy HH:mm")</p>
+                            <label class="text-muted fw-bold small">📅 HẠN GIAO DỰ KIẾN</label>
+                            <p class="fs-6 mb-0 text-primary fw-bold">@Model.PickupTimeTo.Value.ToString("dd/MM/yyyy")</p>
                         </div>
                     }
+
 
 
                     <div class="mb-3 bg-light p-3 rounded-3 border-start border-4 border-info">

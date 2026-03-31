@@ -26,13 +26,7 @@
         <div class="custom-card border-0">
             <div class="section-title">Thông tin giao nhận</div>
 
-            <div class="row">
-                <div class="col-12">
-                    <label class="form-label">Mã đơn hàng (Tự động)</label>
-                    <input type="text" name="OrderCode" class="form-control custom-input bg-light fw-bold text-muted" value="TC-[Hệ thống tự cấp]" readonly />
 
-                </div>
-            </div>
 
             <div class="row mt-2">
                 <div class="col-6">
@@ -51,11 +45,13 @@
 
             <div class="row mt-2">
                 <div class="col-6">
-                    <label class="form-label">Ngày lấy hàng mong muốn <span class="required-star">*</span></label>
+                    <label class="form-label">Khoảng tg lấy hàng mong muốn <span class="required-star">*</span></label>
+
                     <input type="date" name="startDate" class="form-control custom-input" value="@ViewBag.CurrentDate" required id="requestDate"/>
                 </div>
                 <div class="col-6">
-                    <label class="form-label">Ngày giao mong muốn</label>
+                    <label class="form-label">Đến ngày (Hạn giao dự kiến)</label>
+
                     <input type="date" name="ExpectedDeliveryDate" class="form-control custom-input" id="expectedDeliveryDate"/>
                 </div>
             </div>
@@ -64,7 +60,8 @@
             <label class="form-label mt-2">Hình thức lấy hàng <span class="required-star">*</span></label>
             <select name="PickupType" id="pickupType" class="form-select custom-input" required>
                 <option value="1">Lấy hàng tại nhà</option>
-                <option value="2">Gửi tại kho/bến xe</option>
+                <option value="2">Gửi tại trạm/bến xe</option>
+
             </select>
 
             <div id="pickupAddressSection">
@@ -75,9 +72,11 @@
             </div>
 
             <div id="pickupStationSection" class="d-none">
-                <label class="form-label mt-2">Kho/bến xe gửi <span class="required-star">*</span></label>
+                <label class="form-label mt-2">Trạm/bến xe gửi <span class="required-star">*</span></label>
+
                 <select name="FromStationId" id="fromStation" class="form-select custom-input">
-                    <option value="">-- Chọn kho/bến xe --</option>
+                    <option value="">-- Chọn trạm/bến xe --</option>
+
                 </select>
                 <div id="fromStationAddress" class="mt-2 text-primary small fw-bold"></div>
             </div>
@@ -97,7 +96,8 @@
             <label class="form-label mt-2">Hình thức nhận hàng <span class="required-star">*</span></label>
             <select name="DeliveryType" id="deliveryType" class="form-select custom-input" required>
                 <option value="1">Giao hàng tận nơi</option>
-                <option value="2">Nhận tại kho/bến xe</option>
+                <option value="2">Nhận tại trạm/bến xe</option>
+
             </select>
 
             <div id="deliveryAddressSection">
@@ -108,9 +108,11 @@
             </div>
 
             <div id="deliveryStationSection" class="d-none">
-                <label class="form-label mt-2">Kho/bến xe đến <span class="required-star">*</span></label>
+                <label class="form-label mt-2">Trạm/bến xe đến <span class="required-star">*</span></label>
+
                 <select name="ToStationId" id="toStation" class="form-select custom-input">
-                    <option value="">-- Chọn kho/bến xe --</option>
+                    <option value="">-- Chọn trạm/bến xe --</option>
+
                 </select>
                 <div id="toStationAddress" class="mt-2 text-primary small fw-bold"></div>
             </div>
@@ -217,8 +219,9 @@
         // ============================================================
         // CR MAP LOGIC (CreateRequest page)
         // ============================================================
-        const crMaps = {}, crMarkers = {};
+        const crMaps = {}, crMarkers = {}, crStationGroups = { pickup: L.layerGroup(), delivery: L.layerGroup() };
         const crModes = { pickup: 1, delivery: 1 }; // 1 = Address, 2 = Station
+
 
         function crInitMap(type) {
             if (crMaps[type]) return;
@@ -239,7 +242,9 @@
                 crReverseGeocode(type, e.latlng.lat, e.latlng.lng); 
             });
             crMaps[type] = m; crMarkers[type] = marker;
+            crStationGroups[type].addTo(m);
             setTimeout(() => m.invalidateSize(), 300);
+
         }
 
         async function crSearchMap(type) {
@@ -303,12 +308,57 @@
             res.classList.add('visible');
         }
 
+        // New function to update all station markers on map
+        function crUpdateStationMarkers(type, stations) {
+            if (!crMaps[type]) crInitMap(type);
+            const group = crStationGroups[type];
+            group.clearLayers();
+
+            const stationIcon = L.divIcon({
+                html: '<i class="bi bi-geo-alt-fill" style="color: #198754; font-size: 24px;"></i>',
+                className: 'station-marker-icon',
+                iconSize: [24, 24],
+                iconAnchor: [12, 24],
+                popupAnchor: [0, -20]
+            });
+
+            stations.forEach(s => {
+                if (s.latitude && s.longitude) {
+                    const smark = L.marker([s.latitude, s.longitude], { icon: stationIcon }).addTo(group);
+                    smark.bindPopup(`<strong>${s.name}</strong><br><small>${s.address}</small><br><button class="btn btn-primary btn-sm mt-2 w-100" onclick="crSelectStationFromMap('${type}', ${s.stationId})">Chọn trạm này</button>`);
+                    smark.on('click', () => crSelectStationFromMap(type, s.stationId));
+                }
+            });
+
+
+            if (stations.length > 0 && (stations[0].latitude || stations[0].lat)) {
+                const first = stations[0];
+                const flat = first.latitude || first.lat;
+                const flng = first.longitude || first.lng;
+                crMaps[type].setView([flat, flng], 12);
+            }
+
+        }
+
+        function crSelectStationFromMap(type, stationId) {
+            const selectId = type === 'pickup' ? 'fromStation' : 'toStation';
+            const select = document.getElementById(selectId);
+            select.value = stationId;
+            select.dispatchEvent(new Event('change'));
+            crMaps[type].closePopup();
+        }
+
+
         // ============================================================
         // EXISTING LOGIC (date, station load, volume)
         // ============================================================
         document.addEventListener('DOMContentLoaded', function () {
             const dateInput = document.getElementById('requestDate');
-            if(dateInput) { const today = new Date().toISOString().split('T')[0]; dateInput.setAttribute('min', today); }
+            const deliveryDateInput = document.getElementById('expectedDeliveryDate');
+            const today = new Date().toISOString().split('T')[0];
+            if(dateInput) dateInput.setAttribute('min', today);
+            if(deliveryDateInput) deliveryDateInput.setAttribute('min', today);
+
 
             const pickupType = document.getElementById('pickupType');
             const pickupAddr = document.getElementById('pickupAddressSection');
@@ -330,6 +380,7 @@
                     document.getElementById('pickupSearchBox').classList.add('d-none');
                     document.getElementById('pickupGpsBtn').classList.add('d-none');
                     if (crMarkers['pickup']) crMarkers['pickup'].dragging.disable();
+                    crStationGroups['pickup'].addTo(crMaps['pickup']);
                     loadStations(fromProv.value, fromStationSelect);
                 } else {
                     pickupAddr.classList.remove('d-none'); pickupStat.classList.add('d-none');
@@ -338,8 +389,10 @@
                     document.getElementById('pickupSearchBox').classList.remove('d-none');
                     document.getElementById('pickupGpsBtn').classList.remove('d-none');
                     if (crMarkers['pickup']) crMarkers['pickup'].dragging.enable();
+                    crStationGroups['pickup'].remove();
                     setTimeout(() => crInitMap('pickup'), 100);
                 }
+
             });
 
             deliveryType.addEventListener('change', function() {
@@ -351,6 +404,7 @@
                     document.getElementById('deliverySearchBox').classList.add('d-none');
                     document.getElementById('deliveryGpsBtn').classList.add('d-none');
                     if (crMarkers['delivery']) crMarkers['delivery'].dragging.disable();
+                    crStationGroups['delivery'].addTo(crMaps['delivery']);
                     loadStations(toProv.value, toStationSelect);
                 } else {
                     deliveryAddr.classList.remove('d-none'); deliveryStat.classList.add('d-none');
@@ -359,8 +413,10 @@
                     document.getElementById('deliverySearchBox').classList.remove('d-none');
                     document.getElementById('deliveryGpsBtn').classList.remove('d-none');
                     if (crMarkers['delivery']) crMarkers['delivery'].dragging.enable();
+                    crStationGroups['delivery'].remove();
                     setTimeout(() => crInitMap('delivery'), 100);
                 }
+
             });
 
             fromProv.addEventListener('change', () => { if (pickupType.value == '2') loadStations(fromProv.value, fromStationSelect); });
@@ -370,14 +426,19 @@
                 if (!provId) return;
                 fetch(`/Customer/GetStations?provinceId=${provId}`)
                     .then(r => r.json()).then(data => {
-                        selectElem.innerHTML = '<option value="">-- Chọn kho/bến xe --</option>';
+                        selectElem.innerHTML = '<option value="">-- Chọn trạm/bến xe --</option>';
+
                         data.forEach(s => { 
                             selectElem.innerHTML += `<option value="${s.stationId}" data-lat="${s.latitude || ''}" data-lng="${s.longitude || ''}" data-address="${s.address || s.stationName}">${s.stationName}</option>`; 
                         });
+                        // Update station markers on map
+                        const type = selectElem.id === 'fromStation' ? 'pickup' : 'delivery';
+                        crUpdateStationMarkers(type, data);
                         // trigger change to clear/update map
                         selectElem.dispatchEvent(new Event('change'));
                     });
             }
+
 
             fromStationSelect.addEventListener('change', function() {
                 const opt = this.options[this.selectedIndex];

@@ -10,18 +10,43 @@
         background: white;
         transition: all 0.3s ease;
         margin-bottom: 20px;
-        border: 1px solid #f0f0f0;
+        border: 1px solid #eef0f3;
     }
     .order-card:hover {
-        box-shadow: 0 10px 25px rgba(0,0,0,0.05);
-        transform: translateY(-3px);
+        box-shadow: 0 10px 30px rgba(0,0,0,0.08);
+        transform: translateY(-4px);
     }
     .status-dot {
-        height: 10px;
-        width: 10px;
+        height: 8px;
+        width: 8px;
         border-radius: 50%;
         display: inline-block;
-        margin-right: 5px;
+        margin-right: 6px;
+    }
+    .route-line {
+        position: relative;
+        padding-left: 20px;
+        border-left: 2px dashed #dee2e6;
+        margin: 10px 0 10px 10px;
+    }
+    .route-node {
+        position: absolute;
+        left: -6px;
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        background: #fff;
+        border: 2px solid;
+    }
+    .node-start { top: 0; border-color: #0d6efd; }
+    .node-end { bottom: 0; border-color: #dc3545; }
+    .cargo-pill {
+        background: #f8f9fa;
+        border-radius: 8px;
+        padding: 8px 12px;
+        font-size: 0.85rem;
+        color: #495057;
+        border: 1px solid #e9ecef;
     }
 </style>
 
@@ -31,7 +56,7 @@
             <i class="bi bi-clock-history text-primary me-2"></i>Lịch sử yêu cầu
         </h3>
         <a asp-controller="Customer" asp-action="CreateRequest" class="btn btn-primary rounded-pill px-4 shadow-sm">
-            <i class="bi bi-plus-lg me-1"></i> Tạo đơn mới
+            <i class="bi bi-plus-lg me-1"></i> Gửi hàng ngay
         </a>
     </div>
 
@@ -51,61 +76,110 @@
         {
             @foreach (var item in Model)
             {
-                <div class="col-lg-6">
-                    <div class="card order-card shadow-sm p-3">
-                        <div class="d-flex justify-content-between align-items-start mb-3 border-bottom pb-2">
-                            <div>
-                                <span class="badge bg-light text-secondary border rounded-pill mb-1">#@(item.OrderCode ?? ("TC" + item.Id))</span>
+                var route = item.Shippingroutes.FirstOrDefault();
+                var cargo = item.Cargodetails.FirstOrDefault();
 
-                                <div class="text-muted small">@item.CreatedAt.ToString("dd/MM/yyyy HH:mm")</div>
+                <div class="col-lg-6">
+                    <div class="card order-card shadow-sm p-4">
+                        <div class="d-flex justify-content-between align-items-start mb-3 border-bottom pb-3">
+                            <div>
+                                <span class="badge bg-primary bg-opacity-10 text-primary fs-6 px-3 py-2 rounded-pill mb-2">#@(item.OrderCode ?? ("MD" + item.Id))</span>
+                                <div class="text-muted small">
+                                    <i class="bi bi-calendar3 me-1"></i> @item.PickupTimeFrom.ToString("dd/MM/yyyy")
+                                    @if (item.PickupTimeTo.HasValue)
+                                    {
+                                        <span> - @item.PickupTimeTo.Value.ToString("dd/MM/yyyy")</span>
+                                    }
+                                </div>
                             </div>
                             <div>
-                                @if (item.Status == 0) { <span class="badge bg-warning text-dark rounded-pill shadow-sm"><i class="status-dot bg-dark"></i>Chờ xác nhận</span> }
-                                else if (item.Status == 1) { <span class="badge bg-primary rounded-pill shadow-sm"><i class="status-dot bg-white"></i>Đã xác nhận</span> }
-                                else if (item.Status == 2) { <span class="badge bg-danger rounded-pill shadow-sm"><i class="status-dot bg-white"></i>Bị từ chối</span> }
-                                else if (item.Status == 3) { <span class="badge bg-info text-dark rounded-pill shadow-sm"><i class="status-dot bg-dark"></i>Đang giao</span> }
-                                else if (item.Status == 4) { <span class="badge bg-success rounded-pill shadow-sm"><i class="status-dot bg-white"></i>Đã giao</span> }
-                                else { <span class="badge bg-secondary rounded-pill shadow-sm"><i class="status-dot bg-white"></i>Đã hủy</span> }
+                                @if (item.Status == 0) { <span class="badge bg-warning text-dark rounded-pill px-3 py-2"><i class="status-dot bg-dark"></i>Chờ xác nhận</span> }
+                                else if (item.Status == 1) { <span class="badge bg-primary rounded-pill px-3 py-2"><i class="status-dot bg-white"></i>Đã xác nhận</span> }
+                                else if (item.Status == 2) { <span class="badge bg-danger rounded-pill px-3 py-2"><i class="status-dot bg-white"></i>Bị từ chối</span> }
+                                else if (item.Status == 3) { <span class="badge bg-info text-dark rounded-pill px-3 py-2"><i class="status-dot bg-dark"></i>Đang giao</span> }
+                                else if (item.Status == 4) { <span class="badge bg-success rounded-pill px-3 py-2"><i class="status-dot bg-white"></i>Đã giao</span> }
+                                else if (item.Status == 5) { <span class="badge bg-secondary rounded-pill px-3 py-2"><i class="status-dot bg-white"></i>Đã hủy</span> }
                             </div>
                         </div>
 
-                        <div class="row align-items-center">
-                            <div class="col-sm-7">
-                                <div class="d-flex align-items-center mb-2">
-                                    <div class="bg-primary bg-opacity-10 p-2 rounded-circle me-3">
-                                        <i class="bi bi-geo-alt-fill text-primary"></i>
-                                    </div>
-                                    <div class="fw-bold">
-                                        @if (item.Trip != null)
-                                        {
-                                            @item.Trip.FromStationNavigation.Province.ProvinceName <i class="bi bi-arrow-right mx-1"></i> @item.Trip.ToStationNavigation.Province.ProvinceName
-                                        }
-                                        else
-                                        {
-                                            <span class="text-primary small">Đang chờ ghép chuyến...</span>
+                        <div class="row">
+                            <div class="col-md-12 mb-3">
+                                <div class="route-line">
+                                    <div class="route-node node-start"></div>
+                                    <div class="small fw-bold text-dark mb-0">
+                                        @if (route?.PickupType == 1) { 
+                                            <span class="text-primary small d-block">Lấy tận nơi:</span>
+                                            @route.PickupAddress
+                                        } else {
+                                            <span class="text-success small d-block">Trạm gửi: @(route?.FromStation?.StationName)</span>
+                                            <span class="text-muted extra-small">@(route?.FromStation?.Address)</span>
                                         }
                                     </div>
-                                </div>
-                                <div class="small text-muted mb-2">
-                                    <i class="bi bi-box-seam me-1"></i> @(item.Cargodetails.FirstOrDefault()?.Weight ?? 0) kg - @(item.Cargodetails.FirstOrDefault()?.Description?.Split(']').LastOrDefault()?.Trim() ?? "Kiện hàng")
-                                </div>
-                                <div class="fw-bold text-success fs-5">
-                                    @(item.TotalPrice.HasValue ? item.TotalPrice.Value.ToString("N0") : "0") <small>VNĐ</small>
+
+                                    <div style="height: 20px;"></div>
+                                    <div class="route-node node-end"></div>
+                                    <div class="small fw-bold text-dark mb-0">
+                                        @if (route?.DeliveryType == 1) {
+                                            <span class="text-primary small d-block">Giao tận nơi:</span>
+                                            @route.DeliveryAddress
+                                        } else {
+                                            <span class="text-success small d-block">Trạm nhận: @(route?.ToStation?.StationName)</span>
+                                            <span class="text-muted extra-small">@(route?.ToStation?.Address)</span>
+                                        }
+                                    </div>
+
                                 </div>
                             </div>
-                            <div class="col-sm-5 text-end mt-3 mt-sm-0">
-                                <a asp-action="RequestDetail" asp-controller="Customer" asp-route-id="@item.Id" class="btn btn-outline-primary rounded-pill btn-sm px-4 w-100 mb-2">Chi tiết</a>
-                                @if (item.Status == 0)
+
+                            <div class="col-12 mb-3 d-flex flex-wrap gap-2">
+                                <div class="cargo-pill">
+                                    <i class="bi bi-box-seam me-1 text-primary"></i> @(cargo?.Description ?? "Kiện hàng")
+                                </div>
+                                <div class="cargo-pill">
+                                    <i class="bi bi-speedometer2 me-1 text-danger"></i> @(cargo?.Weight ?? 0) kg
+                                </div>
+                                @if (cargo?.Length != null || cargo?.Width != null || cargo?.Height != null)
                                 {
-                                    <form asp-action="CancelRequest" method="post">
-                                        <input type="hidden" name="reqId" value="@item.Id" />
-                                        <button type="submit" class="btn btn-link text-danger btn-sm p-0 w-100" onclick="return confirm('Bạn có chắc chắn muốn hủy đơn này?');">Hủy đơn</button>
-                                    </form>
+                                    <div class="cargo-pill">
+                                        <i class="bi bi-aspect-ratio me-1 text-info"></i> @(cargo?.Length)x@(cargo?.Width)x@(cargo?.Height) cm
+                                    </div>
                                 }
-                                else if (item.Status == 4)
-                                {
-                                    <a asp-controller="Customer" asp-action="RateTrip" asp-route-reqId="@item.Id" class="btn btn-warning btn-sm rounded-pill px-4 w-100">Đánh giá</a>
-                                }
+                            </div>
+
+
+                            <div class="col-12 mb-3 px-3 py-2 bg-light rounded-3 small border border-light-subtle">
+                                <div class="row">
+                                    <div class="col-6">
+                                        <i class="bi bi-person-circle text-muted me-1"></i> @(route?.ReceiverName ?? "N/A")
+                                    </div>
+                                    <div class="col-6 text-end">
+                                        <i class="bi bi-telephone text-muted me-1"></i> <span class="text-primary fw-bold">@(route?.ReceiverPhone ?? "N/A")</span>
+                                    </div>
+                                </div>
+                            </div>
+
+
+                            <div class="col-12 d-flex justify-content-between align-items-center">
+                                <div class="fw-bold text-danger fs-5">
+                                    @(item.TotalPrice.HasValue ? item.TotalPrice.Value.ToString("N0") : "0") <small>VNĐ</small>
+                                </div>
+                                <div class="d-flex gap-2">
+                                    <a asp-action="RequestDetail" asp-controller="Customer" asp-route-id="@item.Id" class="btn btn-outline-primary rounded-pill btn-sm px-4">Chi tiết</a>
+                                    
+                                    @if (item.Status == 0)
+                                    {
+                                        <form asp-action="CancelRequest" method="post" class="d-inline">
+                                            <input type="hidden" name="reqId" value="@item.Id" />
+                                            <button type="submit" class="btn btn-outline-danger border-0 rounded-pill btn-sm px-3" onclick="return confirm('Hủy đơn hàng này?');">
+                                                <i class="bi bi-trash"></i>
+                                            </button>
+                                        </form>
+                                    }
+                                    else if (item.Status == 4)
+                                    {
+                                        <a asp-controller="Customer" asp-action="RateTrip" asp-route-reqId="@item.Id" class="btn btn-warning btn-sm rounded-pill px-3">Đánh giá</a>
+                                    }
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -113,4 +187,4 @@
             }
         }
     </div>
-</div>
+</div>
