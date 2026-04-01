@@ -66,7 +66,7 @@
                                 <option value="">-- Chọn xe của bạn --</option>
                                 @foreach (var v in ViewBag.Vehicles)
                                 {
-                                    <option value="@v.VehicleId" data-kg="@v.CapacityKg" data-m3="@v.CapacityM3">
+                                    <option value="@v.VehicleId" data-kg="@v.CapacityKg">
                                         @v.PlateNumber (@v.VehicleType.TypeName - @v.CapacityKg kg)
                                     </option>
                                 }
@@ -167,7 +167,7 @@
                                     <input type="number" name="AvaiCapacityKg" id="capacityKgInput" class="form-control" required placeholder="Nhập số kg" oninput="checkCapacity()">
                                     <span class="input-group-text bg-light text-muted">kg</span>
                                 </div>
-                                <input type="hidden" name="AvaiCapacityM3" id="capacityM3Input">
+
                             </div>
                             <div class="col-12">
                                 <label class="form-label fw-bold">Giá cơ bản (VNĐ)</label>
@@ -778,24 +778,14 @@
     function checkCapacity() {
         var vehicle = $('#vehicleSelect option:selected');
         var maxKg = vehicle.data('kg') || 0;
-        var maxM3 = vehicle.data('m3') || 0;
         var currKg = parseInt($('#capacityKgInput').val()) || 0;
-
-        // Auto estimation logic: Prop M3 based on Weight
-        var estM3 = 0;
-        if (maxKg > 0 && currKg > 0) {
-            estM3 = Math.round((currKg / maxKg) * maxM3);
-        }
-        $('#capacityM3Input').val(estM3);
-        $('#estM3').text(estM3);
-        $('#volumeEstimationLabel').show();
 
         var isValid = true;
         if (currKg > maxKg) {
             isValid = false;
             $('#vehicleLimits').text(`Vượt quá tải trọng! (Tối đa ${maxKg}kg)`).removeClass('text-primary').addClass('text-danger');
         } else {
-            $('#vehicleLimits').text(`Tối đa ${maxKg}kg / ${maxM3}m³`).removeClass('text-danger').addClass('text-primary');
+            $('#vehicleLimits').text(`Tối đa ${maxKg}kg`).removeClass('text-danger').addClass('text-primary');
         }
         return isValid;
     }

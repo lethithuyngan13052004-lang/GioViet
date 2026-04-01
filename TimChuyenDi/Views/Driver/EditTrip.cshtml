@@ -61,7 +61,7 @@
                                 {
                                     <option value="@v.VehicleId" 
                                             data-kg="@v.CapacityKg" 
-                                            data-m3="@v.CapacityM3"
+                                            data-kg="@v.CapacityKg" 
                                             selected="@(v.VehicleId == Model.VehicleId)">
                                         @v.PlateNumber (@v.VehicleType.TypeName - @v.CapacityKg kg)
                                     </option>
@@ -543,7 +543,7 @@
     function checkCapacity() {
         var vehicle = $('#vehicleSelect option:selected');
         var maxKg = vehicle.data('kg') || 0;
-        var maxM3 = vehicle.data('m3') || 0;
+
         var currKg = parseInt($('#capacityKgInput').val()) || 0;
 
         var isValid = true;

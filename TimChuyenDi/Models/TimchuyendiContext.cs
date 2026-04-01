@@ -472,7 +472,6 @@ public partial class TimchuyendiContext : DbContext
             entity.Property(e => e.TripId).HasColumnType("int(11)");
             entity.Property(e => e.ArrivalTime).HasColumnType("datetime");
             entity.Property(e => e.AvaiCapacityKg).HasColumnType("int(11)");
-            entity.Property(e => e.AvaiCapacityM3).HasColumnType("int(11)");
             entity.Property(e => e.BasePrice).HasPrecision(18, 2).HasDefaultValueSql("'0.00'").HasComment("Giá mở đầu do tài xế nhập");
             entity.Property(e => e.Distance).HasPrecision(10, 2).HasComment("Khoảng cách (km)");
             entity.Property(e => e.DriverId).HasColumnType("int(11)");
@@ -602,7 +601,6 @@ public partial class TimchuyendiContext : DbContext
 
             entity.Property(e => e.VehicleId).HasColumnType("int(11)");
             entity.Property(e => e.CapacityKg).HasColumnType("int(11)");
-            entity.Property(e => e.CapacityM3).HasColumnType("int(11)");
             entity.Property(e => e.DriverId).HasColumnType("int(11)");
             entity.Property(e => e.PlateNumber).HasMaxLength(50);
             entity.Property(e => e.VehicleTypeId).HasColumnType("int(11)");

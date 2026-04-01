@@ -13,8 +13,6 @@ public partial class Vehicle
 
     public int CapacityKg { get; set; }
 
-    public int CapacityM3 { get; set; }
-
     public int VehicleTypeId { get; set; }
 
     /// <summary>

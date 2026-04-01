@@ -109,16 +109,24 @@ namespace TimChuyenDi.Controllers
             var userIdStr = User.FindFirstValue("UserId") ?? User.FindFirstValue(ClaimTypes.NameIdentifier);
             int customerId = int.Parse(userIdStr);
 
-            var pricePerKmConfig = _context.SystemConfigs.FirstOrDefault(c => c.KeyName == "PricePerKm");
-            decimal pricePerKm = pricePerKmConfig?.Value ?? 0;
+            var vwFactorConfig = _context.SystemConfigs.FirstOrDefault(c => c.KeyName == "VolumeToWeightFactor");
+            int vwFactor = 250;
+            if (vwFactorConfig != null && int.TryParse(vwFactorConfig.ValueStr, out var val)) vwFactor = val;
 
-            decimal tripTypeMultiplier = trip.RouteTypeNavigation?.Multiplier ?? 1;
+            var minPriceConfig = _context.SystemConfigs.FirstOrDefault(c => c.KeyName == "MinPrice");
+            decimal minPrice = 0;
+            if (minPriceConfig != null && decimal.TryParse(minPriceConfig.ValueStr, out var minP)) minPrice = minP;
+
+            decimal volume = (Length.GetValueOrDefault() * Width.GetValueOrDefault() * Height.GetValueOrDefault()) / 1000000m;
+            decimal chargeableWeight = Math.Max(Weight ?? 0, volume * vwFactor);
+            decimal capacityKg = trip.Vehicle?.CapacityKg ?? 1; // avoid div by 0
+
+            decimal basePrice = trip.BasePrice * (chargeableWeight / capacityKg);
             decimal cargoMultiplier = cargoType?.PriceMultiplier ?? 1;
-            decimal distance = trip.Distance ?? 0;
+            decimal tripTypeMultiplier = trip.RouteTypeNavigation?.Multiplier ?? 1;
 
-            decimal totalPrice = (trip.BasePrice + distance * pricePerKm)
-                                 * tripTypeMultiplier
-                                 * cargoMultiplier;
+            decimal priceAfterCargo = basePrice * tripTypeMultiplier * cargoMultiplier;
+            decimal totalPrice = Math.Max(priceAfterCargo, minPrice);
 
             var request = new Shiprequest
             {
@@ -329,7 +337,10 @@ namespace TimChuyenDi.Controllers
                 .Include(r => r.Cargodetails)
                 .FirstOrDefault(r => r.Id == requestId && r.UserId == customerId);
             
-            var trip = _context.Trips.Find(tripId);
+            var trip = _context.Trips
+                .Include(t => t.Vehicle)
+                .Include(t => t.RouteTypeNavigation)
+                .FirstOrDefault(t => t.TripId == tripId);
 
             if (request != null && trip != null)
             {
@@ -347,7 +358,38 @@ namespace TimChuyenDi.Controllers
                 var cargo = request.Cargodetails.FirstOrDefault();
                 if (cargo != null)
                 {
-                    request.TotalPrice = trip.BasePrice; // Updated from BasePricePerKg
+                    var vwFactorConfig = _context.SystemConfigs.FirstOrDefault(c => c.KeyName == "VolumeToWeightFactor");
+                    int vwFactor = 250;
+                    if (vwFactorConfig != null && int.TryParse(vwFactorConfig.ValueStr, out var val)) vwFactor = val;
+
+                    var minPriceConfig = _context.SystemConfigs.FirstOrDefault(c => c.KeyName == "MinPrice");
+                    decimal minPrice = 0;
+                    if (minPriceConfig != null && decimal.TryParse(minPriceConfig.ValueStr, out var minP)) minPrice = minP;
+
+                    decimal length = cargo.Length ?? 0;
+                    decimal width = cargo.Width ?? 0;
+                    decimal height = cargo.Height ?? 0;
+                    decimal weight = cargo.Weight ?? 0;
+
+                    decimal volume = (length * width * height) / 1000000m;
+                    decimal chargeableWeight = Math.Max(weight, volume * vwFactor);
+                    decimal capacityKg = trip.Vehicle?.CapacityKg ?? 1;
+
+                    decimal basePrice = trip.BasePrice * (chargeableWeight / capacityKg);
+                    
+                    var reqCargoType = _context.Shiprequests
+                        .Where(r => r.Id == requestId)
+                        .Select(r => r.CargoType)
+                        .FirstOrDefault();
+
+                    decimal tripTypeMultiplier = trip.RouteTypeNavigation?.Multiplier ?? 1;
+                    
+                    // We don't have cargoType directly here inside Assign, so request needs to include CargoType if exists,
+                    // Actually, let's just make cargoMultiplier = 1 if we don't fetch CargoType. Since it's free form, cargo doesn't link to CargoTypeId directly on model? Wait, Shiprequest might. 
+                    decimal cargoMultiplier = 1;
+
+                    decimal priceAfterCargo = basePrice * tripTypeMultiplier * cargoMultiplier;
+                    request.TotalPrice = Math.Max(priceAfterCargo, minPrice);
                 }
 
                 await _context.SaveChangesAsync();

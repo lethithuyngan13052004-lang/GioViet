@@ -28,7 +28,7 @@
                             <th>Biển kiểm soát</th>
                             <th>Tài xế</th>
                             <th>Loại xe</th>
-                            <th class="text-end">Tải trọng / Thể tích</th>
+                            <th class="text-end">Tải trọng</th>
                             <th class="text-center">Trạng thái</th>
                             <th class="text-end pe-3 w-100px">Thao tác</th>
                         </tr>
@@ -66,7 +66,7 @@
                                 <td class="text-primary fw-semibold">@item.VehicleType?.TypeName</td>
                                 <td class="text-end">
                                     <div class="text-danger fw-bold">@item.CapacityKg.ToString("N0") kg</div>
-                                    <div class="small text-muted">@item.CapacityM3 M³</div>
+
                                 </td>
                                 <td class="text-center">
                                     @if (item.Status == 1)

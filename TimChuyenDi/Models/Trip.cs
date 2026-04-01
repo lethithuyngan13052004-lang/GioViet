@@ -26,8 +26,6 @@ public partial class Trip
 
     public int AvaiCapacityKg { get; set; }
 
-    public int AvaiCapacityM3 { get; set; }
-
     public decimal BasePrice { get; set; }
 
     public decimal? Distance { get; set; }
