@@ -25,11 +25,11 @@ namespace TimChuyenDi.Services
                 return "Lỗi: Chưa đọc được API Key từ cấu hình.";
             }
 
-            // 1. Gọt sạch mọi khoảng trắng (dấu cách, phím enter) vô tình bị dính vào API Key
+            // 1. Gọt sạch mọi khoảng trắng
             string cleanApiKey = _apiKey.Trim();
 
-            // 2. Lắp ráp URL theo cách an toàn nhất (Cộng chuỗi trực tiếp)
-            string url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=" + _apiKey.Trim();
+            // 2. Lắp ráp URL chuẩn v1 (phiên bản ổn định)
+            string url = "https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=" + cleanApiKey;
 
             // 3. Đóng gói câu hỏi chuẩn JSON
             var requestBody = new
@@ -62,6 +62,7 @@ namespace TimChuyenDi.Services
 
                     return answer;
                 }
+
                 else
                 {
                     var errorDetail = await response.Content.ReadAsStringAsync();
