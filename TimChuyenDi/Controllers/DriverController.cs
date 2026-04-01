@@ -79,17 +79,29 @@ namespace TimChuyenDi.Controllers
         }
 
         // GET: Xem danh sách các chuyến xe tài xế đã đăng
-        public IActionResult MyTrips()
+        public IActionResult MyTrips(int page = 1)
         {
+            int pageSize = 9;
             var driverId = int.Parse(User.FindFirstValue("UserId"));
-            var trips = _context.Trips
+            
+            var query = _context.Trips
                 .Include(t => t.FromStationNavigation).ThenInclude(s => s.Province)
                 .Include(t => t.ToStationNavigation).ThenInclude(s => s.Province)
                 .Include(t => t.Vehicle)
                 .Include(t => t.RouteTypeNavigation)
                 .Where(t => t.DriverId == driverId)
-                .OrderByDescending(t => t.StartTime)
+                .OrderByDescending(t => t.StartTime);
+
+            int totalItems = query.Count();
+            int totalPages = (int)Math.Ceiling((double)totalItems / pageSize);
+
+            var trips = query
+                .Skip((page - 1) * pageSize)
+                .Take(pageSize)
                 .ToList();
+
+            ViewBag.CurrentPage = page;
+            ViewBag.TotalPages = totalPages;
 
             return View(trips);
         }
