@@ -43,12 +43,13 @@
                     <div class="card h-100 border-0 shadow-sm rounded-4 overflow-hidden order-card">
                         <div class="card-header bg-white border-0 p-3 pt-4 d-flex justify-content-between align-items-start">
                             <div>
-                                <span class="badge bg-light text-primary border border-primary-subtle rounded-pill mb-2">#@(item.OrderCode ?? ("TC" + item.Id))</span>
-                                <div class="text-muted small"><i class="bi bi-clock me-1"></i>Đăng lúc: @item.PickupTimeFrom.ToString("dd/MM/yyyy HH:mm")</div>
+                                <span class="badge bg-light text-primary border border-primary-subtle rounded-pill mb-2">#@(item.OrderCode ?? ("MD" + item.Id))</span>
+                                <div class="text-muted small"><i class="bi bi-clock me-1"></i>Vận chuyển: @item.PickupTimeFrom.ToString("dd/MM/yyyy") @(item.PickupTimeTo.HasValue ? " - " + item.PickupTimeTo.Value.ToString("dd/MM/yyyy") : "")</div>
+
                             </div>
                             <div class="text-end">
                                 <div class="fw-bold text-danger fs-5">@(item.PickupTimeTo?.ToString("dd/MM/yyyy") ?? "Giao ngay")</div>
-                                <div class="small text-muted text-uppercase tracking-wider">Ngày giao mong muốn</div>
+                                <div class="small text-muted text-uppercase tracking-wider">Hạn giao dự kiến</div>
                             </div>
                         </div>
                         
@@ -59,7 +60,8 @@
                                     <div class="route-dot bg-success"></div>
                                     <div class="ms-3">
                                         <div class="text-muted small">Điểm lấy hàng</div>
-                                        <div class="fw-bold">@(route?.PickupAddress ?? "Chưa xác định")</div>
+                                        <div class="fw-bold">@(string.IsNullOrEmpty(route?.PickupAddress) ? (route?.FromStation?.StationName ?? "Chưa xác định") : route.PickupAddress)</div>
+
                                     </div>
                                 </div>
                                 <div class="route-line mx-2"></div>
@@ -67,7 +69,8 @@
                                     <div class="route-dot bg-danger"></div>
                                     <div class="ms-3">
                                         <div class="text-muted small">Điểm giao hàng</div>
-                                        <div class="fw-bold">@(route?.DeliveryAddress ?? "Chưa xác định")</div>
+                                        <div class="fw-bold">@(string.IsNullOrEmpty(route?.DeliveryAddress) ? (route?.ToStation?.StationName ?? "Chưa xác định") : route.DeliveryAddress)</div>
+
                                     </div>
                                 </div>
                             </div>
