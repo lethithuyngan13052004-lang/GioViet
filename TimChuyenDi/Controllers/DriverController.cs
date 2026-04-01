@@ -79,17 +79,29 @@ namespace TimChuyenDi.Controllers
         }
 
         // GET: Xem danh sách các chuyến xe tài xế đã đăng
-        public IActionResult MyTrips()
+        public IActionResult MyTrips(int page = 1)
         {
+            int pageSize = 9;
             var driverId = int.Parse(User.FindFirstValue("UserId"));
-            var trips = _context.Trips
+            
+            var query = _context.Trips
                 .Include(t => t.FromStationNavigation).ThenInclude(s => s.Province)
                 .Include(t => t.ToStationNavigation).ThenInclude(s => s.Province)
                 .Include(t => t.Vehicle)
                 .Include(t => t.RouteTypeNavigation)
                 .Where(t => t.DriverId == driverId)
-                .OrderByDescending(t => t.StartTime)
+                .OrderByDescending(t => t.StartTime);
+
+            int totalItems = query.Count();
+            int totalPages = (int)Math.Ceiling((double)totalItems / pageSize);
+
+            var trips = query
+                .Skip((page - 1) * pageSize)
+                .Take(pageSize)
                 .ToList();
+
+            ViewBag.CurrentPage = page;
+            ViewBag.TotalPages = totalPages;
 
             return View(trips);
         }
@@ -717,8 +729,10 @@ namespace TimChuyenDi.Controllers
             var request = _context.Shiprequests
                 .Include(r => r.Cargodetails)
                 .FirstOrDefault(r => r.Id == requestId && (r.Status == 0 || r.Status == null) && r.TripId == null);
-            
-            var trip = _context.Trips.FirstOrDefault(t => t.TripId == tripId && t.DriverId == driverId);
+            var trip = _context.Trips
+                .Include(t => t.Vehicle)
+                .Include(t => t.RouteTypeNavigation)
+                .FirstOrDefault(t => t.TripId == tripId && t.DriverId == driverId);
 
             if (request != null && trip != null)
             {
@@ -730,8 +744,33 @@ namespace TimChuyenDi.Controllers
                 var cargo = request.Cargodetails.FirstOrDefault();
                 if (cargo != null)
                 {
-                    request.TotalPrice = trip.BasePrice;
-                    trip.AvaiCapacityKg -= (int)(cargo.Weight ?? 0);
+                    var vwFactorConfig = _context.SystemConfigs.FirstOrDefault(c => c.KeyName == "VolumeToWeightFactor");
+                    int vwFactor = 250;
+                    if (vwFactorConfig != null && int.TryParse(vwFactorConfig.ValueStr, out var val)) vwFactor = val;
+
+                    var minPriceConfig = _context.SystemConfigs.FirstOrDefault(c => c.KeyName == "MinPrice");
+                    decimal minPrice = 0;
+                    if (minPriceConfig != null && decimal.TryParse(minPriceConfig.ValueStr, out var minP)) minPrice = minP;
+
+                    decimal length = cargo.Length ?? 0;
+                    decimal width = cargo.Width ?? 0;
+                    decimal height = cargo.Height ?? 0;
+                    decimal weight = cargo.Weight ?? 0;
+
+                    decimal volume = (length * width * height) / 1000000m;
+                    decimal chargeableWeight = Math.Max(weight, volume * vwFactor);
+                    decimal capacityKg = trip.Vehicle?.CapacityKg ?? 1;
+
+                    decimal basePrice = trip.BasePrice * (chargeableWeight / capacityKg);
+                    
+                    decimal tripTypeMultiplier = trip.RouteTypeNavigation?.Multiplier ?? 1;
+                    
+                    decimal cargoMultiplier = 1;
+
+                    decimal priceAfterCargo = basePrice * tripTypeMultiplier * cargoMultiplier;
+                    request.TotalPrice = Math.Max(priceAfterCargo, minPrice);
+
+                    trip.AvaiCapacityKg -= (int)weight;
                 }
 
                 await _context.SaveChangesAsync();

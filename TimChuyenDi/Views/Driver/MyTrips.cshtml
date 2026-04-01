@@ -244,15 +244,18 @@
     </div>
 
     <!-- PAGINATION -->
-    <nav>
-        <ul class="pagination">
-            @for (int i = 1; i <= totalPages; i++)
-            {
-                <li class="page-item @(i == currentPage ? "active" : "")">
-                    <a class="page-link" asp-action="ManageTrip" asp-route-page="@i">@i</a>
-                </li>
-            }
-        </ul>
-    </nav>
+    @if (totalPages > 1)
+    {
+        <nav>
+            <ul class="pagination">
+                @for (int i = 1; i <= totalPages; i++)
+                {
+                    <li class="page-item @(i == currentPage ? "active" : "")">
+                        <a class="page-link" asp-action="MyTrips" asp-route-page="@i">@i</a>
+                    </li>
+                }
+            </ul>
+        </nav>
+    }
 
 </div>

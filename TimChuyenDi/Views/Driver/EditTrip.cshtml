@@ -208,13 +208,6 @@
                     <div class="card-body p-0 position-relative">
                         <div id="map"></div>
                         
-                        <!-- MAP LOADING OVERLAY -->
-                        <div id="mapLoadingOverlay" class="position-absolute top-0 start-0 w-100 h-100 flex-column justify-content-center align-items-center bg-white bg-opacity-75" style="z-index: 1050; display: none !important; backdrop-filter: blur(3px);">
-                            <div class="spinner-border text-primary" role="status" style="width: 3rem; height: 3rem; border-width: 0.25em;">
-                                <span class="visually-hidden">Loading...</span>
-                            </div>
-                            <h6 class="mt-3 fw-bold text-primary" style="text-shadow: 0 0 10px white;">Đang tìm đường đi tốt nhất...</h6>
-                        </div>
 
                         <div class="position-absolute bottom-0 start-0 p-3 w-100" style="z-index: 1000;">
                             <div class="bg-white p-3 rounded-pill shadow-lg d-flex justify-content-around align-items-center mx-auto" style="max-width: 600px;">
@@ -333,16 +326,7 @@
             createMarker: () => null
         }).addTo(map);
 
-        routingControl.on('routingstart', function () {
-            $('#mapLoadingOverlay').attr('style', 'z-index: 1050; display: flex !important; backdrop-filter: blur(3px);');
-        });
-
-        routingControl.on('routingerror', function (e) {
-            $('#mapLoadingOverlay').attr('style', 'display: none !important;');
-        });
-
         routingControl.on('routesfound', function (e) {
-            $('#mapLoadingOverlay').attr('style', 'display: none !important;');
             var route = e.routes[0];
             var summary = route.summary;
             lastTotalTimeSeconds = summary.totalTime;
