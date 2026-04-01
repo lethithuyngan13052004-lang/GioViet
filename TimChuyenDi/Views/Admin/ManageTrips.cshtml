@@ -38,9 +38,14 @@
                                     <span class="badge bg-secondary bg-opacity-10 text-secondary border border-secondary border-opacity-25 rounded-pill px-3">@item.Vehicle.PlateNumber</span>
                                 </td>
                                 <td>
-                                    <span class="text-primary fw-bold">@item.FromStationNavigation.Province</span> 
-                                    <i class="bi bi-arrow-right text-muted mx-1"></i> 
-                                    <span class="text-success fw-bold">@item.ToStationNavigation.Province</span>
+                                    <div class="d-flex align-items-center">
+                                        <span class="text-primary fw-bold">@(item.FromStationNavigation?.Province?.ProvinceName ?? "N/A")</span> 
+                                        <i class="bi bi-arrow-right text-muted mx-1"></i> 
+                                        <span class="text-success fw-bold">@(item.ToStationNavigation?.Province?.ProvinceName ?? "N/A")</span>
+                                    </div>
+                                    <small class="text-muted d-block mt-1" style="font-size:0.75rem;">
+                                        @(item.FromStationNavigation?.StationName) <i class="bi bi-caret-right-fill" style="font-size:0.6rem;"></i> @(item.ToStationNavigation?.StationName)
+                                    </small>
                                 </td>
                                 <td class="text-center small">
                                     <div class="bg-light rounded p-1 d-inline-block">

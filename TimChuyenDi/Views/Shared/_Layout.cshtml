@@ -224,11 +224,14 @@
 
         <div class="card-footer bg-white border-top-0 p-3">
             <form id="aiChatForm" class="d-flex gap-2 align-items-center">
-                <button type="button" id="startSTT" class="btn btn-outline-primary rounded-circle border-0" style="width: 40px; height: 40px;" title="Nói để đặt câu hỏi" onclick="startVoiceInput()">
+                <button type="button" id="startSTT" class="btn btn-outline-primary rounded-circle border-0 p-0 d-flex justify-content-center align-items-center" style="width: 40px; height: 40px; min-width: 40px;" title="Nói để đặt câu hỏi" onclick="startVoiceInput()">
                     <i class="bi bi-mic-fill" id="micIcon"></i>
                 </button>
+                <button type="button" id="getLocationBtn" class="btn btn-outline-success rounded-circle border-0 p-0 d-flex justify-content-center align-items-center" style="width: 40px; height: 40px; min-width: 40px;" title="Bật định vị tìm trạm gần nhất" onclick="requestLocation()">
+                    <i class="bi bi-geo-alt-fill" id="geoIcon"></i>
+                </button>
                 <input type="text" id="aiUserInput" class="form-control rounded-pill border-primary" placeholder="Nhập câu hỏi..." autocomplete="off" required>
-                <button type="submit" class="btn btn-primary rounded-circle shadow-sm" style="width: 45px; height: 45px;">
+                <button type="submit" class="btn btn-primary rounded-circle shadow-sm p-0 d-flex justify-content-center align-items-center" style="width: 45px; height: 45px; min-width: 45px;">
                     <i class="bi bi-send-fill"></i>
                 </button>
             </form>
@@ -258,6 +261,31 @@
         let aiHistory = "";
         let autoRead = true;
         let recognition = null;
+        let userLat = null;
+        let userLng = null;
+        
+        function requestLocation() {
+            if (navigator.geolocation) {
+                if (confirm("Hệ thống muốn sử dụng vị trí hiện tại của bạn để ưu tiên tìm trạm xe gần nhất. Bạn có đồng ý bật định vị không?")) {
+                    $("#geoIcon").removeClass("bi-geo-alt-fill").addClass("spinner-border spinner-border-sm");
+                    navigator.geolocation.getCurrentPosition(
+                        function(position) {
+                            userLat = position.coords.latitude;
+                            userLng = position.coords.longitude;
+                            $("#geoIcon").removeClass("spinner-border spinner-border-sm").addClass("bi-geo-alt-fill");
+                            $("#getLocationBtn").removeClass("btn-outline-success").addClass("btn-success text-white");
+                            alert("Đã lấy vị trí thành công! Chatbot sẽ ưu tiên tìm trạm xe quanh bạn.");
+                        },
+                        function(error) {
+                            $("#geoIcon").removeClass("spinner-border spinner-border-sm").addClass("bi-geo-alt-fill");
+                            alert("Không thể lấy vị trí. Vui lòng cấp quyền trong cài đặt trình duyệt.");
+                        }
+                    );
+                }
+            } else {
+                alert("Trình duyệt không hỗ trợ định vị GPS.");
+            }
+        }
         
         // Initialize Speech Recognition if supported
         if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
@@ -336,7 +364,7 @@
                 $.ajax({
                     url: '/Chat/SendMessage',
                     type: 'POST',
-                    data: { userMessage: msg, history: aiHistory },
+                    data: { userMessage: msg, history: aiHistory, lat: userLat, lng: userLng },
                     success: function(res) {
                         $(`#${loadingId}`).remove();
                         if(res.success) {

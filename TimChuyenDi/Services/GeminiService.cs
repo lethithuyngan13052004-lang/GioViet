@@ -29,7 +29,7 @@ namespace TimChuyenDi.Services
             string cleanApiKey = _apiKey.Trim();
 
             // 2. Lắp ráp URL chuẩn v1 (phiên bản ổn định)
-            string url = "https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=" + cleanApiKey;
+            string url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent?key=" + cleanApiKey;
 
             // 3. Đóng gói câu hỏi chuẩn JSON
             var requestBody = new

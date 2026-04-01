@@ -79,7 +79,9 @@ namespace TimChuyenDi.Controllers
                 .Include(t => t.Driver)
                 .Include(t => t.Vehicle)
                 .Include(t => t.FromStationNavigation)
+                    .ThenInclude(s => s.Province)
                 .Include(t => t.ToStationNavigation)
+                    .ThenInclude(s => s.Province)
                 .OrderByDescending(t => t.StartTime) // Chuyến xe mới nhất lên đầu
                 .ToList();
 
