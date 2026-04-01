@@ -57,7 +57,7 @@
                             <div>
                                 <span class="badge bg-light text-secondary border rounded-pill mb-1">#@(item.OrderCode ?? ("TC" + item.Id))</span>
 
-                                <div class="text-muted small">@item.CreatedAt.ToString("dd/MM/yyyy HH:mm")</div>
+                                <div class="text-muted small">@item.PickupTimeFrom.ToString("dd/MM/yyyy HH:mm")</div>
                             </div>
                             <div>
                                 @if (item.Status == 0) { <span class="badge bg-warning text-dark rounded-pill shadow-sm"><i class="status-dot bg-dark"></i>Chờ xác nhận</span> }

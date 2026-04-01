@@ -37,7 +37,7 @@
     <div class="card shadow border-0 rounded-4 overflow-hidden">
         <div class="card-header bg-light p-4 border-bottom-0 d-flex justify-content-between align-items-center">
             <div>
-                <span class="text-muted d-block">Ngày đặt hàng: @Model.CreatedAt.ToString("dd/MM/yyyy HH:mm")</span>
+                <span class="text-muted d-block">Ngày đặt hàng: @Model.PickupTimeFrom.ToString("dd/MM/yyyy HH:mm")</span>
             </div>
             <span class="badge @badgeClass fs-5 px-4 py-2 rounded-pill shadow-sm">@statusText</span>
         </div>
@@ -98,11 +98,11 @@
                                 <span class="text-muted">Khối lượng gửi:</span>
                                 <span class="fw-bold text-dark">@(Model.Cargodetails.FirstOrDefault()?.Weight) kg</span>
                             </li>
-                            @if (Model.ExpectedDeliveryDate.HasValue)
+                            @if (Model.PickupTimeTo.HasValue)
                             {
                                 <li class="list-group-item bg-transparent px-0 d-flex justify-content-between">
                                     <span class="text-muted">Dự kiến nhận:</span>
-                                    <span class="fw-bold text-primary">@Model.ExpectedDeliveryDate.Value.ToString("dd/MM/yyyy HH:mm")</span>
+                                    <span class="fw-bold text-primary">@Model.PickupTimeTo.Value.ToString("dd/MM/yyyy HH:mm")</span>
                                 </li>
                             }
                         </ul>

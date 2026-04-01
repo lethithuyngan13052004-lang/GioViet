@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Máy chủ: 127.0.0.1
--- Thời gian đã tạo: Th3 29, 2026 lúc 12:43 PM
+-- Thời gian đã tạo: Th3 31, 2026 lúc 10:36 AM
 -- Phiên bản máy phục vụ: 10.4.32-MariaDB
 -- Phiên bản PHP: 8.0.30
 
@@ -58,7 +58,9 @@ CREATE TABLE `cargodetail` (
 --
 
 INSERT INTO `cargodetail` (`Id`, `RequestId`, `Weight`, `Length`, `Width`, `Height`, `Description`) VALUES
-(2, 2, 1.00, 1.00, 1.00, 1.00, '121');
+(3, 3, 20.00, 40.00, 30.00, 50.00, 'hoa quả'),
+(4, 4, 5.00, 60.00, 30.00, 50.00, 'gấu bông'),
+(5, 5, 10.00, 50.00, 40.00, 30.00, 'cá biển');
 
 -- --------------------------------------------------------
 
@@ -1004,7 +1006,9 @@ CREATE TABLE `shippingroute` (
 --
 
 INSERT INTO `shippingroute` (`Id`, `RequestId`, `SenderPhone`, `PickupType`, `PickupAddress`, `Lat`, `Lng`, `FromStationId`, `ReceiverName`, `ReceiverPhone`, `ToStationId`, `DeliveryAddress`, `FromProvinceId`, `ToProvinceId`, `DeliveryType`) VALUES
-(1, 2, '0900000003', 2, NULL, NULL, NULL, 55, 'sdas', '321', 229, NULL, 1, 79, 2);
+(2, 3, '0900000001', 2, NULL, NULL, NULL, 184, 'lê thị thủy ngân', '0357115765', NULL, 'Ngách 147/48 Phố Tân Mai, Giáp Lục, Hoang Mai Ward, Hà Nội, 11720, Vietnam', 48, 1, 1),
+(3, 4, '0900000001', 2, NULL, NULL, NULL, 54, 'huyền lê', '0912345111', 229, NULL, 1, 79, 2),
+(4, 5, '0900000003', 2, NULL, NULL, NULL, 150, 'linh chi', '0355559971', 219, NULL, 31, 79, 2);
 
 -- --------------------------------------------------------
 
@@ -1014,21 +1018,24 @@ INSERT INTO `shippingroute` (`Id`, `RequestId`, `SenderPhone`, `PickupType`, `Pi
 
 CREATE TABLE `shiprequest` (
   `Id` int(11) NOT NULL,
+  `OrderCode` varchar(10) GENERATED ALWAYS AS (concat('MD',lpad(`Id`,5,'0'))) VIRTUAL,
   `UserId` int(11) NOT NULL,
   `TripId` int(11) DEFAULT NULL,
   `Status` int(11) DEFAULT 0,
   `TotalPrice` decimal(18,2) DEFAULT 0.00,
   `Note` text DEFAULT NULL,
-  `CreatedAt` timestamp NOT NULL DEFAULT current_timestamp()
+  `PickupTimeFrom` date NOT NULL DEFAULT current_timestamp(),
+  `PickupTimeTo` date DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 --
 -- Đang đổ dữ liệu cho bảng `shiprequest`
 --
 
-INSERT INTO `shiprequest` (`Id`, `UserId`, `TripId`, `Status`, `TotalPrice`, `Note`, `CreatedAt`) VALUES
-(1, 4, NULL, 0, 0.00, 'kd', '2026-03-27 10:12:16'),
-(2, 4, NULL, 0, 0.00, 'ssd', '2026-03-27 10:21:17');
+INSERT INTO `shiprequest` (`Id`, `UserId`, `TripId`, `Status`, `TotalPrice`, `Note`, `PickupTimeFrom`, `PickupTimeTo`) VALUES
+(3, 2, NULL, 5, 0.00, 'gọi trước khi giao hàng', '2026-03-31', '2026-04-01'),
+(4, 2, NULL, 0, 0.00, 'gọi trước khi giao hàng', '2026-03-31', '2026-04-04'),
+(5, 4, NULL, 0, 0.00, 'gọi trước khi giao hàng', '2026-03-31', '2026-04-02');
 
 -- --------------------------------------------------------
 
@@ -1375,7 +1382,16 @@ INSERT INTO `trips` (`TripId`, `DriverId`, `VehicleId`, `RouteType`, `FromStatio
 (82, 7, 4, 1, 145, 225, '2026-05-09 08:00:00', '2026-05-09 20:00:00', 1100, 6, 560000.00, 500.00, NULL, NULL, NULL),
 (83, 8, 5, 2, 150, 230, '2026-05-09 09:00:00', '2026-05-09 21:00:00', 1300, 7, 580000.00, 520.00, NULL, NULL, NULL),
 (84, 9, 1, 1, 155, 235, '2026-05-09 10:00:00', '2026-05-09 22:00:00', 1500, 8, 600000.00, 540.00, NULL, NULL, NULL),
-(85, 9, 5, 2, 56, 219, '2026-03-30 16:52:00', '2026-03-31 14:28:00', 2500, 10, 20000.00, 1661.20, NULL, NULL, NULL);
+(85, 9, 5, 2, 56, 219, '2026-03-30 16:52:00', '2026-03-31 14:28:00', 2500, 10, 20000.00, 1661.20, NULL, NULL, NULL),
+(86, 9, 5, 2, 54, 222, '2026-04-09 18:05:00', '2026-04-10 17:14:00', 2500, 10, 50000.00, 1732.10, NULL, NULL, NULL),
+(87, 9, 5, 2, 55, 262, '2026-03-31 18:16:00', '2026-04-01 20:54:00', 2500, 10, 50000.00, 2109.50, NULL, NULL, NULL),
+(88, 9, 5, 2, 67, 231, '2026-04-01 18:30:00', '2026-04-01 22:19:00', 2500, 10, 50000.00, 280.10, NULL, NULL, NULL),
+(89, 9, 5, 2, 181, 234, '2026-04-01 18:36:00', '2026-04-02 10:58:00', 2500, 10, 50000.00, 1256.20, NULL, NULL, NULL),
+(90, 9, 5, 2, 68, 231, '2026-04-03 20:42:00', '2026-04-04 17:24:00', 2500, 10, 500000.00, 1605.00, NULL, NULL, NULL),
+(91, 9, 5, 2, 68, 231, '2026-04-03 20:42:00', '2026-04-04 17:24:00', 2500, 10, 500000.00, 1605.00, NULL, NULL, NULL),
+(92, 9, 5, 2, 68, 231, '2026-04-03 20:42:00', '2026-04-04 17:24:00', 2500, 10, 500000.00, 1605.00, NULL, NULL, NULL),
+(93, 9, 5, 2, 68, 231, '2026-04-03 20:42:00', '2026-04-04 17:24:00', 2500, 10, 500000.00, 1605.00, NULL, NULL, NULL),
+(94, 9, 5, 2, 68, 231, '2026-04-03 20:42:00', '2026-04-04 17:24:00', 2500, 10, 500000.00, 1605.00, NULL, NULL, NULL);
 
 -- --------------------------------------------------------
 
@@ -1403,7 +1419,14 @@ INSERT INTO `trip_stations` (`TripStationId`, `TripId`, `StationId`, `StopOrder`
 (4, 41, 100, 2, NULL, NULL, 0),
 (5, 43, 90, 1, NULL, NULL, 0),
 (6, 43, 110, 2, NULL, NULL, 0),
-(7, 43, 130, 3, NULL, NULL, 0);
+(7, 43, 130, 3, NULL, NULL, 0),
+(11, 88, 242, 1, NULL, NULL, 0),
+(12, 89, 237, 1, '2026-03-30 02:19:37', NULL, 1129.76),
+(13, 90, 181, 1, '2026-03-29 22:53:49', NULL, 712.68),
+(14, 91, 181, 1, '2026-03-29 22:53:49', NULL, 712.68),
+(15, 93, 181, 1, '2026-03-29 22:53:49', NULL, 712.68),
+(16, 92, 181, 1, '2026-03-29 22:53:49', NULL, 712.68),
+(17, 94, 181, 1, '2026-03-29 22:53:49', NULL, 712.68);
 
 -- --------------------------------------------------------
 
@@ -1540,6 +1563,33 @@ CREATE TABLE `vehicle_capacity_config` (
 --
 
 INSERT INTO `vehicle_capacity_config` (`Id`, `VehicleTypeId`, `MinWeight`, `MaxWeight`, `EstimatedVolume`) VALUES
+(1, 1, 0, 500, 1.2),
+(2, 1, 501, 1000, 3.5),
+(3, 1, 1001, 2000, 7),
+(4, 1, 2001, 3500, 12),
+(5, 1, 3501, 5000, 18),
+(6, 1, 5001, 8000, 28),
+(7, 2, 0, 500, 1),
+(8, 2, 501, 1000, 3),
+(9, 2, 1001, 2000, 6),
+(10, 2, 2001, 3500, 10),
+(11, 2, 3501, 5000, 15),
+(12, 2, 5001, 8000, 24),
+(13, 3, 0, 500, 0.8),
+(14, 3, 501, 1000, 2.5),
+(15, 3, 1001, 2000, 5),
+(16, 3, 2001, 3500, 8),
+(17, 3, 3501, 5000, 12),
+(18, 3, 5001, 8000, 20),
+(19, 4, 0, 500, 1.1),
+(20, 4, 501, 1000, 3.2),
+(21, 4, 1001, 2000, 6.5),
+(22, 4, 2001, 3500, 11),
+(23, 4, 3501, 5000, 17),
+(24, 4, 5001, 8000, 26),
+(25, 5, 0, 2000, 5),
+(26, 5, 2001, 5000, 10),
+(27, 5, 5001, 10000, 20),
 (1, 1, 0, 500, 1.2),
 (2, 1, 501, 1000, 3.5),
 (3, 1, 1001, 2000, 7),
@@ -11838,7 +11888,7 @@ ALTER TABLE `behaviorlogs`
 -- AUTO_INCREMENT cho bảng `cargodetail`
 --
 ALTER TABLE `cargodetail`
-  MODIFY `Id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=3;
+  MODIFY `Id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=6;
 
 --
 -- AUTO_INCREMENT cho bảng `cargotypes`
@@ -11880,13 +11930,13 @@ ALTER TABLE `request_trip_match`
 -- AUTO_INCREMENT cho bảng `shippingroute`
 --
 ALTER TABLE `shippingroute`
-  MODIFY `Id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=2;
+  MODIFY `Id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=5;
 
 --
 -- AUTO_INCREMENT cho bảng `shiprequest`
 --
 ALTER TABLE `shiprequest`
-  MODIFY `Id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=3;
+  MODIFY `Id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=6;
 
 --
 -- AUTO_INCREMENT cho bảng `stations`
@@ -11898,13 +11948,13 @@ ALTER TABLE `stations`
 -- AUTO_INCREMENT cho bảng `trips`
 --
 ALTER TABLE `trips`
-  MODIFY `TripId` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=86;
+  MODIFY `TripId` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=95;
 
 --
 -- AUTO_INCREMENT cho bảng `trip_stations`
 --
 ALTER TABLE `trip_stations`
-  MODIFY `TripStationId` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=11;
+  MODIFY `TripStationId` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=18;
 
 --
 -- AUTO_INCREMENT cho bảng `trip_types`

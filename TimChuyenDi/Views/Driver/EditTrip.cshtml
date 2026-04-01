@@ -1,124 +1,558 @@
 @model TimChuyenDi.Models.Trip
 @{
-    ViewData["Title"] = "Sửa Chuyến Xe";
+    ViewData["Title"] = "Chi tiết Chuyến Xe & Lộ Trình";
+    var stopCounter = 1; 
 }
 
-<div class="card shadow-lg border-0 rounded-4 overflow-hidden" style="max-width: 900px; margin: 0 auto;">
+<!-- Leaflet & Routing Assets -->
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<link rel="stylesheet" href="https://unpkg.com/leaflet-routing-machine/dist/leaflet-routing-machine.css" />
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" />
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/select2-bootstrap-5-theme@1.3.0/dist/select2-bootstrap-5-theme.min.css" />
 
-    <!-- Header -->
-    <div class="p-4 text-white"
-         style="background: linear-gradient(135deg, #36b9cc, #4e73df);">
-        <h4 class="fw-bold mb-1">
-            <i class="bi bi-pencil-square"></i> Cập nhật chuyến xe #@Model.TripId
-        </h4>
-        <p class="mb-0 small opacity-75">
-            Điều chỉnh thông tin chuyến để tối ưu vận chuyển
-        </p>
-    </div>
-
-    <!-- Body -->
-    <div class="p-4 bg-white">
-        <form asp-action="EditTrip" method="post">
-            <input type="hidden" name="TripId" value="@Model.TripId" />
-
-            <div class="row g-3">
-
-                <!-- Xe + Giá -->
-                <div class="col-md-6">
-                    <label class="form-label fw-semibold">Xe vận tải</label>
-                    <select name="VehicleId"
-                            class="form-select rounded-3 shadow-sm"
-                            asp-items="ViewBag.Vehicles"
-                            asp-for="VehicleId" required>
-                    </select>
-                </div>
-
-                <div class="col-md-6">
-                    <label class="form-label fw-semibold">Giá mở đầu (VNĐ)</label>
-                    <input type="number" step="1000"
-                           name="BasePrice"
-                           class="form-control rounded-3 shadow-sm"
-                           value="@Model.BasePrice" required />
-                </div>
-
-                <!-- Điểm đi -->
-                <div class="col-md-6">
-                    <label class="form-label fw-semibold text-primary">Điểm xuất phát</label>
-                    <select name="FromLocation"
-                            class="form-select rounded-3 shadow-sm"
-                            asp-items="ViewBag.Locations"
-                            asp-for="FromStationNavigation" required>
-                    </select>
-                </div>
-
-                <div class="col-md-6">
-                    <label class="form-label fw-semibold">Địa chỉ chi tiết</label>
-                    <input type="text"
-                           name="FromAddress"
-                           class="form-control rounded-3 shadow-sm"
-                           value="@Model.FromStationNavigation.Address" required />
-                </div>
-
-                <!-- Điểm đến -->
-                <div class="col-md-6">
-                    <label class="form-label fw-semibold text-success">Điểm đến</label>
-                    <select name="ToLocation"
-                            class="form-select rounded-3 shadow-sm"
-                            asp-items="ViewBag.Locations"
-                            asp-for="ToStationNavigation.Address" required>
-                    </select>
-                </div>
-
-                <div class="col-md-6">
-                    <label class="form-label fw-semibold">Địa chỉ trả hàng</label>
-                    <input type="text"
-                           name="ToAddress"
-                           class="form-control rounded-3 shadow-sm"
-                           value="@Model.ToStationNavigation.Address" required />
-                </div>
-
-                <!-- Thông tin chuyến -->
-                <div class="col-md-4">
-                    <label class="form-label fw-semibold">Trọng tải (kg)</label>
-                    <input type="number"
-                           name="AvaiCapacityKg"
-                           class="form-control rounded-3 shadow-sm"
-                           value="@Model.AvaiCapacityKg" required />
-                </div>
-
-                <div class="col-md-4">
-                    <label class="form-label fw-semibold">Thời gian xuất phát</label>
-                    <input type="datetime-local"
-                           name="StartTime"
-                           class="form-control rounded-3 shadow-sm"
-                           value="@Model.StartTime.ToString("yyyy-MM-ddTHH:mm")"
-                           required />
-                </div>
-
-                <div class="col-md-4">
-                    <label class="form-label fw-semibold">Thời gian đến</label>
-                    <input type="datetime-local"
-                           name="ArrivalTime"
-                           class="form-control rounded-3 shadow-sm"
-                           value="@(Model.ArrivalTime.HasValue ? Model.ArrivalTime.Value.ToString("yyyy-MM-ddTHH:mm") : "")"
-                           required />
-                </div>
-
-                <!-- Button -->
-                <div class="col-12 text-end mt-4">
-                    <a asp-action="MyTrips"
-                           class="btn btn-outline-secondary px-4 py-2 rounded-3">
-                        Hủy
-                    </a>
-
-                    <button type="submit"
-                            class="btn text-white fw-bold px-4 py-2 rounded-3"
-                            style="background: linear-gradient(135deg, #36b9cc, #4e73df); border: none;">
-                        <i class="bi bi-save"></i> Lưu thay đổi
-                    </button>
-                </div>
-
+<!-- Toast Container (Standard UI) -->
+<div class="toast-container position-fixed top-0 end-0 p-4" style="z-index: 1060; margin-top: 20px;">
+    <div id="actionToast" class="toast align-items-center border-0 shadow-lg rounded-4" role="alert" aria-live="assertive" aria-atomic="true" style="backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); border-left: 6px solid !important;">
+        <div class="d-flex">
+            <div class="toast-body fw-bold px-3 py-3" id="toastMessage" style="font-size: 1rem;">
+                Thao tác thành công!
             </div>
-        </form>
+            <button type="button" class="btn-close me-3 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+        </div>
     </div>
 </div>
+
+<style>
+    #intermediateStationsContainer { transition: all 0.2s ease; will-change: opacity, transform; }
+    #map { height: 650px; border-radius: 20px; border: 1px solid rgba(0,0,0,0.08); box-shadow: 0 10px 30px rgba(0,0,0,0.05); }
+    .card-trip { border: none; border-radius: 20px; overflow: hidden; }
+    .form-section-title { font-weight: 700; color: #36b9cc; border-left: 4px solid #36b9cc; padding-left: 10px; margin-bottom: 20px; font-size: 0.95rem; text-transform: uppercase; letter-spacing: 0.5px; }
+    .trip-type-card { cursor: pointer; border: 2px solid #f1f3f5; transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1); background: #fdfdfe; border-radius: 12px !important; }
+    .trip-type-card:hover { border-color: #36b9cc; transform: translateY(-2px); box-shadow: 0 5px 15px rgba(54, 185, 204, 0.08); }
+    .trip-type-radio:checked + .trip-type-card { border-color: #36b9cc; background-color: #f0fbfc; box-shadow: 0 5px 15px rgba(54, 185, 204, 0.12); }
+    
+    .intermediate-station { display: flex; align-items: center; background: #fff; border: 1px solid #e9ecef; padding: 12px; border-radius: 12px; margin-bottom: 10px; transition: 0.2s; }
+    .intermediate-station:hover { border-color: #ffc107; background: #fffcf5; }
+    .select-highlight { animation: highlight-fade 1.5s ease-out; }
+    @@keyframes highlight-fade {
+        0% { background-color: rgba(54, 185, 204, 0.15); box-shadow: 0 0 0 3px rgba(54, 185, 204, 0.2); }
+        100% { background-color: transparent; box-shadow: none; }
+    }
+</style>
+
+<div class="container-fluid py-4">
+    <form asp-action="EditTrip" method="post" id="tripForm">
+        <input type="hidden" name="TripId" value="@Model.TripId" />
+        <div class="row g-4">
+            <!-- Left Panel: Form Data -->
+            <div class="col-lg-4">
+                <div class="card card-trip shadow-lg h-100">
+                    <div class="card-header p-4 text-white" style="background: linear-gradient(135deg, #36b9cc, #4e73df);">
+                        <h5 class="mb-0 fw-bold"><i class="bi bi-info-circle me-2"></i>Chi Tiết Chuyến Xe #@Model.TripId</h5>
+                    </div>
+                    <div class="card-body p-4 overflow-auto" style="max-height: 80vh;">
+                        
+                        <div class="form-section-title">1. Phương Tiện & Loại Hình</div>
+                        
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Xe vận tải</label>
+                            <select name="VehicleId" id="vehicleSelect" class="form-select select2-bootstrap" required>
+                                @foreach (var v in (List<Vehicle>)ViewBag.Vehicles)
+                                {
+                                    <option value="@v.VehicleId" 
+                                            data-kg="@v.CapacityKg" 
+                                            data-m3="@v.CapacityM3"
+                                            selected="@(v.VehicleId == Model.VehicleId)">
+                                        @v.PlateNumber (@v.VehicleType.TypeName - @v.CapacityKg kg)
+                                    </option>
+                                }
+                            </select>
+                        </div>
+
+                        <div class="mb-4">
+                            <label class="form-label fw-bold">Loại hình di chuyển</label>
+                            <div class="d-flex flex-column gap-2">
+                                @foreach (var type in (List<TripType>)ViewBag.TripTypes)
+                                {
+                                    <div>
+                                        <input type="radio" name="RouteType" value="@type.IdType" id="type-@type.IdType" class="d-none trip-type-radio" required @(type.IdType == Model.RouteType ? "checked" : "")>
+                                        <label for="type-@type.IdType" class="trip-type-card p-2 rounded w-100">
+                                            <div class="d-flex align-items-center gap-2">
+                                                <div class="fs-5">@(type.Type == "Direct" ? "🚗" : "📦")</div>
+                                                <div>
+                                                    <div class="fw-bold">@(type.Type == "Direct" ? "Chuyến riêng" : "Chuyến ghép")</div>
+                                                    <small class="text-muted">@(type.Type == "Direct" ? "Không ghép đơn" : "Nhận thêm đơn khách")</small>
+                                                </div>
+                                            </div>
+                                        </label>
+                                    </div>
+                                }
+                            </div>
+                        </div>
+
+                        <div class="form-section-title">2. Lộ Trình Hiện Tại</div>
+
+                        <!-- START STATION -->
+                        <div class="p-3 bg-light rounded border border-primary border-opacity-25 mb-3">
+                            <label class="form-label fw-bold text-primary"><i class="bi bi-geo-alt-fill"></i> ĐIỂM XUẤT PHÁT</label>
+                            <select id="provinceStart" class="form-select select2-bootstrap mb-2" onchange="filterStations('start')">
+                                <option value="">-- Chọn Tỉnh/Thành --</option>
+                                @foreach (var p in (List<Province>)ViewBag.Provinces)
+                                {
+                                    <option value="@p.ProvinceId" selected="@(p.ProvinceId == Model.FromStationNavigation.ProvinceId)">@p.ProvinceName</option>
+                                }
+                            </select>
+                            <input type="hidden" id="initFromStation" value="@Model.FromStation" />
+                            <select name="FromStation" id="fromStation" class="form-select select2-stations" required>
+                                <option value="@Model.FromStation" 
+                                        data-lat="@(Model.FromStationNavigation.Latitude?.ToString()?.Replace(',', '.'))" 
+                                        data-lng="@(Model.FromStationNavigation.Longitude?.ToString()?.Replace(',', '.'))" selected>
+                                    @Model.FromStationNavigation.StationName
+                                </option>
+                            </select>
+                        </div>
+
+                        <!-- INTERMEDIATE STATIONS -->
+                        <div id="intermediateStationsContainer" class="mb-3" style="display: @(Model.RouteType == 2 ? "block" : "none");">
+                            <label class="form-label fw-bold text-warning"><i class="bi bi-plus-circle-fill"></i> CÁC TRẠM DỪNG (PHỤ)</label>
+                            <div id="stopsList">
+                                @if (Model?.TripStations != null)
+                                {
+                                    foreach (var ts in Model.TripStations.OrderBy(x => x.StopOrder))
+                                    {
+                                        if (ts?.Station != null)
+                                        {
+                                            <div class="intermediate-station d-flex gap-2 align-items-center" id="stopRow_@stopCounter">
+                                                <div style="flex: 1;">
+                                                    <select class="form-select select2-bootstrap province-stop" onchange="loadStopStations(@stopCounter)">
+                                                        @foreach (var p in (List<Province>)ViewBag.Provinces)
+                                                        {
+                                                            <option value="@p.ProvinceId" selected="@(p.ProvinceId == ts.Station.ProvinceId)">@p.ProvinceName</option>
+                                                        }
+                                                    </select>
+                                                </div>
+                                                <div style="flex: 1;">
+                                                    <select class="form-select select2-stations intermediate-select" onchange="updateRoute()">
+                                                        <option value="@ts.StationId" data-lat="@(ts.Station?.Latitude?.ToString()?.Replace(',', '.'))" data-lng="@(ts.Station?.Longitude?.ToString()?.Replace(',', '.'))" selected>@(ts.Station?.StationName)</option>
+                                                    </select>
+                                                </div>
+                                                <button type="button" class="btn btn-link text-danger p-0" onclick="removeStop(@stopCounter)"><i class="bi bi-trash fs-5"></i></button>
+                                            </div>
+                                            stopCounter++;
+                                        }
+                                    }
+                                }
+                            </div>
+                            <button type="button" class="btn btn-sm btn-outline-warning w-100 mt-1 fw-bold rounded-pill" onclick="addStop()">
+                                <i class="bi bi-plus-lg"></i> THÊM TRẠM DỪNG PHỤ
+                            </button>
+                        </div>
+
+                        <!-- END STATION -->
+                        <div class="p-3 bg-light rounded border border-success border-opacity-25 mb-4">
+                            <label class="form-label fw-bold text-success"><i class="bi bi-flag-fill"></i> ĐIỂM ĐẾN NƠI</label>
+                            <select id="provinceEnd" class="form-select select2-bootstrap mb-2" onchange="filterStations('end')">
+                                <option value="">-- Chọn Tỉnh/Thành --</option>
+                                @foreach (var p in (List<Province>)ViewBag.Provinces)
+                                {
+                                    <option value="@p.ProvinceId" selected="@(p.ProvinceId == Model.ToStationNavigation.ProvinceId)">@p.ProvinceName</option>
+                                }
+                            </select>
+                            <input type="hidden" id="initToStation" value="@Model.ToStation" />
+                            <select name="ToStation" id="toStation" class="form-select select2-stations" required>
+                                <option value="@Model.ToStation" 
+                                        data-lat="@(Model.ToStationNavigation.Latitude?.ToString()?.Replace(',', '.'))" 
+                                        data-lng="@(Model.ToStationNavigation.Longitude?.ToString()?.Replace(',', '.'))" selected>
+                                    @Model.ToStationNavigation.StationName
+                                </option>
+                            </select>
+                        </div>
+
+                        <div class="form-section-title">3. Tải Trọng & Giá</div>
+                        <div class="row g-3 mb-4">
+                            <div class="col-12">
+                                <label class="form-label fw-bold">Trọng tải hiện tại của chuyến (kg)</label>
+                                <input type="number" name="AvaiCapacityKg" id="capacityKgInput" class="form-control" value="@Model.AvaiCapacityKg" required oninput="checkCapacity()">
+                                <small id="vehicleLimits" class="text-primary fw-bold">Tối đa @Model.Vehicle?.CapacityKg kg</small>
+                            </div>
+                            <div class="col-12">
+                                <label class="form-label fw-bold">Giá cơ bản (VNĐ)</label>
+                                <input type="number" name="BasePrice" class="form-control" value="@((long)Model.BasePrice)" required>
+                            </div>
+                            <div class="col-6">
+                                <label class="form-label fw-bold">Giờ xuất phát</label>
+                                <input type="datetime-local" name="StartTime" id="startTime" class="form-control" value="@Model.StartTime.ToString("yyyy-MM-ddTHH:mm")" required>
+                            </div>
+                            <div class="col-6">
+                                <label class="form-label fw-bold">Giờ đến (Dự kiến)</label>
+                                <input type="datetime-local" name="ArrivalTime" id="arrivalTime" class="form-control" value="@(Model.ArrivalTime?.ToString("yyyy-MM-ddTHH:mm"))" required>
+                            </div>
+                        </div>
+
+                        <input type="hidden" name="Distance" id="distanceInput" value="@Model.Distance">
+                        <input type="hidden" name="intermediateStations" id="hiddenStops">
+
+                        <div class="d-grid gap-2">
+                            <button type="submit" class="btn btn-primary py-3 fw-bold shadow-lg rounded-pill" onclick="return validateAndSubmit()">
+                                <i class="bi bi-save-fill me-2"></i> CẬP NHẬT CHUYẾN XE
+                            </button>
+                            <a asp-action="MyTrips" class="btn btn-light rounded-pill py-2">Hủy quay về</a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right Panel: Map -->
+            <div class="col-lg-8">
+                <div class="card card-trip shadow-lg h-100">
+                    <div class="card-body p-0 position-relative">
+                        <div id="map"></div>
+                        
+                        <!-- MAP LOADING OVERLAY -->
+                        <div id="mapLoadingOverlay" class="position-absolute top-0 start-0 w-100 h-100 flex-column justify-content-center align-items-center bg-white bg-opacity-75" style="z-index: 1050; display: none !important; backdrop-filter: blur(3px);">
+                            <div class="spinner-border text-primary" role="status" style="width: 3rem; height: 3rem; border-width: 0.25em;">
+                                <span class="visually-hidden">Loading...</span>
+                            </div>
+                            <h6 class="mt-3 fw-bold text-primary" style="text-shadow: 0 0 10px white;">Đang tìm đường đi tốt nhất...</h6>
+                        </div>
+
+                        <div class="position-absolute bottom-0 start-0 p-3 w-100" style="z-index: 1000;">
+                            <div class="bg-white p-3 rounded-pill shadow-lg d-flex justify-content-around align-items-center mx-auto" style="max-width: 600px;">
+                                <div class="text-center px-4">
+                                    <span class="d-block small text-muted">Quãng đường</span>
+                                    <span class="h5 fw-bold mb-0 text-primary" id="totalDistance">@Model.Distance km</span>
+                                </div>
+                                <div class="vr"></div>
+                                <div class="text-center px-4">
+                                    <span class="d-block small text-muted">Thời gian di chuyển</span>
+                                    <span class="h5 fw-bold mb-0 text-success" id="totalTime">-- h</span>
+                                </div>
+                                <div class="vr"></div>
+                                <div class="text-center px-4">
+                                    <button type="button" class="btn btn-sm btn-outline-secondary" onclick="resetMap()">
+                                        <i class="bi bi-arrow-repeat"></i> Reset Map
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </form>
+</div>
+
+<!-- Scripts -->
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0/dist/js/select2.min.js"></script>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://unpkg.com/leaflet-routing-machine/dist/leaflet-routing-machine.js"></script>
+
+<script>
+    var map, routingControl;
+    var locationMarkers = L.layerGroup();
+    var persistentMarkers = L.layerGroup();
+    var lastTotalTimeSeconds = 0;
+
+    const VN_REGIONS = {
+        'North': ["Hà Nội", "Hải Phòng", "Hải Dương", "Hưng Yên", "Bắc Ninh", "Vĩnh Phúc", "Thái Nguyên", "Phú Thọ", "Bắc Giang", "Quảng Ninh", "Bắc Kạn", "Cao Bằng", "Hà Giang", "Lạng Sơn", "Tuyên Quang", "Lào Cai", "Yên Bái", "Điện Biên", "Hòa Bình", "Lai Châu", "Sơn La", "Hà Nam", "Nam Định", "Ninh Bình", "Thái Bình"],
+        'Central': ["Thanh Hóa", "Nghệ An", "Hà Tĩnh", "Quảng Bình", "Quảng Trị", "Thừa Thiên Huế", "Đà Nẵng", "Quảng Nam", "Quảng Ngãi", "Bình Định", "Phú Yên", "Khánh Hòa", "Ninh Thuận", "Bình Thuận", "Kon Tum", "Gia Lai", "Đắk Lắk", "Đắk Nông", "Lâm Đồng"],
+        'South': ["Hồ Chí Minh", "Bình Dương", "Đồng Nai", "Bình Phước", "Tây Ninh", "Bà Rịa - Vũng Tàu", "Long An", "Tiền Giang", "Bến Tre", "Trà Vinh", "Vĩnh Long", "Đồng Tháp", "An Giang", "Kiên Giang", "Cần Thơ", "Hậu Giang", "Sóc Trăng", "Bạc Liêu", "Cà Mau"]
+    };
+
+    const VN_CORRIDOR = [
+        { name: "Hà Tĩnh (AH1)", lat: 18.06, lng: 106.31 },
+        { name: "Quảng Ngãi (AH1)", lat: 15.12, lng: 108.79 },
+        { name: "Phú Yên (AH1)", lat: 13.10, lng: 109.28 },
+        { name: "Ninh Thuận (AH1)", lat: 11.58, lng: 108.98 }
+    ];
+
+    const iconBase = "https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-";
+    const shadowUrl = "https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png";
+    const createIcon = (color, isLarge = false) => L.icon({
+        iconUrl: iconBase + color + ".png", shadowUrl: shadowUrl,
+        iconSize: isLarge ? [35, 57] : [25, 41], iconAnchor: isLarge ? [17, 57] : [12, 41], popupAnchor: [1, isLarge ? -48 : -34], shadowSize: isLarge ? [50, 50] : [41, 41]
+    });
+
+    const startIcon = createIcon('blue', true);
+    const endIcon = createIcon('green', true);
+    const stopIcon = createIcon('orange', true);
+
+    $(document).ready(function () {
+        initMap();
+        locationMarkers.addTo(map);
+        persistentMarkers.addTo(map);
+        initSelect2();
+
+        // Type Change Listener
+        $('input[name="RouteType"]').change(function() {
+            var val = $(this).val();
+            if (val == "2") $('#intermediateStationsContainer').slideDown();
+            else { $('#intermediateStationsContainer').slideUp(); $('#stopsList').empty(); updateRoute(); }
+        });
+
+        // Vehicle Capacity Auto-fill & Limit Display
+        $(document).on('change', '#vehicleSelect', function () {
+            var kg = $(this).find(':selected').data('kg');
+            if (kg) {
+                $('#vehicleLimits').text(`Tối đa ${kg}kg`).removeClass('text-danger').addClass('text-primary');
+            } else {
+                $('#vehicleLimits').text('Chưa chọn xe').removeClass('text-danger');
+            }
+            checkCapacity();
+        });
+
+        $('#fromStation, #toStation').on('change', updateRoute);
+        $('#startTime').on('change', () => calculateArrivalTime(lastTotalTimeSeconds));
+
+        // Context-Aware Map Sync for Start/End
+        $('#provinceStart, #fromStation').on('select2:opening focus', function() {
+            let pId = $('#provinceStart').val();
+            if (pId) syncMapWithProvince(pId, 'start');
+        });
+        $('#provinceEnd, #toStation').on('select2:opening focus', function() {
+            let pId = $('#provinceEnd').val();
+            if (pId) syncMapWithProvince(pId, 'end');
+        });
+
+        // Initial Route Trigger
+        setTimeout(updateRoute, 800);
+    });
+
+    function initMap() {
+        map = L.map('map').setView([16.0544, 108.2022], 6);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+        map.setMaxBounds([[4.5, 95.0], [26.0, 115.0]]);
+
+        routingControl = L.Routing.control({
+            waypoints: [],
+            routeWhileDragging: false,
+            show: false,
+            router: L.Routing.osrmv1({ serviceUrl: 'https://router.project-osrm.org/route/v1', profile: 'driving' }),
+            lineOptions: { styles: [{ color: '#36b9cc', opacity: 0.8, weight: 6 }] },
+            createMarker: () => null
+        }).addTo(map);
+
+        routingControl.on('routingstart', function () {
+            $('#mapLoadingOverlay').attr('style', 'z-index: 1050; display: flex !important; backdrop-filter: blur(3px);');
+        });
+
+        routingControl.on('routingerror', function (e) {
+            $('#mapLoadingOverlay').attr('style', 'display: none !important;');
+        });
+
+        routingControl.on('routesfound', function (e) {
+            $('#mapLoadingOverlay').attr('style', 'display: none !important;');
+            var route = e.routes[0];
+            var summary = route.summary;
+            lastTotalTimeSeconds = summary.totalTime;
+            $('#totalDistance').text((summary.totalDistance / 1000).toFixed(1) + " km");
+            $('#totalTime').text((summary.totalTime / 3600).toFixed(1) + " h");
+            $('#distanceInput').val((summary.totalDistance / 1000).toFixed(1));
+            calculateArrivalTime(summary.totalTime);
+
+            // Intermediate stations calculation logic (similar to CreateTrip)
+            if (window.lastRealIndices && window.lastRawWaypoints) {
+                let indices = route.waypointIndices;
+                let coords = route.coordinates;
+                let startTimeStr = $('#startTime').val();
+                let startTime = startTimeStr ? new Date(startTimeStr) : new Date();
+                let stopsData = [];
+
+                for (let i = 1; i < window.lastRawWaypoints.length - 1; i++) {
+                    let currIdx = indices[window.lastRealIndices[i]];
+                    let prevIdx = indices[window.lastRealIndices[i - 1]];
+                    let segmentDist = 0;
+                    for (let j = prevIdx; j < currIdx; j++) segmentDist += coords[j].distanceTo(coords[j+1]);
+                    
+                    let distFromStart = 0;
+                    for (let j = 0; j < currIdx; j++) distFromStart += coords[j].distanceTo(coords[j+1]);
+                    let timeRatio = distFromStart / summary.totalDistance;
+                    let timeOffset = summary.totalTime * timeRatio;
+                    let estArrival = new Date(startTime.getTime() + timeOffset * 1000);
+
+                    stopsData.push({ stationId: window.lastRawWaypoints[i].stationId, distance: parseFloat((segmentDist / 1000).toFixed(2)), estArrivalTime: estArrival.toISOString() });
+                }
+                $('#hiddenStops').val(JSON.stringify(stopsData));
+            }
+        });
+    }
+
+    function updateRoute() {
+        persistentMarkers.clearLayers();
+        var start = $('#fromStation option:selected');
+        var startData = start.val() ? { type: 'start', stationId: parseInt(start.val()), lat: parseFloat(start.data('lat')), lng: parseFloat(start.data('lng')), name: start.text(), province: $('#provinceStart option:selected').text(), icon: startIcon } : null;
+
+        var end = $('#toStation option:selected');
+        var endData = end.val() ? { type: 'end', stationId: parseInt(end.val()), lat: parseFloat(end.data('lat')), lng: parseFloat(end.data('lng')), name: end.text(), province: $('#provinceEnd option:selected').text(), icon: endIcon } : null;
+
+        var intermediateStops = [];
+        $('.intermediate-station').each(function () {
+            var opt = $(this).find('.intermediate-select option:selected');
+            if (opt.val()) intermediateStops.push({ type: 'stop', stationId: parseInt(opt.val()), lat: parseFloat(opt.data('lat')), lng: parseFloat(opt.data('lng')), name: opt.text(), icon: stopIcon });
+        });
+
+        if (!startData && !endData) return;
+
+        // Logic check corridor, region sorting etc. (Simplified for space but uses same logic as CreateTrip)
+        var rawWaypoints = [];
+        if (startData) rawWaypoints.push(startData);
+        intermediateStops.forEach(s => rawWaypoints.push(s));
+        if (endData) rawWaypoints.push(endData);
+
+        var finalWaypoints = [];
+        var realIndices = [];
+        for (var i = 0; i < rawWaypoints.length; i++) {
+           var curr = rawWaypoints[i];
+           var latLng = L.latLng(curr.lat, curr.lng);
+           L.marker(latLng, { icon: curr.icon }).addTo(persistentMarkers).bindPopup(`${curr.name}`);
+           realIndices.push(finalWaypoints.length);
+           finalWaypoints.push(latLng);
+           
+           // Corridor Injection Logic here (Condensed)
+           if (i < rawWaypoints.length - 1) {
+               var next = rawWaypoints[i+1];
+               if (Math.abs(curr.lat - next.lat) > 3) {
+                   VN_CORRIDOR.forEach(cp => {
+                       if (cp.lat > Math.min(curr.lat, next.lat) + 0.5 && cp.lat < Math.max(curr.lat, next.lat) - 0.5) 
+                           finalWaypoints.push(L.latLng(cp.lat, cp.lng));
+                   });
+               }
+           }
+        }
+
+        if (finalWaypoints.length >= 2) {
+            window.lastRawWaypoints = rawWaypoints;
+            window.lastRealIndices = realIndices;
+            routingControl.setWaypoints(finalWaypoints);
+            var group = L.featureGroup(rawWaypoints.map(w => L.marker([w.lat, w.lng])));
+            map.fitBounds(group.getBounds().pad(0.2));
+        }
+    }
+
+    function initSelect2() {
+        $('.select2-bootstrap').select2({ theme: 'bootstrap-5', width: '100%' });
+        $('.select2-stations').select2({ theme: 'bootstrap-5', width: '100%' });
+    }
+
+    async function filterStations(type) {
+        var pId = (type === 'start') ? $('#provinceStart').val() : $('#provinceEnd').val();
+        var targetSelect = (type === 'start') ? $('#fromStation') : $('#toStation');
+        if (!pId) return;
+        const response = await fetch(`/Driver/GetStationsByProvince?provinceId=${pId}`);
+        const stations = await response.json();
+        let html = '<option value="">-- Chọn trạm --</option>';
+        stations.forEach(s => { html += `<option value="${s.id}" data-lat="${s.lat}" data-lng="${s.lng}">${s.name}</option>`; });
+        targetSelect.prop('disabled', false).html(html).trigger('change.select2');
+    }
+
+    function calculateArrivalTime(seconds) {
+        var start = $('#startTime').val();
+        if (!start || !seconds) return;
+        var arrival = new Date(new Date(start).getTime() + seconds * 1000);
+        $('#arrivalTime').val(arrival.toISOString().slice(0, 16));
+    }
+
+    function validateAndSubmit() {
+        // Build JSON stops
+        updateRoute(); 
+        return true; 
+    }
+    
+    const provinceOptionsHtml = `@foreach (var p in (List<Province>)ViewBag.Provinces) { <option value="@p.ProvinceId">@p.ProvinceName</option> }`;
+
+    var stopCounterGlobal = @(stopCounter);
+    function addStop() {
+        var id = stopCounterGlobal++;
+        var html = `<div class="intermediate-station d-flex gap-2 align-items-center" id="stopRow_${id}">
+            <div style="flex: 1;"><select class="form-select select2-bootstrap province-stop" onchange="loadStopStations(${id})">
+                <option value="">-- Chọn Tỉnh --</option>
+                ${provinceOptionsHtml}
+            </select></div>
+            <div style="flex: 1;"><select class="form-select select2-stations intermediate-select" onchange="updateRoute()" disabled><option value="">-- Trạm phụ --</option></select></div>
+            <button type="button" class="btn btn-link text-danger p-0" onclick="removeStop(${id})"><i class="bi bi-trash fs-5"></i></button>
+        </div>`;
+        $('#stopsList').append(html);
+        initSelect2();
+    }
+    async function syncMapWithProvince(pId, type) {
+        if (!pId) return;
+        try {
+            const response = await fetch(`/Driver/GetStationsByProvince?provinceId=${pId}`);
+            const stations = await response.json();
+            showProvinceMarkers(stations, type);
+        } catch (e) { console.error("Sync Map Error:", e); }
+    }
+
+    function showProvinceMarkers(stations, type) {
+        locationMarkers.clearLayers();
+        var bounds = [];
+        stations.forEach(s => {
+            if (s.lat && s.lng) {
+                bounds.push([s.lat, s.lng]);
+                var iconUrl = (type === 'start') ? 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-blue.png' : 
+                              (type === 'end') ? 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-green.png' :
+                              'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-orange.png';
+                var marker = L.marker([s.lat, s.lng], {
+                    icon: L.icon({ iconUrl: iconUrl, shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png', iconSize: [25, 41], iconAnchor: [12, 41], popupAnchor: [1, -34], shadowSize: [41, 41] })
+                }).bindPopup(`
+                    <div class="text-center p-1">
+                        <h6 class="fw-bold mb-1 text-primary">${s.name}</h6>
+                        <p class="small text-muted mb-2">${s.address}<br/>
+                            <span class="badge bg-light text-dark border fw-normal">${s.wardName ? s.wardName + ', ' : ''}${s.districtName ? s.districtName + ', ' : ''}${s.province}</span>
+                        </p>
+                        <button type='button' class='btn btn-sm btn-primary w-100 rounded-pill fw-bold shadow-sm' onclick='selectFromMap(${s.id}, "${type}", "${s.name}")'>Chọn Trạm Này</button>
+                    </div>
+                `);
+                locationMarkers.addLayer(marker);
+            }
+        });
+        if (bounds.length > 0) { map.fitBounds(bounds, { padding: [50, 50], maxZoom: 16 }); }
+    }
+
+    function selectFromMap(id, type, stationName) {
+        var targetSelect;
+        if (type === 'start') targetSelect = $('#fromStation');
+        else if (type === 'end') targetSelect = $('#toStation');
+        else if (type === 'stop') {
+             targetSelect = $('.intermediate-select:not(:disabled)').last(); 
+        }
+
+        if (targetSelect) {
+            targetSelect.val(id).trigger('change');
+            map.closePopup();
+            var selectContainer = targetSelect.next('.select2-container');
+            selectContainer.addClass('select-highlight');
+            setTimeout(() => selectContainer.removeClass('select-highlight'), 1500);
+        }
+    }
+
+    function removeStop(id) { $(`#stopRow_${id}`).remove(); updateRoute(); }
+
+    async function loadStopStations(id) {
+        var pId = $(`#stopRow_${id} .province-stop`).val();
+        var target = $(`#stopRow_${id} .intermediate-select`);
+        const res = await fetch(`/Driver/GetStationsByProvince?provinceId=${pId}`);
+        const data = await res.json();
+        let html = '<option value="">-- Chọn trạm --</option>';
+        data.forEach(s => { html += `<option value="${s.id}" data-lat="${s.lat}" data-lng="${s.lng}">${s.name}</option>`; });
+        target.prop('disabled', false).html(html).trigger('change.select2');
+        showProvinceMarkers(data, 'stop');
+    }
+
+    function checkCapacity() {
+        var vehicle = $('#vehicleSelect option:selected');
+        var maxKg = vehicle.data('kg') || 0;
+        var maxM3 = vehicle.data('m3') || 0;
+        var currKg = parseInt($('#capacityKgInput').val()) || 0;
+
+        var isValid = true;
+        if (currKg > maxKg) {
+            isValid = false;
+            $('#vehicleLimits').text(`Vượt quá tải trọng! (Tối đa ${maxKg}kg)`).removeClass('text-primary').addClass('text-danger');
+        } else {
+            $('#vehicleLimits').text(`Tối đa ${maxKg}kg`).removeClass('text-danger').addClass('text-primary');
+        }
+        return isValid;
+    }
+</script>

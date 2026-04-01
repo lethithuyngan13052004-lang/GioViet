@@ -38,7 +38,7 @@ namespace TimChuyenDi.Controllers
                     .ThenInclude(t => t.ToStationNavigation)
                         .ThenInclude(s => s.Province)
                 .Where(r => r.Trip.DriverId == driverId)
-                .OrderByDescending(r => r.CreatedAt)
+                .OrderByDescending(r => r.PickupTimeFrom)
                 .ToList();
 
             return View(requests);
@@ -269,31 +269,47 @@ namespace TimChuyenDi.Controllers
         public IActionResult EditTrip(int id)
         {
             var driverId = int.Parse(User.FindFirstValue("UserId"));
-            var trip = _context.Trips.FirstOrDefault(t => t.TripId == id && t.DriverId == driverId);
+            var trip = _context.Trips
+                .Include(t => t.FromStationNavigation).ThenInclude(s => s.Province)
+                .Include(t => t.ToStationNavigation).ThenInclude(s => s.Province)
+                .Include(t => t.TripStations).ThenInclude(ts => ts.Station).ThenInclude(s => s.Province)
+                .FirstOrDefault(t => t.TripId == id && t.DriverId == driverId);
 
             if (trip == null) return NotFound();
 
-            var stations = _context.Stations.Include(s => s.Province).ToList();
-            var stationList = stations.Select(s => new {
-                StationId = s.StationId,
-                DisplayName = s.StationName + " (" + s.Province.ProvinceName + ")"
+            // All necessary ViewBag data (copied from CreateTrip)
+            var stations = _context.Stations.Include(s => s.Province).OrderBy(s => s.StationName).ToList();
+            ViewBag.StationsRaw = stations.Select(s => new {
+                s.StationId,
+                s.StationName,
+                s.Latitude,
+                s.Longitude,
+                ProvinceName = s.Province.ProvinceName,
+                s.Address
             }).ToList();
 
-            ViewBag.Stations = new SelectList(stationList, "StationId", "DisplayName");
-            ViewBag.Vehicles = new SelectList(_context.Vehicles.Where(v => v.DriverId == driverId && v.Status == 1).ToList(), "VehicleId", "PlateNumber");
+            ViewBag.TripTypes = _context.TripTypes.ToList();
+            ViewBag.Provinces = _context.Provinces.OrderBy(p => p.ProvinceName).ToList();
+            ViewBag.Vehicles = _context.Vehicles.Where(v => v.DriverId == driverId && v.Status == 1).Include(v => v.VehicleType).ToList();
 
             return View(trip);
         }
 
         // POST: Xử lý lưu thông tin Sửa chuyến xe
         [HttpPost]
-        public IActionResult EditTrip(Trip updatedTrip)
+        public async Task<IActionResult> EditTrip(Trip updatedTrip, string intermediateStations)
         {
             var driverId = int.Parse(User.FindFirstValue("UserId"));
-            var trip = _context.Trips.FirstOrDefault(t => t.TripId == updatedTrip.TripId && t.DriverId == driverId);
+            var trip = _context.Trips
+                .Include(t => t.TripStations)
+                .FirstOrDefault(t => t.TripId == updatedTrip.TripId && t.DriverId == driverId);
 
-            if (trip != null)
+            if (trip == null) return NotFound();
+
+            using var transaction = await _context.Database.BeginTransactionAsync();
+            try
             {
+                // Update basic info
                 trip.VehicleId = updatedTrip.VehicleId;
                 trip.RouteType = updatedTrip.RouteType;
                 trip.FromStation = updatedTrip.FromStation;
@@ -304,9 +320,41 @@ namespace TimChuyenDi.Controllers
                 trip.BasePrice = updatedTrip.BasePrice;
                 trip.Distance = updatedTrip.Distance;
 
-                _context.SaveChanges();
-                TempData["Success"] = "Cập nhật chuyến xe thành công!";
+                // Sync Intermediate Stations (Clear and rebuild)
+                _context.TripStations.RemoveRange(trip.TripStations);
+                
+                if (!string.IsNullOrEmpty(intermediateStations))
+                {
+                    var options = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
+                    var stops = JsonSerializer.Deserialize<List<IntermediateStationDto>>(intermediateStations, options);
+                    if (stops != null)
+                    {
+                        for (int i = 0; i < stops.Count; i++)
+                        {
+                            var ts = new TripStation
+                            {
+                                TripId = trip.TripId,
+                                StationId = stops[i].stationId,
+                                StopOrder = i + 1,
+                                DistanceFromPrev = stops[i].distance,
+                                EstArrivalTime = stops[i].estArrivalTime
+                            };
+                            _context.TripStations.Add(ts);
+                        }
+                    }
+                }
+
+                await _context.SaveChangesAsync();
+                await transaction.CommitAsync();
+                TempData["Success"] = "Cập nhật chuyến xe và lộ trình thành công!";
             }
+            catch (Exception ex)
+            {
+                await transaction.RollbackAsync();
+                TempData["Error"] = "Lỗi khi cập nhật chuyến xe: " + ex.Message;
+                return RedirectToAction("EditTrip", new { id = updatedTrip.TripId });
+            }
+
             return RedirectToAction("MyTrips");
         }
 
@@ -605,7 +653,7 @@ namespace TimChuyenDi.Controllers
                     var route = r.Shippingroutes.FirstOrDefault();
                     return route != null && activeRoutes.Any(ar => ar.From == route.FromProvinceId && ar.To == route.ToProvinceId);
                 })
-                .OrderBy(r => r.ExpectedDeliveryDate ?? DateTime.MaxValue) // Ưu tiên ngày giao hàng mong muốn
+                .OrderBy(r => r.PickupTimeTo ?? DateTime.MaxValue) // Ưu tiên ngày giao hàng mong muốn
                 .ToList();
 
             ViewBag.ActiveTrips = activeTrips;
@@ -665,7 +713,7 @@ namespace TimChuyenDi.Controllers
             {
                 request.TripId = tripId;
                 request.Status = 1; // Đã xác nhận
-                request.ExpectedDeliveryDate = trip.ArrivalTime;
+                request.PickupTimeTo = trip.ArrivalTime;
 
                 
                 var cargo = request.Cargodetails.FirstOrDefault();

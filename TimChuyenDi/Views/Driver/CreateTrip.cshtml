@@ -202,6 +202,15 @@
                 <div class="card card-trip shadow-lg h-100">
                     <div class="card-body p-0 position-relative">
                         <div id="map"></div>
+
+                        <!-- MAP LOADING OVERLAY -->
+                        <div id="mapLoadingOverlay" class="position-absolute top-0 start-0 w-100 h-100 flex-column justify-content-center align-items-center bg-white bg-opacity-75" style="z-index: 1050; display: none !important; backdrop-filter: blur(3px);">
+                            <div class="spinner-border text-primary" role="status" style="width: 3rem; height: 3rem; border-width: 0.25em;">
+                                <span class="visually-hidden">Loading...</span>
+                            </div>
+                            <h6 class="mt-3 fw-bold text-primary" style="text-shadow: 0 0 10px white;">Đang tìm đường đi tốt nhất...</h6>
+                        </div>
+
                         <div class="position-absolute bottom-0 start-0 p-3 w-100" style="z-index: 1000;">
                             <div class="bg-white p-3 rounded-pill shadow-lg d-flex justify-content-around align-items-center mx-auto" style="max-width: 600px;">
                                 <div class="text-center px-4">
@@ -241,6 +250,36 @@
     var locationMarkers = L.layerGroup();
     var persistentMarkers = L.layerGroup();
     var lastTotalTimeSeconds = 0;
+
+    const VN_REGIONS = {
+        'North': ["Hà Nội", "Hải Phòng", "Hải Dương", "Hưng Yên", "Bắc Ninh", "Vĩnh Phúc", "Thái Nguyên", "Phú Thọ", "Bắc Giang", "Quảng Ninh", "Bắc Kạn", "Cao Bằng", "Hà Giang", "Lạng Sơn", "Tuyên Quang", "Lào Cai", "Yên Bái", "Điện Biên", "Hòa Bình", "Lai Châu", "Sơn La", "Hà Nam", "Nam Định", "Ninh Bình", "Thái Bình"],
+        'Central': ["Thanh Hóa", "Nghệ An", "Hà Tĩnh", "Quảng Bình", "Quảng Trị", "Thừa Thiên Huế", "Đà Nẵng", "Quảng Nam", "Quảng Ngãi", "Bình Định", "Phú Yên", "Khánh Hòa", "Ninh Thuận", "Bình Thuận", "Kon Tum", "Gia Lai", "Đắk Lắk", "Đắk Nông", "Lâm Đồng"],
+        'South': ["Hồ Chí Minh", "Bình Dương", "Đồng Nai", "Bình Phước", "Tây Ninh", "Bà Rịa - Vũng Tàu", "Long An", "Tiền Giang", "Bến Tre", "Trà Vinh", "Vĩnh Long", "Đồng Tháp", "An Giang", "Kiên Giang", "Cần Thơ", "Hậu Giang", "Sóc Trăng", "Bạc Liêu", "Cà Mau"]
+    };
+
+    function getRegion(provinceName) {
+        if (!provinceName) return null;
+        for (let region in VN_REGIONS) {
+            if (VN_REGIONS[region].some(p => provinceName.includes(p) || p.includes(provinceName))) {
+                return region;
+            }
+        }
+        return null;
+    }
+
+    function sortRawWaypoints(start, end, stops) {
+        if (stops.length <= 1) return stops;
+
+        // Vector projection sorting: (P - A) . (B - A) / |B - A|^2
+        // Since we only need relative order, (P.lat - A.lat)*(B.lat - A.lat) + (P.lng - A.lng)*(B.lng - A.lng) suffices
+        const vecAB = { lat: end.lat - start.lat, lng: end.lng - start.lng };
+        
+        return stops.sort((a, b) => {
+            const projA = (a.lat - start.lat) * vecAB.lat + (a.lng - start.lng) * vecAB.lng;
+            const projB = (b.lat - start.lat) * vecAB.lat + (b.lng - start.lng) * vecAB.lng;
+            return projA - projB;
+        });
+    }
 
     // Vietnam backbone (AH1 / Expressway spine) anchor points
     const VN_CORRIDOR = [
@@ -386,7 +425,16 @@
             createMarker: () => null // We handle our own persistent markers
         }).addTo(map);
 
+        routingControl.on('routingstart', function () {
+            $('#mapLoadingOverlay').attr('style', 'z-index: 1050; display: flex !important; backdrop-filter: blur(3px);');
+        });
+
+        routingControl.on('routingerror', function (e) {
+            $('#mapLoadingOverlay').attr('style', 'display: none !important;');
+        });
+
         routingControl.on('routesfound', function (e) {
+            $('#mapLoadingOverlay').attr('style', 'display: none !important;');
             var route = e.routes[0];
             var summary = route.summary;
             lastTotalTimeSeconds = summary.totalTime;
@@ -476,60 +524,93 @@
         
         // 1. Collect Point Data (Start, Stops, End)
         var start = $('#fromStation option:selected');
-        if (start.val()) rawWaypoints.push({ type: 'start', stationId: parseInt(start.val()), lat: parseFloat(start.data('lat')), lng: parseFloat(start.data('lng')), name: start.text(), icon: startIcon });
-
-        $('.intermediate-select').each(function () {
-            var opt = $(this).find('option:selected');
-            if (opt.val()) rawWaypoints.push({ type: 'stop', stationId: parseInt(opt.val()), lat: parseFloat(opt.data('lat')), lng: parseFloat(opt.data('lng')), name: opt.text(), icon: stopIcon });
-        });
+        var startData = start.val() ? { type: 'start', stationId: parseInt(start.val()), lat: parseFloat(start.data('lat')), lng: parseFloat(start.data('lng')), name: start.text(), province: $('#provinceStart option:selected').text(), icon: startIcon } : null;
 
         var end = $('#toStation option:selected');
-        if (end.val()) rawWaypoints.push({ type: 'end', stationId: parseInt(end.val()), lat: parseFloat(end.data('lat')), lng: parseFloat(end.data('lng')), name: end.text(), icon: endIcon });
+        var endData = end.val() ? { type: 'end', stationId: parseInt(end.val()), lat: parseFloat(end.data('lat')), lng: parseFloat(end.data('lng')), name: end.text(), province: $('#provinceEnd option:selected').text(), icon: endIcon } : null;
 
-        if (rawWaypoints.length < 1) {
+        var intermediateStops = [];
+        $('.intermediate-station').each(function () {
+            var select = $(this).find('.intermediate-select');
+            var opt = select.find('option:selected');
+            if (opt.val()) {
+                intermediateStops.push({ 
+                    type: 'stop', 
+                    stationId: parseInt(opt.val()), 
+                    lat: parseFloat(opt.data('lat')), 
+                    lng: parseFloat(opt.data('lng')), 
+                    name: opt.text(), 
+                    icon: stopIcon 
+                });
+            }
+        });
+
+        if (!startData && !endData) {
             $('#hiddenStops').val('');
             return;
         }
 
-        // 2. Build Routing Waypoints with "Corridor Injection" to keep routes in Vietnam
+        // 2. Sort Intermediate Stations logically from Start to End
+        if (startData && endData && intermediateStops.length > 0) {
+            intermediateStops = sortRawWaypoints(startData, endData, intermediateStops);
+        }
+
+        var rawWaypoints = [];
+        if (startData) rawWaypoints.push(startData);
+        intermediateStops.forEach(s => rawWaypoints.push(s));
+        if (endData) rawWaypoints.push(endData);
+
+        // 3. Build Routing Waypoints with "Corridor Injection" to keep routes in Vietnam
         var finalWaypoints = [];
-        var realIndices = []; // Track actual station positions in finalWaypoints
+        var realIndices = []; 
+        
+        var startRegion = startData ? getRegion(startData.province) : null;
+        var endRegion = endData ? getRegion(endData.province) : null;
+        var sameRegion = (startRegion && endRegion && startRegion === endRegion);
+        var isShortCrossRegion = false;
+        
+        if (startRegion && endRegion && !sameRegion) {
+            if ((startRegion === 'Central' && (endRegion === 'North' || endRegion === 'South')) ||
+                (endRegion === 'Central' && (startRegion === 'North' || startRegion === 'South'))) {
+                isShortCrossRegion = true;
+            }
+        }
+
         for (var i = 0; i < rawWaypoints.length; i++) {
             var curr = rawWaypoints[i];
-            if (!curr) continue;
-            
-            // Add visible marker to map
             var latLng = L.latLng(curr.lat, curr.lng);
             L.marker(latLng, { icon: curr.icon }).addTo(persistentMarkers).bindPopup(`<b>${curr.type === 'start' ? 'Bắt đầu' : curr.type === 'end' ? 'Kết thúc' : 'Trạm phụ'}</b>: ${curr.name}`);
             
             realIndices.push(finalWaypoints.length);
             finalWaypoints.push(latLng);
 
-            // If there's a next point and it's far away (Hanoi-Da Nang distance), inject corridor
-            if (i < rawWaypoints.length - 1) {
+            // Conditional Anchor Logic (Neo)
+            if (i < rawWaypoints.length - 1 && !sameRegion) {
                 var next = rawWaypoints[i+1];
                 var latDiff = Math.abs(curr.lat - next.lat);
-                
-                // Check if segment crosses the "waist" of Vietnam (approx 16.5N - 19.5N) where detour risk is high
                 var crossesWaist = (Math.min(curr.lat, next.lat) < 16.5 && Math.max(curr.lat, next.lat) > 19.5);
                 
-                if (latDiff > 3.0 && crossesWaist) { 
+                // If it's a cross-region trip and distance/waist indicates potential detour
+                if (latDiff > 2.5 || crossesWaist) { 
                     var minLat = Math.min(curr.lat, next.lat);
                     var maxLat = Math.max(curr.lat, next.lat);
                     
-                    // Filter and Sort corridor points based on travel direction
                     var isNorthbound = (next.lat > curr.lat);
                     var applicablePoints = VN_CORRIDOR.filter(cp => cp.lat > minLat + 0.5 && cp.lat < maxLat - 0.5);
                     
-                    if (isNorthbound) {
-                        applicablePoints.sort((a,b) => a.lat - b.lat);
-                    } else {
-                        applicablePoints.sort((a,b) => b.lat - a.lat);
-                    }
+                    if (isNorthbound) applicablePoints.sort((a,b) => a.lat - b.lat);
+                    else applicablePoints.sort((a,b) => b.lat - a.lat);
 
-                    // Only take at most 2 anchor points from the corridor to ensure smoothness
-                    if (applicablePoints.length > 2) {
-                        applicablePoints = [applicablePoints[0], applicablePoints[applicablePoints.length - 1]];
+                    // Max anchors allowed based on region trip type
+                    var maxAnchors = isShortCrossRegion ? 1 : 2;
+                    
+                    if (applicablePoints.length > maxAnchors) {
+                        if (maxAnchors === 1) {
+                            // Pick the most central one
+                            applicablePoints = [applicablePoints[Math.floor(applicablePoints.length / 2)]];
+                        } else {
+                            applicablePoints = [applicablePoints[0], applicablePoints[applicablePoints.length - 1]];
+                        }
                     }
 
                     applicablePoints.forEach(cp => {

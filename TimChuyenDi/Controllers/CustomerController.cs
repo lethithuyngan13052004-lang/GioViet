@@ -128,8 +128,8 @@ namespace TimChuyenDi.Controllers
                 TotalPrice = totalPrice,
                 Status = 0,
                 Note = Note,
-                CreatedAt = DateTime.Now,
-                ExpectedDeliveryDate = ExpectedDeliveryDate ?? trip.ArrivalTime
+                PickupTimeFrom = DateTime.Now,
+                PickupTimeTo = ExpectedDeliveryDate ?? trip.ArrivalTime
             };
 
 
@@ -220,8 +220,8 @@ namespace TimChuyenDi.Controllers
                 OrderCode = OrderCode,
                 Status = 0,
                 Note = Note,
-                CreatedAt = DateTime.Now,
-                ExpectedDeliveryDate = ExpectedDeliveryDate
+                PickupTimeFrom = DateTime.Now,
+                PickupTimeTo = ExpectedDeliveryDate
             };
 
 
@@ -318,7 +318,7 @@ namespace TimChuyenDi.Controllers
             if (request != null && trip != null)
             {
                 request.TripId = tripId;
-                request.ExpectedDeliveryDate = trip.ArrivalTime;
+                request.PickupTimeTo = trip.ArrivalTime;
 
                 // Đồng bộ OrderCode nếu chưa có
                 if (string.IsNullOrEmpty(request.OrderCode))
@@ -407,7 +407,7 @@ namespace TimChuyenDi.Controllers
                 .Include(r => r.Cargodetails)
                 .Include(r => r.Shippingroutes)
                 .Where(r => r.UserId == customerId)
-                .OrderByDescending(r => r.CreatedAt)
+                .OrderByDescending(r => r.PickupTimeFrom)
                 .ToList();
 
             return View(requests);

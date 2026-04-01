@@ -329,9 +329,9 @@ public partial class TimchuyendiContext : DbContext
             entity.HasIndex(e => e.TripId, "TripId");
 
             entity.Property(e => e.Id).HasColumnType("int(11)");
-            entity.Property(e => e.CreatedAt)
+            entity.Property(e => e.PickupTimeFrom)
                 .HasDefaultValueSql("current_timestamp()")
-                .HasColumnType("timestamp");
+                .HasColumnType("date");
             entity.Property(e => e.Note).HasColumnType("text");
             entity.Property(e => e.Status)
                 .HasDefaultValueSql("'0'")
@@ -343,7 +343,7 @@ public partial class TimchuyendiContext : DbContext
             entity.Property(e => e.TripId).HasColumnType("int(11)");
             entity.Property(e => e.UserId).HasColumnType("int(11)");
             entity.Property(e => e.OrderCode).HasMaxLength(50);
-            entity.Property(e => e.ExpectedDeliveryDate).HasColumnType("datetime");
+            entity.Property(e => e.PickupTimeTo).HasColumnType("date");
 
 
             entity.HasOne(d => d.User).WithMany(p => p.Shiprequests)

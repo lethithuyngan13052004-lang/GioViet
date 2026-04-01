@@ -38,7 +38,7 @@
 
 
                 <small class="text-muted">
-                    Ngày khách đặt: @Model.CreatedAt.ToString("dd/MM/yyyy HH:mm")
+                    Ngày khách đặt: @Model.PickupTimeFrom.ToString("dd/MM/yyyy HH:mm")
                 </small>
             </div>
             <span class="badge @badgeClass fs-5 px-4 py-2 rounded-pill shadow-sm">@statusText</span>
@@ -62,11 +62,11 @@
 
                         <p class="fs-6 mb-0"><strong>@(Model.Shippingroutes.FirstOrDefault()?.DeliveryAddress)</strong>, @Model.Trip.ToStationNavigation.Province.ProvinceName</p>
                     </div>
-                    @if (Model.ExpectedDeliveryDate.HasValue)
+                    @if (Model.PickupTimeTo.HasValue)
                     {
                         <div class="mb-3">
                             <label class="text-muted fw-bold small">📅 THỜI GIAN DỰ KIẾN GIAO</label>
-                            <p class="fs-6 mb-0 text-primary fw-bold">@Model.ExpectedDeliveryDate.Value.ToString("dd/MM/yyyy HH:mm")</p>
+                            <p class="fs-6 mb-0 text-primary fw-bold">@Model.PickupTimeTo.Value.ToString("dd/MM/yyyy HH:mm")</p>
                         </div>
                     }
 
