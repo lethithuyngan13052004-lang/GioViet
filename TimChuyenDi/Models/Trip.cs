@@ -30,7 +30,6 @@ public partial class Trip
 
     public decimal? Distance { get; set; }
 
-    public decimal? TotalPrice { get; set; }
 
     public decimal? PlatformFee { get; set; }
 

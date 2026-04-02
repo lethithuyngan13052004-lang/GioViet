@@ -110,12 +110,10 @@ namespace TimChuyenDi.Controllers
             int customerId = int.Parse(userIdStr);
 
             var vwFactorConfig = _context.SystemConfigs.FirstOrDefault(c => c.KeyName == "VolumeToWeightFactor");
-            int vwFactor = 250;
-            if (vwFactorConfig != null) vwFactor = (int)vwFactorConfig.Value;
+            int vwFactor = (int)(vwFactorConfig?.Value ?? 250);
 
             var minPriceConfig = _context.SystemConfigs.FirstOrDefault(c => c.KeyName == "MinPrice");
-            decimal minPrice = 0;
-            if (minPriceConfig != null) minPrice = minPriceConfig.Value;
+            decimal minPrice = minPriceConfig?.Value ?? 0;
 
             decimal volume = (Length * Width * Height) / 1000000m;
             decimal chargeableWeight = Math.Max(Weight, volume * vwFactor);
@@ -359,12 +357,10 @@ namespace TimChuyenDi.Controllers
                 if (cargo != null)
                 {
                     var vwFactorConfig = _context.SystemConfigs.FirstOrDefault(c => c.KeyName == "VolumeToWeightFactor");
-                    int vwFactor = 250;
-                    if (vwFactorConfig != null) vwFactor = (int)vwFactorConfig.Value;
+                    int vwFactor = (int)(vwFactorConfig?.Value ?? 250);
 
                     var minPriceConfig = _context.SystemConfigs.FirstOrDefault(c => c.KeyName == "MinPrice");
-                    decimal minPrice = 0;
-                    if (minPriceConfig != null) minPrice = minPriceConfig.Value;
+                    decimal minPrice = minPriceConfig?.Value ?? 0;
 
                     decimal length = cargo.Length ?? 0;
                     decimal width = cargo.Width ?? 0;
@@ -376,7 +372,7 @@ namespace TimChuyenDi.Controllers
                     decimal capacityKg = trip.Vehicle?.CapacityKg ?? 1;
 
                     decimal basePrice = trip.BasePrice * (chargeableWeight / capacityKg);
-                    
+
                     decimal tripTypeMultiplier = trip.RouteTypeNavigation?.Multiplier ?? 1;
                     
                     // We don't have cargoType directly here inside Assign, so request needs to include CargoType if exists,
