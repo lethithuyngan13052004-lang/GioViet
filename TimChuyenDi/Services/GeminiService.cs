@@ -28,7 +28,7 @@ namespace TimChuyenDi.Services
             // 1. Gọt sạch mọi khoảng trắng
             string cleanApiKey = _apiKey.Trim();
 
-            // 2. Lắp ráp URL chuẩn v1 (phiên bản ổn định)
+            // 2. Lắp ráp URL (Dùng v1beta cho các model thử nghiệm)
             string url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent?key=" + cleanApiKey;
 
             // 3. Đóng gói câu hỏi chuẩn JSON
@@ -47,27 +47,35 @@ namespace TimChuyenDi.Services
             {
                 // Gọi API
                 var response = await _httpClient.PostAsync(url, content);
+                var responseContent = await response.Content.ReadAsStringAsync();
 
                 if (response.IsSuccessStatusCode)
                 {
-                    var responseJson = await response.Content.ReadAsStringAsync();
+                    try 
+                    {
+                        using JsonDocument doc = JsonDocument.Parse(responseContent);
+                        var answer = doc.RootElement
+                                        .GetProperty("candidates")[0]
+                                        .GetProperty("content")
+                                        .GetProperty("parts")[0]
+                                        .GetProperty("text")
+                                        .GetString();
 
-                    using JsonDocument doc = JsonDocument.Parse(responseJson);
-                    var answer = doc.RootElement
-                                    .GetProperty("candidates")[0]
-                                    .GetProperty("content")
-                                    .GetProperty("parts")[0]
-                                    .GetProperty("text")
-                                    .GetString();
-
-                    return answer;
+                        return answer ?? "AI không trả về nội dung.";
+                    }
+                    catch (Exception jsonEx)
+                    {
+                        return $"Lỗi xử lý dữ liệu AI (JSON): {jsonEx.Message}. Nội dung gốc: {responseContent}";
+                    }
                 }
-
                 else
                 {
-                    var errorDetail = await response.Content.ReadAsStringAsync();
-                    return $"Lỗi kết nối tới AI. Mã lỗi: {response.StatusCode}. Chi tiết: {errorDetail}";
+                    return $"Lỗi kết nối tới AI. {response.StatusCode} ({(int)response.StatusCode}). Chi tiết: {responseContent}";
                 }
+            }
+            catch (HttpRequestException httpEx)
+            {
+                return $"Lỗi kết nối mạng (HTTP): {httpEx.Message}";
             }
             catch (Exception ex)
             {
@@ -75,4 +83,4 @@ namespace TimChuyenDi.Services
             }
         }
     }
-}
+}

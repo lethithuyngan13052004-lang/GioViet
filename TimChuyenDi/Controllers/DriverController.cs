@@ -201,7 +201,7 @@ namespace TimChuyenDi.Controllers
                     model.DriverId = driverId;
                     // Mặc định Capacity nếu tài xế không sửa
                     if (model.AvaiCapacityKg <= 0) model.AvaiCapacityKg = vehicle.CapacityKg;
-                    if (model.AvaiCapacityM3 <= 0) model.AvaiCapacityM3 = vehicle.CapacityM3;
+
 
                     _context.Trips.Add(model);
                     await _context.SaveChangesAsync();
@@ -513,14 +513,7 @@ namespace TimChuyenDi.Controllers
                                            && CapacityKg >= c.MinWeight 
                                            && CapacityKg <= c.MaxWeight);
                                            
-                if (capacityConfig != null)
-                {
-                    model.CapacityM3 = (int)Math.Round(capacityConfig.EstimatedVolume);
-                }
-                else
-                {
-                    model.CapacityM3 = 0;
-                }
+
 
                 _context.Vehicles.Add(model);
                 await _context.SaveChangesAsync();
@@ -581,14 +574,7 @@ namespace TimChuyenDi.Controllers
                                                && CapacityKg >= c.MinWeight 
                                                && CapacityKg <= c.MaxWeight);
                                                
-                    if (capacityConfig != null)
-                    {
-                        vehicle.CapacityM3 = (int)Math.Round(capacityConfig.EstimatedVolume);
-                    }
-                    else
-                    {
-                        vehicle.CapacityM3 = 0;
-                    }
+
 
                     vehicle.VehicleTypeId = VehicleTypeId;
                     vehicle.Status = 0; // Sửa xong lại chờ duyệt
@@ -745,12 +731,10 @@ namespace TimChuyenDi.Controllers
                 if (cargo != null)
                 {
                     var vwFactorConfig = _context.SystemConfigs.FirstOrDefault(c => c.KeyName == "VolumeToWeightFactor");
-                    int vwFactor = 250;
-                    if (vwFactorConfig != null && int.TryParse(vwFactorConfig.ValueStr, out var val)) vwFactor = val;
+                    int vwFactor = (int)(vwFactorConfig?.Value ?? 250);
 
                     var minPriceConfig = _context.SystemConfigs.FirstOrDefault(c => c.KeyName == "MinPrice");
-                    decimal minPrice = 0;
-                    if (minPriceConfig != null && decimal.TryParse(minPriceConfig.ValueStr, out var minP)) minPrice = minP;
+                    decimal minPrice = minPriceConfig?.Value ?? 0;
 
                     decimal length = cargo.Length ?? 0;
                     decimal width = cargo.Width ?? 0;

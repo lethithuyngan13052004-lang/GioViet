@@ -483,7 +483,7 @@ public partial class TimchuyendiContext : DbContext
             entity.Property(e => e.StartTime).HasColumnType("datetime");
             entity.Property(e => e.ToStation).HasColumnType("int(11)");
             entity.Property(e => e.VehicleId).HasColumnType("int(11)");
-            entity.Property(e => e.TotalPrice).HasPrecision(10, 2);
+
             entity.Property(e => e.PlatformFee).HasPrecision(10, 2);
             entity.Property(e => e.DriverEarning).HasPrecision(10, 2);
 
