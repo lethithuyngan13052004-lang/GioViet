@@ -574,5 +574,79 @@ namespace TimChuyenDi.Controllers
                 .ToList();
             return Json(stations);
         }
+
+        // ==========================================
+        // 11. XÁC NHẬN TẠO ĐƠN TỪ CHATBOT (AI)
+        // ==========================================
+        [HttpGet]
+        public async Task<IActionResult> ConfirmChatOrder(int fromId, int toId, decimal weight, string desc, string phone, 
+            int pType = 2, int dType = 2, string pAddr = "", string dAddr = "", int cType = 0)
+        {
+            var userIdStr = User.FindFirstValue("UserId") ?? User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (string.IsNullOrEmpty(userIdStr)) return RedirectToAction("Login", "Auth");
+            int customerId = int.Parse(userIdStr);
+
+            // 1. Tạo ShipRequest
+            var request = new Shiprequest
+            {
+                UserId = customerId,
+                Status = 0, // Chờ xe
+                Note = "Đã tạo qua Trợ lý AI",
+                PickupTimeFrom = DateTime.Now,
+                PickupTimeTo = DateTime.Now.AddDays(3), // Mặc định 3 ngày
+                TotalPrice = 0 // Sẽ tính sau khi tài xế báo giá hoặc ghép chuyến
+            };
+            _context.Shiprequests.Add(request);
+            await _context.SaveChangesAsync();
+
+            // 2. Tạo Cargo Detail
+            var cargo = new Cargodetail
+            {
+                RequestId = request.Id,
+                Description = desc ?? "Hàng hóa từ Chatbot",
+                Weight = weight > 0 ? weight : 1,
+                Length = 10, Width = 10, Height = 10 // Mặc định nhỏ
+            };
+            _context.Cargodetails.Add(cargo);
+
+            // 3. Tạo Shipping Route
+            var route = new Shippingroute
+            {
+                RequestId = request.Id,
+                FromProvinceId = fromId,
+                ToProvinceId = toId,
+                PickupType = pType,
+                DeliveryType = dType,
+                PickupAddress = pAddr,
+                DeliveryAddress = dAddr,
+                SenderPhone = User.FindFirstValue(ClaimTypes.MobilePhone) ?? "",
+                ReceiverName = "Khách hàng",
+                ReceiverPhone = phone ?? ""
+            };
+
+            // Tự động tìm trạm đầu tiên của tỉnh nếu đi tại bến
+            if (pType == 2 && fromId > 0)
+            {
+                var st = _context.Stations.FirstOrDefault(s => s.ProvinceId == fromId);
+                if (st != null) {
+                    route.FromStationId = st.StationId;
+                    if (string.IsNullOrEmpty(pAddr)) route.PickupAddress = st.StationName;
+                }
+            }
+            if (dType == 2 && toId > 0)
+            {
+                var st = _context.Stations.FirstOrDefault(s => s.ProvinceId == toId);
+                if (st != null) {
+                    route.ToStationId = st.StationId;
+                    if (string.IsNullOrEmpty(dAddr)) route.DeliveryAddress = st.StationName;
+                }
+            }
+
+            _context.Shippingroutes.Add(route);
+            await _context.SaveChangesAsync();
+
+            TempData["SuccessMessage"] = "Đơn hàng của bạn đã được tạo thành công qua Trợ lý Gió Việt!";
+            return RedirectToAction("RequestHistory");
+        }
     }
 }

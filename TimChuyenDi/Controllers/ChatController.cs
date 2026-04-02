@@ -6,6 +6,8 @@ using System.Threading.Tasks;
 using System.Linq;
 using System;
 using System.Security.Claims;
+using System.Text.RegularExpressions;
+using System.Collections.Generic;
 
 namespace TimChuyenDi.Controllers
 {
@@ -37,10 +39,28 @@ namespace TimChuyenDi.Controllers
 
                 var userIdClaim = User.FindFirstValue("UserId");
                 var roleClaim = User.FindFirstValue(ClaimTypes.Role);
-
                 string contextInfo = "";
                 string aiInstruction = "";
                 string currentTime = DateTime.Now.ToString("dd/MM/yyyy HH:mm");
+                bool isFirstMessage = string.IsNullOrWhiteSpace(history);
+
+                // --- 1. Lấy dữ liệu danh mục để AI map ID (Dùng cho tạo đơn) ---
+                var allProvinces = _context.Provinces.Select(p => new { p.ProvinceId, p.ProvinceName }).ToList();
+                var allCargoTypes = _context.Cargotypes.Select(c => new { c.CargoTypeId, c.TypeName }).ToList();
+                string provinceListText = string.Join(", ", allProvinces.Select(p => $"{p.ProvinceName}(ID:{p.ProvinceId})"));
+                string cargoTypeListText = string.Join(", ", allCargoTypes.Select(c => $"{c.TypeName}(ID:{c.CargoTypeId})"));
+
+                // --- 1. Tận dụng Normalization (Của cả Guest & User) ---
+                var uMsg = userMessage.ToLower();
+                uMsg = Regex.Replace(uMsg, @"\bhn\b", "hà nội");
+                uMsg = Regex.Replace(uMsg, @"\bhcm\b", "hồ chí minh");
+                uMsg = Regex.Replace(uMsg, @"\bsg\b", "hồ chí minh");
+                uMsg = Regex.Replace(uMsg, @"\bnd\b", "nam định");
+                uMsg = Regex.Replace(uMsg, @"\bhp\b", "hải phòng");
+                uMsg = Regex.Replace(uMsg, @"\bđn\b|dn\b", "đà nẵng");
+                uMsg = Regex.Replace(uMsg, @"\blc\b", "lào cai");
+                uMsg = Regex.Replace(uMsg, @"\bth\b", "thanh hóa");
+                uMsg = Regex.Replace(uMsg, @"\bsl\b", "sơn la");
 
                 if (int.TryParse(userIdClaim, out int userId))
                 {
@@ -119,103 +139,7 @@ Bạn là TRỢ LÝ ĐIỀU PHỐI (Dành cho Tài xế).
                             .Take(5)
                             .ToList();
 
-                        // --- Thuật toán tìm kiếm thông minh dựa trên tin nhắn người dùng ---
-                        var uMsg = userMessage.ToLower()
-                            .Replace(" hn ", " hà nội ")
-                            .Replace("hcm", "hồ chí minh")
-                            .Replace(" sg ", " hồ chí minh ")
-                            .Replace(" nd ", " nam định ")
-                            .Replace(" hp ", " hải phòng ")
-                            .Replace(" đn ", " đà nẵng ")
-                            .Replace(" dn ", " đà nẵng ");
-                        
-                        // Để thay thế chữ bị nén ở đầu/cuối chuỗi
-                        if (uMsg.StartsWith("hn ")) uMsg = "hà nội " + uMsg.Substring(3);
-                        if (uMsg.EndsWith(" hn")) uMsg = uMsg.Substring(0, uMsg.Length - 3) + " hà nội";
-                        if (uMsg.StartsWith("nd ")) uMsg = "nam định " + uMsg.Substring(3);
-                        if (uMsg.EndsWith(" nd")) uMsg = uMsg.Substring(0, uMsg.Length - 3) + " nam định";
-
-                        var provinces = _context.Provinces.ToList();
-                        var detectedProvinces = provinces.Where(p => 
-                        {
-                            var normalizedPName = p.ProvinceName.ToLower().Replace("tỉnh ", "").Replace("thành phố ", "").Replace("tp ", "").Trim();
-                            return uMsg.Contains(normalizedPName);
-                        }).ToList();
-                        var pIdFromProvinces = detectedProvinces.Select(p => p.ProvinceId).ToList();
-
-                        var stations = _context.Stations.ToList();
-                        var detectedStations = stations.Where(s => uMsg.Contains(s.StationName.ToLower())).ToList();
-                        var pIdFromStations = detectedStations.Select(s => s.ProvinceId).ToList();
-
-                        var combinedProvinceIds = pIdFromProvinces.Union(pIdFromStations).Distinct().ToList();
-                        
-                        Station nearestStation = null;
-                        double minDistance = double.MaxValue;
-
-                        // Nếu có tọa độ GPS, quét tìm trạm gần nhất
-                        if (lat.HasValue && lng.HasValue)
-                        {
-                            foreach (var s in stations)
-                            {
-                                if (s.Latitude.HasValue && s.Longitude.HasValue)
-                                {
-                                    double dist = GetDistance(lat.Value, lng.Value, (double)s.Latitude.Value, (double)s.Longitude.Value);
-                                    if (dist < minDistance)
-                                    {
-                                        minDistance = dist;
-                                        nearestStation = s;
-                                    }
-                                }
-                            }
-                        }
-
-                        // Nếu tìm thấy trạm gần nhất (mở rộng tối đa 100km nếu ko tìm đc trong 30km)
-                        if (nearestStation != null && minDistance < 100)
-                        {
-                            // Ưu tiên tin nhắn gõ tay: Nếu khách không nhắc địa điểm nào, ta tự ép lấy tỉnh của Trạm gần nhất
-                            if (!combinedProvinceIds.Any())
-                            {
-                                combinedProvinceIds.Add(nearestStation.ProvinceId);
-                            }
-                        }
-
-                        bool isTomorrow = userMessage.ToLower().Contains("ngày mai") || userMessage.ToLower().Contains("mai");
-
-                        var tripQuery = _context.Trips
-                            .Include(t => t.FromStationNavigation).ThenInclude(s => s.Province)
-                            .Include(t => t.ToStationNavigation).ThenInclude(s => s.Province)
-                            .Include(t => t.TripStations).ThenInclude(ts => ts.Station).ThenInclude(s => s.Province)
-                            .Include(t => t.Driver)
-                            .Where(t => t.StartTime > DateTime.Now)
-                            .AsQueryable();
-
-                        if (combinedProvinceIds.Any())
-                        {
-                            foreach (var pId in combinedProvinceIds)
-                            {
-                                int currentId = pId;
-                                tripQuery = tripQuery.Where(t => 
-                                    t.FromStationNavigation.ProvinceId == currentId || 
-                                    t.ToStationNavigation.ProvinceId == currentId ||
-                                    t.TripStations.Any(ts => ts.Station.ProvinceId == currentId)
-                                );
-                            }
-                        }
-                        
-                        if (isTomorrow)
-                        {
-                            var tomorrow = DateTime.Now.Date.AddDays(1);
-                            tripQuery = tripQuery.Where(t => t.StartTime.Date == tomorrow);
-                        }
-
-                        var trips = tripQuery.OrderBy(t => t.StartTime).Take(15).ToList();
-
                         contextInfo = $"THÔNG TIN KHÁCH HÀNG (Thời gian: {currentTime}):\n";
-                        if (nearestStation != null && minDistance < 100)
-                        {
-                            contextInfo += $"[HỆ THỐNG ĐÃ ĐỊNH VỊ GPS: Khách hàng đang đứng cách trạm '{nearestStation.StationName}' ({nearestStation.Province.ProvinceName}) khoảng {minDistance:F1} km. Hãy ưu tiên gợi ý các chuyến đi qua trạm này hoặc nhắc người dùng mang hàng ra trạm tiện nhất.]\n";
-                        }
-
                         contextInfo += "ĐƠN HÀNG CỦA BẠN (5 đơn gần nhất):\n";
                         foreach(var r in myOrders) {
                             var route = r.Shippingroutes.FirstOrDefault();
@@ -223,39 +147,136 @@ Bạn là TRỢ LÝ ĐIỀU PHỐI (Dành cho Tài xế).
                             string status = r.Status switch { 0 => "Chờ xác nhận", 1 => "Đã nhận", 2 => "Bị từ chối", 3 => "Đang giao", 4 => "Đã giao", _ => "Đã hủy" };
                             contextInfo += $"- Đơn #MD{r.Id} | Nặng {weight}kg | Trạng thái: {status} | Từ: {route?.PickupAddress ?? "N/A"} Đến: {route?.DeliveryAddress ?? "N/A"}\n";
                         }
-
-                        contextInfo += "\nDANH SÁCH CÁC CHUYẾN XE PHÙ HỢP CÓ TRONG HỆ THỐNG:\n";
-                        if (trips.Any()) {
-                            foreach (var t in trips) {
-                                var intermediateStops = string.Join(" -> ", t.TripStations.OrderBy(ts => ts.StopOrder).Select(ts => $"{ts.Station.StationName}({ts.Station.Province.ProvinceName})").Distinct());
-                                var stopsText = string.IsNullOrEmpty(intermediateStops) ? "" : $" (Đi qua: {intermediateStops})";
-                                contextInfo += $"- Mã {t.TripId}: {t.FromStationNavigation.StationName} ({t.FromStationNavigation.Province.ProvinceName}) → {t.ToStationNavigation.StationName} ({t.ToStationNavigation.Province.ProvinceName}){stopsText} | Giá: {t.BasePrice:N0}đ | Khởi hành: {t.StartTime:dd/MM HH:mm} | Trống: {t.AvaiCapacityKg}kg\n";
-                            }
-                        } else {
-                            contextInfo += "[Hệ thống báo cáo: Không tìm thấy chuyến xe nào phù hợp với yêu cầu này trên CSDL]\n";
-                        }
-
-                        aiInstruction = @"
-Bạn là Trợ Gió - viết tắt cho Trợ Lý Gió Việt. 
-- Hãy sử dụng danh sách 'CÁC CHUYẾN XE PHÙ HỢP' để trả lời.
-- QUAN TRỌNG: Nếu người dùng hỏi về lộ trình cụ thể mà hệ thống báo 'Không tìm thấy chuyến xe nào phù hợp', hãy trả lời chính xác câu: 'Hiện tại Gió Việt chưa có tuyến xe nào phù hợp với lộ trình/thời gian bạn yêu cầu. Vui lòng chờ tuyến đi từ các bác tài ạ.' Tuyệt đối không tự chế ra chuyến xe mới hay nghĩ ra khoảng thời gian 'trong ngày hôm nay'.
-- Nếu thấy chuyến xe khớp, hãy giới thiệu và cung cấp tên Tỉnh và mã chuyến xe.
-- TUYỆT ĐỐI KHÔNG sử dụng IN HOA TOÀN BỘ CHỮ để nhấn mạnh (Ví dụ không dùng: KHÔNG TÌM THẤY CHUYẾN XE). Bạn được phép dùng in đậm (**) để làm nổi bật các thông tin quan trọng (Tên Tỉnh, Mã Chuyến, Giá Tiền). Hãy trả lời bằng câu văn bình thường, lịch sự.
-";
-
-                        if (!lat.HasValue || !lng.HasValue) 
-                        {
-                            aiInstruction += "\n- LƯU Ý MỞ RỘNG: Hiện tại khách hàng BỊ TẮT ĐỊNH VỊ. Nếu khách đang muốn tìm chuyến xe, hãy khéo léo chèn thêm 1 câu nhắc nhở nhẹ nhàng ở cuối: 'Để tìm chuyến chính xác nhất, bạn có thể bấm nút Vị trí 📍 màu xanh góc trái để mình ưu tiên tìm các trạm gửi hàng gần bạn nhất nhé!'";
-                        }
+                    }
+                }
+                else 
+                {
+                    // Guest user
+                    contextInfo = "Hệ thống vận tải Gió Việt chuyên cung cấp dịch vụ gửi hàng liên tỉnh giá rẻ thông qua việc ghép xe.\n";
+                    if (isFirstMessage)
+                    {
+                        contextInfo += "[LƯU Ý: Đây là tin nhắn đầu tiên, hãy giới thiệu ngắn gọn về bản thân là Trợ Gió và chào mừng khách đến với Gió Việt.]\n";
                     }
                 }
 
-                else 
+                aiInstruction = $@"
+Bạn là Trợ Gió - Trợ lý AI thông minh của Gió Việt.
+Nhiệm vụ 1: TƯ VẤN LỘ TRÌNH: Sử dụng 'CÁC CHUYẾN XE PHÙ HỢP' để trả lời ngay.
+Nhiệm vụ 2: HỖ TRỢ ĐẶT ĐƠN (Gửi hàng):
+- Nếu khách muốn gửi hàng, hãy kiểm tra các thông tin sau trong lịch sử chat:
+  1. Tỉnh đi & Tỉnh đến (Khớp với danh sách Tỉnh: {provinceListText})
+  2. Khối lượng (kg)
+  3. Loại hàng (Khớp với danh sách: {cargoTypeListText})
+  4. SĐT người nhận
+  5. Hình thức: Tại nhà hay Tại bến? (Nếu tại nhà, hãy hỏi ĐỊA CHỈ cụ thể: Số nhà, Tên đường).
+- QUY TẮC: Nếu thiếu thông tin nào, hãy đặt câu hỏi khéo léo để lấy thông tin đó. KHÔNG hỏi tất cả cùng lúc.
+- KẾT THÚC: Khi đã đủ 5 thông tin trên, hãy hiển thị bảng tóm tắt và link: 
+  <a href='/Customer/ConfirmChatOrder?fromId=[ID_TINH_DI]&toId=[ID_TINH_DEN]&weight=[KG]&desc=[TEN_HANG]&phone=[SDT_NHAN]&pType=[1_NHA_2_BEN]&dType=[1_NHA_2_BEN]&pAddr=[DIA_CHI_DI]&dAddr=[DIA_CHI_DEN]' class='btn btn-primary fw-bold mt-2'>[Xác nhận Tạo Đơn]</a>
+  (Thay thế các giá trị trong [] bằng dữ liệu thật thu thập được).
+
+LƯU Ý CHUNG:
+- Tuyệt đối không tự chế ra chuyến xe.
+- Link 'Lưu' giúp khách lưu tuyến, link 'Xem' mở chi tiết.
+- Không IN HOA TOÀN BỘ. Dùng in đậm (**) cho thông tin quan trọng.
+";
+
+                // ================= SHARED TRIP SEARCH (For Guests & Customers) =================
+                if (roleClaim != "1" && roleClaim != "3")
                 {
-                    // Khách chưa đăng nhập
-                    aiInstruction = "Bạn là trợ lý giải đáp thắc mắc chung về Gió Việt. Hãy giới thiệu về dịch vụ gửi hàng và ghép xe liên tỉnh.";
-                    contextInfo = "Hệ thống vận tải Gió Việt chuyên cung cấp dịch vụ gửi hàng liên tỉnh giá rẻ thông qua việc ghép xe.";
+                    var provinces = _context.Provinces.ToList();
+                    var detectedProvinces = provinces.Where(p => 
+                    {
+                        var normalizedPName = p.ProvinceName.ToLower().Replace("tỉnh ", "").Replace("thành phố ", "").Replace("tp ", "").Trim();
+                        return uMsg.Contains(normalizedPName);
+                    }).ToList();
+                    var pIdFromProvinces = detectedProvinces.Select(p => p.ProvinceId).ToList();
+
+                    var stations = _context.Stations.ToList();
+                    var detectedStations = stations.Where(s => uMsg.Contains(s.StationName.ToLower())).ToList();
+                    var pIdFromStations = detectedStations.Select(s => s.ProvinceId).ToList();
+
+                    var combinedProvinceIds = pIdFromProvinces.Union(pIdFromStations).Distinct().ToList();
+                    
+                    Station nearestStation = null;
+                    double minDistance = double.MaxValue;
+
+                    if (lat.HasValue && lng.HasValue)
+                    {
+                        foreach (var s in stations)
+                        {
+                            if (s.Latitude.HasValue && s.Longitude.HasValue)
+                            {
+                                double dist = GetDistance(lat.Value, lng.Value, (double)s.Latitude.Value, (double)s.Longitude.Value);
+                                if (dist < minDistance)
+                                {
+                                    minDistance = dist;
+                                    nearestStation = s;
+                                }
+                            }
+                        }
+                    }
+
+                    if (nearestStation != null && minDistance < 100)
+                    {
+                        if (!combinedProvinceIds.Any())
+                        {
+                            combinedProvinceIds.Add(nearestStation.ProvinceId);
+                        }
+                        contextInfo += $"[HỆ THỐNG ĐÃ ĐỊNH VỊ GPS: Khách hàng đang đứng cách trạm '{nearestStation.StationName}' ({nearestStation.Province.ProvinceName}) khoảng {minDistance:F1} km. Hãy ưu tiên gợi ý các chuyến đi qua trạm này hoặc nhắc người dùng mang hàng ra trạm tiện nhất.]\n";
+                    }
+
+                    bool isTomorrow = userMessage.ToLower().Contains("ngày mai") || userMessage.ToLower().Contains("mai");
+
+                    var tripQuery = _context.Trips
+                        .Include(t => t.FromStationNavigation).ThenInclude(s => s.Province)
+                        .Include(t => t.ToStationNavigation).ThenInclude(s => s.Province)
+                        .Include(t => t.TripStations).ThenInclude(ts => ts.Station).ThenInclude(s => s.Province)
+                        .Include(t => t.Driver)
+                        .Where(t => t.StartTime > DateTime.Now)
+                        .AsQueryable();
+
+                    if (combinedProvinceIds.Any())
+                    {
+                        foreach (var pId in combinedProvinceIds)
+                        {
+                            int currentId = pId;
+                            tripQuery = tripQuery.Where(t => 
+                                t.FromStationNavigation.ProvinceId == currentId || 
+                                t.ToStationNavigation.ProvinceId == currentId ||
+                                t.TripStations.Any(ts => ts.Station.ProvinceId == currentId)
+                            );
+                        }
+                    }
+                    
+                    if (isTomorrow)
+                    {
+                        var tomorrow = DateTime.Now.Date.AddDays(1);
+                        tripQuery = tripQuery.Where(t => t.StartTime.Date == tomorrow);
+                    }
+
+                    var trips = tripQuery.OrderBy(t => t.StartTime).Take(15).ToList();
+
+                    contextInfo += "\nDANH SÁCH CÁC CHUYẾN XE PHÙ HỢP CÓ TRONG HỆ THỐNG:\n";
+                    if (trips.Any()) {
+                        foreach (var t in trips) {
+                            var intermediateStops = string.Join(" -> ", t.TripStations.OrderBy(ts => ts.StopOrder).Select(ts => $"{ts.Station.StationName}({ts.Station.Province.ProvinceName})").Distinct());
+                            var stopsText = string.IsNullOrEmpty(intermediateStops) ? "" : $" (Đi qua: {intermediateStops})";
+                            
+                            // Link HTML cho chức năng Xem và Lưu
+                            string actions = $" <a href='/Home/TripDetails/{t.TripId}' style='color:#0d6efd;font-weight:bold;text-decoration:none;'>[Xem]</a>";
+                            actions += $" <a href='/Customer/SaveRoute/{t.TripId}' style='color:#198754;font-weight:bold;text-decoration:none;margin-left:8px;'>[Lưu]</a>";
+
+                            contextInfo += $"- Mã {t.TripId}: {t.FromStationNavigation.StationName} ({t.FromStationNavigation.Province.ProvinceName}) → {t.ToStationNavigation.StationName} ({t.ToStationNavigation.Province.ProvinceName}){stopsText} | Giá: {t.BasePrice:N0}đ | Khởi hành: {t.StartTime:dd/MM HH:mm}{actions}\n";
+                        }
+                    } else {
+                        contextInfo += "[Hệ thống báo cáo: Không tìm thấy chuyến xe nào phù hợp với yêu cầu này trên CSDL]\n";
+                    }
                 }
+
+                    if (!lat.HasValue || !lng.HasValue) 
+                    {
+                        aiInstruction += "\n- LƯU Ý MỞ RỘNG: Hiện tại khách hàng BỊ TẮT ĐỊNH VỊ. Nếu khách đang muốn tìm chuyến xe, hãy khéo léo chèn thêm 1 câu nhắc nhở nhẹ nhàng ở cuối: 'Để tìm chuyến chính xác nhất, bạn có thể bấm nút Vị trí 📍 màu xanh góc trái để mình ưu tiên tìm các trạm gửi hàng gần bạn nhất nhé!'";
+                    }
 
                 string finalPrompt = $@"
 Hệ thống: Gió Việt (Dịch vụ vận tải/ghép hàng liên tỉnh).
