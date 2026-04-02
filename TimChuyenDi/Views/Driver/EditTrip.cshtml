@@ -260,6 +260,14 @@
         { name: "Ninh Thuận (AH1)", lat: 11.58, lng: 108.98 }
     ];
 
+    function getRegion(provinceName) {
+        if (!provinceName) return null;
+        for (let region in VN_REGIONS) {
+            if (VN_REGIONS[region].includes(provinceName)) return region;
+        }
+        return null;
+    }
+
     const iconBase = "https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-";
     const shadowUrl = "https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png";
     const createIcon = (color, isLarge = false) => L.icon({
@@ -268,7 +276,7 @@
     });
 
     const startIcon = createIcon('blue', true);
-    const endIcon = createIcon('green', true);
+    const endIcon = createIcon('red', true);
     const stopIcon = createIcon('orange', true);
 
     $(document).ready(function () {
@@ -322,7 +330,7 @@
             routeWhileDragging: false,
             show: false,
             router: L.Routing.osrmv1({ serviceUrl: 'https://router.project-osrm.org/route/v1', profile: 'driving' }),
-            lineOptions: { styles: [{ color: '#36b9cc', opacity: 0.8, weight: 6 }] },
+            lineOptions: { styles: [{ color: '#0d6efd', opacity: 0.8, weight: 6 }] },
             createMarker: () => null
         }).addTo(map);
 
@@ -376,9 +384,23 @@
             if (opt.val()) intermediateStops.push({ type: 'stop', stationId: parseInt(opt.val()), lat: parseFloat(opt.data('lat')), lng: parseFloat(opt.data('lng')), name: opt.text(), icon: stopIcon });
         });
 
+        // Fallback for sorting stops
+        function sortRawWaypoints(start, end, stops) {
+            if (stops.length <= 1) return stops;
+            const vecAB = { lat: end.lat - start.lat, lng: end.lng - start.lng };
+            return stops.sort((a, b) => {
+                const projA = (a.lat - start.lat) * vecAB.lat + (a.lng - start.lng) * vecAB.lng;
+                const projB = (b.lat - start.lat) * vecAB.lat + (b.lng - start.lng) * vecAB.lng;
+                return projA - projB;
+            });
+        }
+
         if (!startData && !endData) return;
 
-        // Logic check corridor, region sorting etc. (Simplified for space but uses same logic as CreateTrip)
+        if (startData && endData && intermediateStops.length > 0) {
+            intermediateStops = sortRawWaypoints(startData, endData, intermediateStops);
+        }
+
         var rawWaypoints = [];
         if (startData) rawWaypoints.push(startData);
         intermediateStops.forEach(s => rawWaypoints.push(s));
@@ -386,6 +408,19 @@
 
         var finalWaypoints = [];
         var realIndices = [];
+        
+        var startRegion = startData ? getRegion(startData.province) : null;
+        var endRegion = endData ? getRegion(endData.province) : null;
+        var sameRegion = (startRegion && endRegion && startRegion === endRegion);
+        var isShortCrossRegion = false;
+        
+        if (startRegion && endRegion && !sameRegion) {
+            if ((startRegion === 'Central' && (endRegion === 'North' || endRegion === 'South')) ||
+                (endRegion === 'Central' && (startRegion === 'North' || startRegion === 'South'))) {
+                isShortCrossRegion = true;
+            }
+        }
+
         for (var i = 0; i < rawWaypoints.length; i++) {
            var curr = rawWaypoints[i];
            var latLng = L.latLng(curr.lat, curr.lng);
@@ -393,15 +428,32 @@
            realIndices.push(finalWaypoints.length);
            finalWaypoints.push(latLng);
            
-           // Corridor Injection Logic here (Condensed)
-           if (i < rawWaypoints.length - 1) {
-               var next = rawWaypoints[i+1];
-               if (Math.abs(curr.lat - next.lat) > 3) {
-                   VN_CORRIDOR.forEach(cp => {
-                       if (cp.lat > Math.min(curr.lat, next.lat) + 0.5 && cp.lat < Math.max(curr.lat, next.lat) - 0.5) 
-                           finalWaypoints.push(L.latLng(cp.lat, cp.lng));
-                   });
-               }
+           if (i < rawWaypoints.length - 1 && !sameRegion) {
+                var next = rawWaypoints[i+1];
+                var latDiff = Math.abs(curr.lat - next.lat);
+                var crossesWaist = (Math.min(curr.lat, next.lat) < 16.5 && Math.max(curr.lat, next.lat) > 19.5);
+                
+                if (latDiff > 2.5 || crossesWaist) { 
+                    var minLat = Math.min(curr.lat, next.lat);
+                    var maxLat = Math.max(curr.lat, next.lat);
+                    
+                    var isNorthbound = (next.lat > curr.lat);
+                    var applicablePoints = VN_CORRIDOR.filter(cp => cp.lat > minLat + 0.5 && cp.lat < maxLat - 0.5);
+                    
+                    if (isNorthbound) applicablePoints.sort((a,b) => a.lat - b.lat);
+                    else applicablePoints.sort((a,b) => b.lat - a.lat);
+
+                    var maxAnchors = isShortCrossRegion ? 1 : 2;
+                    
+                    if (applicablePoints.length > maxAnchors) {
+                        if (maxAnchors === 1) applicablePoints = [applicablePoints[Math.floor(applicablePoints.length / 2)]];
+                        else applicablePoints = [applicablePoints[0], applicablePoints[applicablePoints.length - 1]];
+                    }
+
+                    applicablePoints.forEach(cp => {
+                        finalWaypoints.push(L.latLng(cp.lat, cp.lng));
+                    });
+                }
            }
         }
 

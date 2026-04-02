@@ -800,9 +800,9 @@
                 if (parsed.length !== selectedStops.length) {
                     $('#hiddenStops').val(JSON.stringify(selectedStops));
                 }
-                // Nếu bằng nhau và là JSON rồi thì giữ nguyên để bảo toàn distance/estArrivalTime
             }
         } catch (e) {
+            console.error("JSON parsing error: ", e);
             $('#hiddenStops').val(JSON.stringify(selectedStops));
         }
 
@@ -810,6 +810,13 @@
             showToast("Vui lòng chọn trạm đi và trạm đến!", true);
             return false; 
         }
+
+        // Chống thao tác click quá nhanh (spam submit) dẫn đến duplicate database record
+        var submitBtn = $('button[type="submit"]');
+        submitBtn.prop('disabled', true);
+        submitBtn.html('<span class="spinner-border spinner-border-sm align-middle me-2"></span><span class="align-middle">ĐANG XỬ LÝ...</span>');
+
+        // Form hợp lệ, return true để cho phép form submit native
         return true;
     }
 

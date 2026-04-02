@@ -111,14 +111,14 @@ namespace TimChuyenDi.Controllers
 
             var vwFactorConfig = _context.SystemConfigs.FirstOrDefault(c => c.KeyName == "VolumeToWeightFactor");
             int vwFactor = 250;
-            if (vwFactorConfig != null && int.TryParse(vwFactorConfig.ValueStr, out var val)) vwFactor = val;
+            if (vwFactorConfig != null) vwFactor = (int)vwFactorConfig.Value;
 
             var minPriceConfig = _context.SystemConfigs.FirstOrDefault(c => c.KeyName == "MinPrice");
             decimal minPrice = 0;
-            if (minPriceConfig != null && decimal.TryParse(minPriceConfig.ValueStr, out var minP)) minPrice = minP;
+            if (minPriceConfig != null) minPrice = minPriceConfig.Value;
 
-            decimal volume = (Length.GetValueOrDefault() * Width.GetValueOrDefault() * Height.GetValueOrDefault()) / 1000000m;
-            decimal chargeableWeight = Math.Max(Weight ?? 0, volume * vwFactor);
+            decimal volume = (Length * Width * Height) / 1000000m;
+            decimal chargeableWeight = Math.Max(Weight, volume * vwFactor);
             decimal capacityKg = trip.Vehicle?.CapacityKg ?? 1; // avoid div by 0
 
             decimal basePrice = trip.BasePrice * (chargeableWeight / capacityKg);
@@ -360,11 +360,11 @@ namespace TimChuyenDi.Controllers
                 {
                     var vwFactorConfig = _context.SystemConfigs.FirstOrDefault(c => c.KeyName == "VolumeToWeightFactor");
                     int vwFactor = 250;
-                    if (vwFactorConfig != null && int.TryParse(vwFactorConfig.ValueStr, out var val)) vwFactor = val;
+                    if (vwFactorConfig != null) vwFactor = (int)vwFactorConfig.Value;
 
                     var minPriceConfig = _context.SystemConfigs.FirstOrDefault(c => c.KeyName == "MinPrice");
                     decimal minPrice = 0;
-                    if (minPriceConfig != null && decimal.TryParse(minPriceConfig.ValueStr, out var minP)) minPrice = minP;
+                    if (minPriceConfig != null) minPrice = minPriceConfig.Value;
 
                     decimal length = cargo.Length ?? 0;
                     decimal width = cargo.Width ?? 0;
@@ -377,11 +377,6 @@ namespace TimChuyenDi.Controllers
 
                     decimal basePrice = trip.BasePrice * (chargeableWeight / capacityKg);
                     
-                    var reqCargoType = _context.Shiprequests
-                        .Where(r => r.Id == requestId)
-                        .Select(r => r.CargoType)
-                        .FirstOrDefault();
-
                     decimal tripTypeMultiplier = trip.RouteTypeNavigation?.Multiplier ?? 1;
                     
                     // We don't have cargoType directly here inside Assign, so request needs to include CargoType if exists,

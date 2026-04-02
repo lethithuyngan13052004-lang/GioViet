@@ -201,7 +201,6 @@ namespace TimChuyenDi.Controllers
                     model.DriverId = driverId;
                     // Mặc định Capacity nếu tài xế không sửa
                     if (model.AvaiCapacityKg <= 0) model.AvaiCapacityKg = vehicle.CapacityKg;
-                    if (model.AvaiCapacityM3 <= 0) model.AvaiCapacityM3 = vehicle.CapacityM3;
 
                     _context.Trips.Add(model);
                     await _context.SaveChangesAsync();
@@ -425,6 +424,9 @@ namespace TimChuyenDi.Controllers
                         .ThenInclude(s => s.Province)
                 .Include(r => r.Trip)
                     .ThenInclude(t => t.Vehicle)
+                .Include(r => r.Trip)
+                    .ThenInclude(t => t.TripStations)
+                        .ThenInclude(ts => ts.Station)
                 .FirstOrDefault(r => r.Id == id && r.Trip.DriverId == driverId);
 
             if (requestDetail == null) return NotFound("Không tìm thấy đơn hàng!");
@@ -508,19 +510,7 @@ namespace TimChuyenDi.Controllers
                     model.VehicleImage = "/uploads/vehicles/" + uniqueFileName;
                 }
 
-                var capacityConfig = await _context.VehicleCapacityConfigs
-                    .FirstOrDefaultAsync(c => c.VehicleTypeId == VehicleTypeId 
-                                           && CapacityKg >= c.MinWeight 
-                                           && CapacityKg <= c.MaxWeight);
-                                           
-                if (capacityConfig != null)
-                {
-                    model.CapacityM3 = (int)Math.Round(capacityConfig.EstimatedVolume);
-                }
-                else
-                {
-                    model.CapacityM3 = 0;
-                }
+                // CapacityM3 has been removed from Vehicle model
 
                 _context.Vehicles.Add(model);
                 await _context.SaveChangesAsync();
@@ -576,19 +566,7 @@ namespace TimChuyenDi.Controllers
                     vehicle.PlateNumber = PlateNumber;
                     vehicle.CapacityKg = CapacityKg;
 
-                    var capacityConfig = await _context.VehicleCapacityConfigs
-                        .FirstOrDefaultAsync(c => c.VehicleTypeId == VehicleTypeId 
-                                               && CapacityKg >= c.MinWeight 
-                                               && CapacityKg <= c.MaxWeight);
-                                               
-                    if (capacityConfig != null)
-                    {
-                        vehicle.CapacityM3 = (int)Math.Round(capacityConfig.EstimatedVolume);
-                    }
-                    else
-                    {
-                        vehicle.CapacityM3 = 0;
-                    }
+                    // CapacityM3 has been removed from Vehicle model
 
                     vehicle.VehicleTypeId = VehicleTypeId;
                     vehicle.Status = 0; // Sửa xong lại chờ duyệt
@@ -746,11 +724,11 @@ namespace TimChuyenDi.Controllers
                 {
                     var vwFactorConfig = _context.SystemConfigs.FirstOrDefault(c => c.KeyName == "VolumeToWeightFactor");
                     int vwFactor = 250;
-                    if (vwFactorConfig != null && int.TryParse(vwFactorConfig.ValueStr, out var val)) vwFactor = val;
+                    if (vwFactorConfig != null) vwFactor = (int)vwFactorConfig.Value;
 
                     var minPriceConfig = _context.SystemConfigs.FirstOrDefault(c => c.KeyName == "MinPrice");
                     decimal minPrice = 0;
-                    if (minPriceConfig != null && decimal.TryParse(minPriceConfig.ValueStr, out var minP)) minPrice = minP;
+                    if (minPriceConfig != null) minPrice = minPriceConfig.Value;
 
                     decimal length = cargo.Length ?? 0;
                     decimal width = cargo.Width ?? 0;
