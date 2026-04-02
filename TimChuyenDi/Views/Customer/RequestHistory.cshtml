@@ -97,7 +97,12 @@
                                 else if (item.Status == 1) { <span class="badge bg-primary rounded-pill px-3 py-2"><i class="status-dot bg-white"></i>Đã xác nhận</span> }
                                 else if (item.Status == 2) { <span class="badge bg-danger rounded-pill px-3 py-2"><i class="status-dot bg-white"></i>Bị từ chối</span> }
                                 else if (item.Status == 3) { <span class="badge bg-info text-dark rounded-pill px-3 py-2"><i class="status-dot bg-dark"></i>Đang giao</span> }
-                                else if (item.Status == 4) { <span class="badge bg-success rounded-pill px-3 py-2"><i class="status-dot bg-white"></i>Đã giao</span> }
+                                else if (item.Status == 4) { 
+                                    <span class="badge bg-success rounded-pill px-3 py-2"><i class="status-dot bg-white"></i>Đã giao</span> 
+                                    @if (item.Ratings.Any()) {
+                                        <span class="badge bg-warning text-dark border border-warning rounded-pill px-3 py-2 ms-1"><i class="bi bi-patch-check-fill me-1"></i>Đã đánh giá</span>
+                                    }
+                                }
                                 else if (item.Status == 5) { <span class="badge bg-secondary rounded-pill px-3 py-2"><i class="status-dot bg-white"></i>Đã hủy</span> }
                             </div>
                         </div>
@@ -177,7 +182,9 @@
                                     }
                                     else if (item.Status == 4)
                                     {
-                                        <a asp-controller="Customer" asp-action="RateTrip" asp-route-reqId="@item.Id" class="btn btn-warning btn-sm rounded-pill px-3">Đánh giá</a>
+                                        <a asp-controller="Customer" asp-action="RateTrip" asp-route-reqId="@item.Id" class="btn btn-warning btn-sm rounded-pill px-3 fw-bold shadow-sm" style="background: @(item.Ratings.Any() ? "linear-gradient(135deg, #6c757d 0%, #495057 100%)" : "linear-gradient(135deg, #ffc107 0%, #ff9800 100%)"); border: none; color: white;">
+                                            <i class="bi bi-star-fill me-1"></i> @(item.Ratings.Any() ? "Sửa đánh giá" : "Đánh giá")
+                                        </a>
                                     }
                                 </div>
                             </div>

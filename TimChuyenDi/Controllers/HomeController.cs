@@ -73,8 +73,8 @@ namespace TimChuyenDi.Controllers
             }
             // =============================================================================
 
-            // Relaxed filter: Show trips from today onwards
-            query = query.Where(t => t.StartTime >= DateTime.Today).OrderBy(t => t.StartTime).ThenByDescending(t => t.TripId);
+            // Relaxed filter: Show trips from now onwards
+            query = query.Where(t => t.StartTime >= DateTime.Now).OrderBy(t => t.StartTime).ThenByDescending(t => t.TripId);
 
             int pageSize = 6;
             int totalTrips = query.Count();
@@ -165,8 +165,8 @@ namespace TimChuyenDi.Controllers
 
             var reviews = _context.Ratings
                 .Include(r => r.Customer)
-                .Include(r => r.Req).ThenInclude(req => req.Trip).ThenInclude(t => t.FromStationNavigation)
-                .Include(r => r.Req).ThenInclude(req => req.Trip).ThenInclude(t => t.ToStationNavigation)
+                .Include(r => r.Req).ThenInclude(req => req.Trip).ThenInclude(t => t.FromStationNavigation).ThenInclude(s => s.Province)
+                .Include(r => r.Req).ThenInclude(req => req.Trip).ThenInclude(t => t.ToStationNavigation).ThenInclude(s => s.Province)
                 .Where(r => r.Req != null && r.Req.Trip != null && r.Req.Trip.DriverId == driverId)
                 .OrderByDescending(r => r.RatingId)
                 .ToList();

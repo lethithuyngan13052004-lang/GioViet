@@ -34,8 +34,8 @@
                                 <small class="text-muted"><i class="bi bi-telephone"></i> @item.User.Phone</small>
                             </td>
                             <td>
-                                @item.Trip.FromStationNavigation.Province <i class="bi bi-arrow-right"></i> @item.Trip.ToStationNavigation.Province<br />
-                                <small class="text-primary">Khởi hành: @item.Trip.StartTime.ToString("dd/MM/yyyy HH:mm")</small>
+                                @(item.Trip?.FromStationNavigation?.Province?.ProvinceName ?? "Không rõ") <i class="bi bi-arrow-right"></i> @(item.Trip?.ToStationNavigation?.Province?.ProvinceName ?? "Không rõ")<br />
+                                <small class="text-primary">Khởi hành: @item.Trip?.StartTime.ToString("dd/MM/yyyy HH:mm")</small>
                             </td>
                             <td class="text-danger fw-bold">@(item.Cargodetails.FirstOrDefault()?.Weight ?? 0) kg</td>
                             <td class="text-success fw-bold">@(item.TotalPrice.HasValue ? item.TotalPrice.Value.ToString("N0") : "0") đ</td>

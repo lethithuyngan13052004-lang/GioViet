@@ -1,43 +1,189 @@
-@model TimChuyenDi.Models.Trip
+@model TimChuyenDi.Models.Shiprequest
 @{
     ViewData["Title"] = "Đánh giá dịch vụ";
 }
 
-<div class="row justify-content-center mt-5">
-    <div class="col-md-6">
-        <div class="card shadow border-warning">
-            <div class="card-header bg-warning text-dark fw-bold">
-                <i class="bi bi-star-fill"></i> Đánh Giá Dịch Vụ Vận Tải
-            </div>
-            <div class="card-body">
-                <h5 class="mb-3">Tài xế: @Model.Driver.Name</h5>
-                <p class="text-muted">Chuyến đi số: #@Model.TripId</p>
+<style>
+    .rating-card {
+        border: none;
+        border-radius: 24px;
+        background: rgba(255, 255, 255, 0.9);
+        backdrop-filter: blur(10px);
+        box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+        overflow: hidden;
+        transition: transform 0.3s ease;
+    }
 
-                <form asp-action="RateTrip" method="post">
-                    <input type="hidden" name="reqId" value="@ViewBag.RequestId" />
+    .rating-header {
+        background: linear-gradient(135deg, #ffc107 0%, #ff9800 100%);
+        padding: 40px 20px;
+        text-align: center;
+        color: #fff;
+    }
 
-                    <div class="mb-4 mt-3">
-                        <label class="form-label fw-bold">Mức độ hài lòng (1 - 5 sao):</label>
-                        <select name="score" class="form-select form-select-lg border-warning" required>
-                            <option value="5">⭐⭐⭐⭐⭐ (5) - Tuyệt vời</option>
-                            <option value="4">⭐⭐⭐⭐ (4) - Tốt</option>
-                            <option value="3">⭐⭐⭐ (3) - Bình thường</option>
-                            <option value="2">⭐⭐ (2) - Kém</option>
-                            <option value="1">⭐ (1) - Rất tệ</option>
-                        </select>
+    .rating-header i {
+        font-size: 3rem;
+        margin-bottom: 15px;
+        filter: drop-shadow(0 4px 6px rgba(0,0,0,0.1));
+    }
+
+    .star-rating {
+        display: flex;
+        flex-direction: row-reverse;
+        justify-content: center;
+        gap: 10px;
+        margin: 20px 0;
+    }
+
+    .star-rating input { display: none; }
+
+    .star-rating label {
+        font-size: 2.5rem;
+        color: #ddd;
+        cursor: pointer;
+        transition: all 0.2s ease;
+    }
+
+    .star-rating label:hover,
+    .star-rating label:hover ~ label,
+    .star-rating input:checked ~ label {
+        color: #ffc107;
+        transform: scale(1.1);
+    }
+
+    .rating-label-text {
+        text-align: center;
+        font-weight: 600;
+        color: #ff9800;
+        height: 24px;
+        margin-bottom: 20px;
+    }
+
+    .driver-info-pill {
+        background: #f8f9fa;
+        border-radius: 50px;
+        padding: 10px 20px;
+        display: inline-flex;
+        align-items: center;
+        gap: 10px;
+        margin-bottom: 25px;
+        border: 1px solid #e9ecef;
+    }
+
+    .driver-avatar {
+        width: 40px;
+        height: 40px;
+        background: #ffc107;
+        color: #fff;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: bold;
+    }
+
+    .form-control:focus {
+        border-color: #ffc107;
+        box-shadow: 0 0 0 0.25rem rgba(255, 193, 7, 0.25);
+    }
+
+    .btn-submit {
+        background: linear-gradient(135deg, #ffc107 0%, #ff9800 100%);
+        border: none;
+        border-radius: 12px;
+        padding: 12px;
+        font-weight: bold;
+        color: #fff;
+        box-shadow: 0 4px 15px rgba(255, 152, 0, 0.3);
+        transition: all 0.3s ease;
+    }
+
+    .btn-submit:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 20px rgba(255, 152, 0, 0.4);
+        color: #fff;
+    }
+</style>
+
+<div class="container py-5">
+    <div class="row justify-content-center">
+        <div class="col-lg-6 col-md-8">
+            <div class="card rating-card">
+                <div class="rating-header">
+                    <i class="bi bi-stars"></i>
+                    <h2 class="fw-bold mb-0">@(ViewBag.ExistingRating != null ? "Cập nhật đánh giá" : "Tuyệt vời!")</h2>
+                    <p class="opacity-75">@(ViewBag.ExistingRating != null ? "Bạn có thể thay đổi cảm quan về chuyến đi này" : "Hãy chia sẻ trải nghiệm của bạn với chúng tôi")</p>
+                </div>
+                <div class="card-body p-4 p-md-5">
+                    <div class="text-center">
+                        <div class="driver-info-pill">
+                            <div class="driver-avatar">@((Model.Trip?.Driver?.Name?.Length > 0) ? Model.Trip.Driver.Name.Substring(0, 1) : "?")</div>
+                            <div class="text-start">
+                                <div class="small text-muted line-height-1">Tài xế</div>
+                                <div class="fw-bold text-dark">@Model.Trip.Driver.Name</div>
+                            </div>
+                        </div>
+                        <p class="text-muted small mb-4">Mã đơn hàng: #@(Model.OrderCode ?? ("MD" + Model.Id))</p>
                     </div>
 
-                    <div class="mb-4">
-                        <label class="form-label fw-bold">Nhận xét của bạn:</label>
-                        <textarea name="comment" class="form-control" rows="4" placeholder="Ví dụ: Tài xế nhiệt tình, hàng hóa được bọc cẩn thận..." required></textarea>
-                    </div>
+                    <form asp-action="RateTrip" method="post" id="ratingForm">
+                        <input type="hidden" name="reqId" value="@ViewBag.RequestId" />
+                        
+                        <div class="mb-2">
+                            <label class="form-label fw-bold d-block text-center">Bạn đánh giá thế nào về chuyến đi?</label>
+                            <div class="star-rating px-3">
+                                <input type="radio" id="star5" name="score" value="5" required @(ViewBag.ExistingRating?.Score == 5 ? "checked" : "") /><label for="star5" title="5 sao"><i class="bi bi-star-fill"></i></label>
+                                <input type="radio" id="star4" name="score" value="4" @(ViewBag.ExistingRating?.Score == 4 ? "checked" : "") /><label for="star4" title="4 sao"><i class="bi bi-star-fill"></i></label>
+                                <input type="radio" id="star3" name="score" value="3" @(ViewBag.ExistingRating?.Score == 3 ? "checked" : "") /><label for="star3" title="3 sao"><i class="bi bi-star-fill"></i></label>
+                                <input type="radio" id="star2" name="score" value="2" @(ViewBag.ExistingRating?.Score == 2 ? "checked" : "") /><label for="star2" title="2 sao"><i class="bi bi-star-fill"></i></label>
+                                <input type="radio" id="star1" name="score" value="1" @(ViewBag.ExistingRating?.Score == 1 ? "checked" : "") /><label for="star1" title="1 sao"><i class="bi bi-star-fill"></i></label>
+                            </div>
+                            <div id="ratingText" class="rating-label-text">@(ViewBag.ExistingRating != null ? "Bạn đang để " + ViewBag.ExistingRating.Score + " sao" : "Chọn số sao để đánh giá")</div>
+                        </div>
 
-                    <div class="d-grid gap-2">
-                        <button type="submit" class="btn btn-warning fw-bold">Gửi Đánh Giá</button>
-                        <a asp-action="RequestHistory" class="btn btn-secondary">Quay lại</a>
-                    </div>
-                </form>
+                        <div class="mb-4">
+                            <label class="form-label fw-bold">Nhận xét thêm (không bắt buộc):</label>
+                            <textarea name="comment" class="form-control rounded-4" rows="4" placeholder="Tài xế có nhiệt tình không? Hàng hóa có an toàn không?...">@ViewBag.ExistingRating?.Comment</textarea>
+                        </div>
+
+                        <div class="d-grid gap-3">
+                            <button type="submit" class="btn btn-submit py-3 shadow-none">@(ViewBag.ExistingRating != null ? "Cập nhật đánh giá" : "Gửi đánh giá ngay")</button>
+                            <a asp-action="RequestHistory" class="btn btn-link text-muted text-decoration-none">Để sau vậy</a>
+                        </div>
+                    </form>
+                </div>
             </div>
         </div>
     </div>
 </div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const stars = document.querySelectorAll('.star-rating input');
+        const ratingText = document.getElementById('ratingText');
+        const labels = {
+            '5': 'Tuyệt vời, không chê vào đâu được! 🤩',
+            '4': 'Rất tốt, tôi hài lòng! 😊',
+            '3': 'Bình thường, ổn trong tầm giá. 🙂',
+            '2': 'Hơi tệ, cần cải thiện thêm. ☹️',
+            '1': 'Quá tệ, tôi rất không hài lòng. 😡'
+        };
+
+        stars.forEach(star => {
+            star.addEventListener('change', function() {
+                ratingText.textContent = labels[this.value];
+                ratingText.style.animation = 'none';
+                ratingText.offsetHeight; // trigger reflow
+                ratingText.style.animation = 'fadeIn 0.5s ease';
+                ratingText.style.color = '#ff9800'; 
+            });
+        });
+    });
+</script>
+
+<style>
+    @@keyframes fadeIn {
+        from { opacity: 0; transform: translateY(5px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+</style>

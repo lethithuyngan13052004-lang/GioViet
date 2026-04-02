@@ -89,7 +89,7 @@ namespace TimChuyenDi.Controllers
                 .Include(t => t.ToStationNavigation).ThenInclude(s => s.Province)
                 .Include(t => t.Vehicle)
                 .Include(t => t.RouteTypeNavigation)
-                .Where(t => t.DriverId == driverId)
+                .Where(t => t.DriverId == driverId && t.StartTime >= DateTime.Now)
                 .OrderByDescending(t => t.StartTime);
 
             int totalItems = query.Count();
@@ -264,9 +264,11 @@ namespace TimChuyenDi.Controllers
                 .Include(r => r.Req)
                     .ThenInclude(req => req.Trip)
                         .ThenInclude(t => t.FromStationNavigation)
+                            .ThenInclude(s => s.Province)
                 .Include(r => r.Req)
                     .ThenInclude(req => req.Trip)
                         .ThenInclude(t => t.ToStationNavigation)
+                            .ThenInclude(s => s.Province)
                 .Where(r => r.Req.Trip.DriverId == driverId)
                 .OrderByDescending(r => r.RatingId)
                 .ToList();

@@ -1,58 +1,146 @@
 @model IEnumerable<TimChuyenDi.Models.Rating>
 @{
     ViewData["Title"] = "Đánh giá Tài xế " + ViewBag.DriverName;
+    var avgScore = ViewBag.AverageScore ?? 0;
+    var totalReviews = ViewBag.TotalReviews ?? 0;
 }
 
-<div class="mt-4 mb-4">
-    <a asp-action="Index" class="btn btn-outline-secondary btn-sm mb-3"><i class="bi bi-arrow-left"></i> Quay lại tìm chuyến</a>
-
-    <div class="card shadow-sm border-0 bg-light">
-        <div class="card-body d-flex justify-content-between align-items-center">
-            <div>
-                <h4 class="text-primary mb-1"><i class="bi bi-person-badge"></i> Hồ sơ Tài xế: @ViewBag.DriverName</h4>
-                <p class="text-muted mb-0">Hệ thống ghi nhận đánh giá minh bạch từ những khách hàng đã sử dụng dịch vụ.</p>
-            </div>
-            <div class="text-end">
-                <span class="fs-4 fw-bold text-danger">@(ViewBag.AverageScore > 0 ? ViewBag.AverageScore + " / 5" : "-") ⭐</span><br />
-                <small class="text-muted">(@ViewBag.TotalReviews lượt đánh giá)</small>
-            </div>
-        </div>
-    </div>
-</div>
-
-<div class="row">
-    @if (!Model.Any())
-    {
-        <div class="col-12 text-center text-muted mt-5">
-            <p>Tài xế này hiện chưa có bài đánh giá nào.</p>
-        </div>
+<style>
+    .public-review-header {
+        background: #fdfbfb;
+        background-image: linear-gradient(120deg, #fdfbfb 0%, #ebedee 100%);
+        border-radius: 20px;
+        padding: 40px;
+        margin-bottom: 40px;
+        border: 1px solid #eef0f3;
     }
+    .driver-profile-card {
+        display: flex;
+        align-items: center;
+        gap: 20px;
+    }
+    .profile-avatar-large {
+        width: 80px;
+        height: 80px;
+        background: #0d6efd;
+        color: white;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 2rem;
+        font-weight: bold;
+        box-shadow: 0 10px 20px rgba(13, 110, 253, 0.2);
+    }
+    .review-item-public {
+        border: none;
+        border-radius: 16px;
+        background: #fff;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.04);
+        border: 1px solid #f1f3f5;
+        transition: transform 0.3s ease;
+    }
+    .review-item-public:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 10px 25px rgba(0,0,0,0.08);
+    }
+    .star-rating-display {
+        color: #ffc107;
+    }
+    .star-empty { color: #dee2e6; }
+    .trip-tag {
+        font-size: 0.8rem;
+        background: #e9ecef;
+        padding: 4px 12px;
+        border-radius: 50px;
+        color: #495057;
+    }
+    .anonymized-name {
+        font-weight: 600;
+        color: #2d3436;
+    }
+</style>
 
-    @foreach (var item in Model)
-    {
-        <div class="col-md-6 mb-3">
-            <div class="card shadow-sm h-100 border-0 border-start border-primary border-4">
-                <div class="card-body">
-                    <div class="d-flex justify-content-between">
-                        <h6 class="fw-bold mb-1">
-                            @(item.Customer.Name.Length > 2 ? item.Customer.Name.Substring(0, item.Customer.Name.Length - 2) + "**" : item.Customer.Name)
-                        </h6>
-                        <div class="text-warning">
-                            @for (int i = 0; i < item.Score; i++)
-                            {
-                                <span>⭐</span>
-                            }
+<div class="container py-4">
+    <div class="mb-4">
+        <a asp-action="Index" class="btn btn-outline-secondary rounded-pill btn-sm px-4 shadow-sm transition-all hover-translate-y">
+            <i class="bi bi-arrow-left me-2"></i> Quay lại trang chủ
+        </a>
+    </div>
+
+    <div class="public-review-header shadow-sm">
+        <div class="row align-items-center">
+            <div class="col-md-8">
+                <div class="driver-profile-card">
+                    <div class="profile-avatar-large">
+                        @((ViewBag.DriverName != null && ViewBag.DriverName.Length > 0) ? ViewBag.DriverName.Substring(0, 1) : "?")
+                    </div>
+                    <div>
+                        <h2 class="fw-bold text-dark mb-1">Tài xế: @ViewBag.DriverName</h2>
+                        <div class="d-flex align-items-center gap-2">
+                             <div class="star-rating-display fs-5">
+                                @for(int i=1; i<=5; i++) {
+                                    <i class="bi bi-star-fill @(i <= Math.Round((double)avgScore) ? "" : "star-empty")"></i>
+                                }
+                            </div>
+                            <span class="fw-bold text-dark fs-5 ms-1">@avgScore</span>
+                            <span class="text-muted">(@totalReviews lượt đánh giá)</span>
                         </div>
                     </div>
-                    <p class="small text-muted mb-2">
-                        Tuyến:
-                        @item.Req.Trip.FromStationNavigation.Province.ProvinceName
-                        ➔
-                        @item.Req.Trip.ToStationNavigation.Province.ProvinceName
-                    </p>
-                    <p class="mb-0 text-dark">"@item.Comment"</p>
+                </div>
+            </div>
+            <div class="col-md-4 text-md-end mt-4 mt-md-0">
+                <div class="badge bg-success bg-opacity-10 text-success p-3 rounded-pill">
+                    <i class="bi bi-shield-check me-1"></i> Đánh giá minh bạch từ khách hàng
                 </div>
             </div>
         </div>
-    }
+    </div>
+
+    <div class="row">
+        @if (!Model.Any())
+        {
+            <div class="col-12 text-center py-5">
+                <div class="bg-light rounded-circle p-4 d-inline-block mb-3">
+                    <i class="bi bi-star text-muted fs-1 opacity-25"></i>
+                </div>
+                <h5 class="text-muted">Chưa có bài đánh giá nào cho tài xế này</h5>
+            </div>
+        }
+        else
+        {
+            @foreach (var item in Model)
+            {
+                <div class="col-md-6 mb-4">
+                    <div class="card review-item-public h-100">
+                        <div class="card-body p-4">
+                            <div class="d-flex justify-content-between align-items-start mb-3">
+                                <div>
+                                    <div class="anonymized-name">
+                                        @((item.Customer?.Name?.Length > 2) ? item.Customer.Name.Substring(0, 1) + "****" + item.Customer.Name.Substring(item.Customer.Name.Length - 1) : (item.Customer?.Name ?? "Khách hàng"))
+                                    </div>
+                                    <small class="text-muted">@item.CreatedAt.ToString("MMM dd, yyyy")</small>
+                                </div>
+                                <div class="star-rating-display">
+                                    @for(int i=0; i<item.Score; i++) { <i class="bi bi-star-fill"></i> }
+                                </div>
+                            </div>
+
+                            <div class="mb-3">
+                                <span class="trip-tag">
+                                    <i class="bi bi-geo-alt me-1"></i>
+                                    @item.Req.Trip.FromStationNavigation.Province.ProvinceName ➔ @item.Req.Trip.ToStationNavigation.Province.ProvinceName
+                                </span>
+                            </div>
+
+                            <p class="mb-0 text-secondary italic">
+                                <i class="bi bi-chat-quote me-1 opacity-50"></i>
+                                "@item.Comment"
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            }
+        }
+    </div>
 </div>

@@ -136,6 +136,10 @@
                                 <span class="fw-bold">@Model.Trip.Driver.Name</span>
                             </li>
                             <li class="list-group-item bg-transparent px-0 d-flex justify-content-between">
+                                <span class="text-muted small">Mã chuyến xe:</span>
+                                <span class="badge bg-primary fs-6 rounded-pill">#@Model.TripId</span>
+                            </li>
+                            <li class="list-group-item bg-transparent px-0 d-flex justify-content-between">
                                 <span class="text-muted small">Biển số xe:</span>
                                 <span class="badge bg-secondary fs-6 rounded-pill">@Model.Trip.Vehicle.PlateNumber</span>
                             </li>
@@ -245,6 +249,14 @@
                                 <i class="bi bi-x-circle me-1"></i> Hủy đơn hàng này
                             </button>
                         </form>
+                    }
+                    else if (Model.Status == 4)
+                    {
+                        <div class="mt-4 d-grid">
+                            <a asp-action="RateTrip" asp-controller="Customer" asp-route-reqId="@Model.Id" class="btn btn-warning py-3 rounded-pill fw-bold shadow-sm" style="background: linear-gradient(135deg, #ffc107 0%, #ff9800 100%); border: none; color: white;">
+                                <i class="bi bi-star-fill me-1"></i> @(Model.Ratings.Any() ? "Sửa đánh giá chuyến đi" : "Đánh giá chuyến đi ngay")
+                            </a>
+                        </div>
                     }
                 </div>
             </div>

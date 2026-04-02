@@ -459,6 +459,7 @@ namespace TimChuyenDi.Controllers
                 .Include(r => r.Trip).ThenInclude(t => t.ToStationNavigation).ThenInclude(s => s.Province)
                 .Include(r => r.Trip).ThenInclude(t => t.Driver)
                 .Include(r => r.Cargodetails)
+                .Include(r => r.Ratings)
                 .Include(r => r.Shippingroutes)
                     .ThenInclude(sr => sr.FromStation)
                 .Include(r => r.Shippingroutes)
@@ -484,6 +485,7 @@ namespace TimChuyenDi.Controllers
                 .Include(r => r.Trip).ThenInclude(t => t.Vehicle).ThenInclude(v => v.VehicleType)
                 .Include(r => r.Trip).ThenInclude(t => t.TripStations).ThenInclude(ts => ts.Station)
                 .Include(r => r.Cargodetails)
+                .Include(r => r.Ratings)
                 .Include(r => r.Shippingroutes)
                     .ThenInclude(sr => sr.FromStation)
                 .Include(r => r.Shippingroutes)
@@ -524,11 +526,16 @@ namespace TimChuyenDi.Controllers
 
             var request = _context.Shiprequests
                                .Include(r => r.Trip).ThenInclude(t => t.Driver)
+                               .Include(r => r.Ratings)
                                .FirstOrDefault(r => r.Id == reqId && r.UserId == customerId);
 
             if (request == null || request.Status != 4)
                 return NotFound("Đơn hàng chưa hoàn thành hoặc không tồn tại!");
 
+            var existingRating = _context.Ratings.FirstOrDefault(r => r.ReqId == reqId && r.CustomerId == customerId);
+            ViewBag.ExistingRating = existingRating;
+            
+            ViewBag.RequestId = reqId;
             return View(request);
         }
 
@@ -551,8 +558,15 @@ namespace TimChuyenDi.Controllers
                     CreatedAt = DateTime.Now
                 };
                 _context.Ratings.Add(rating);
-                _context.SaveChanges();
             }
+            else 
+            {
+                existingRating.Score = score;
+                existingRating.Comment = comment;
+                existingRating.CreatedAt = DateTime.Now;
+                _context.Ratings.Update(existingRating);
+            }
+            _context.SaveChanges();
 
             return RedirectToAction("RequestHistory");
         }

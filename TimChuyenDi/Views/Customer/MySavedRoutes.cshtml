@@ -16,8 +16,12 @@
     {
         <div class="col-md-6 mb-3">
             <div class="card border-0 h-100 shadow-sm rounded-4">
-                <div class="card-header bg-primary text-white fw-bold py-3 border-0" style="border-top-left-radius: 1rem; border-top-right-radius: 1rem;">
-                    <i class="bi bi-geo-alt-fill me-1"></i> @(item.FromStationNavigation?.Province?.ProvinceName ?? "N/A") <i class="bi bi-arrow-right mx-1"></i> @(item.ToStationNavigation?.Province?.ProvinceName ?? "N/A")
+                <div class="card-header @(item.StartTime < DateTime.Now ? "bg-secondary" : "bg-primary") text-white fw-bold py-3 border-0 d-flex justify-content-between align-items-center" style="border-top-left-radius: 1rem; border-top-right-radius: 1rem;">
+                    <span><i class="bi bi-geo-alt-fill me-1"></i> @(item.FromStationNavigation?.Province?.ProvinceName ?? "N/A") <i class="bi bi-arrow-right mx-1"></i> @(item.ToStationNavigation?.Province?.ProvinceName ?? "N/A")</span>
+                    @if (item.StartTime < DateTime.Now)
+                    {
+                        <span class="badge bg-light text-dark fw-bold rounded-pill shadow-sm"><i class="bi bi-clock-history me-1"></i> Đã hoàn thành / Hết hạn</span>
+                    }
                 </div>
                 <div class="card-body">
                     <p class="mb-1"><strong>Tài xế:</strong> @item.Driver.Name</p>
@@ -32,7 +36,18 @@
                     </div>
                 </div>
                 <div class="card-footer bg-white text-end border-0 pb-3" style="border-bottom-left-radius: 1rem; border-bottom-right-radius: 1rem;">
-                    <a asp-controller="Customer" asp-action="BookTrip" asp-route-id="@item.TripId" class="btn btn-primary rounded-pill fw-medium shadow-sm transition-all hover-scale"><i class="bi bi-send me-1"></i> Gửi yêu cầu ghép hàng</a>
+                    @if (item.StartTime < DateTime.Now)
+                    {
+                        <button class="btn btn-secondary rounded-pill fw-medium shadow-sm disabled" disabled>
+                            <i class="bi bi-slash-circle me-1"></i> Chuyến xe đã qua thời gian
+                        </button>
+                    }
+                    else
+                    {
+                        <a asp-controller="Customer" asp-action="BookTrip" asp-route-id="@item.TripId" class="btn btn-primary rounded-pill fw-medium shadow-sm transition-all hover-scale">
+                            <i class="bi bi-send me-1"></i> Gửi yêu cầu ghép hàng
+                        </a>
+                    }
                 </div>
             </div>
         </div>

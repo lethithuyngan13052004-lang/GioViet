@@ -1,49 +1,135 @@
 @model IEnumerable<TimChuyenDi.Models.Rating>
 @{
     ViewData["Title"] = "Đánh giá của khách hàng";
+    var avgScore = ViewBag.AverageScore ?? 0;
+    var totalReviews = ViewBag.TotalReviews ?? 0;
 }
 
-<div class="mt-4 mb-4 d-flex justify-content-between align-items-center">
-    <h4><i class="bi bi-star-fill text-warning"></i> Nhận Xét Từ Khách Hàng</h4>
-    <div class="text-end">
-        <span class="fs-5">Điểm trung bình: <strong class="text-danger">@(ViewBag.AverageScore > 0 ? ViewBag.AverageScore + " / 5" : "-")</strong> ⭐</span><br />
-        <small class="text-muted">(Dựa trên @ViewBag.TotalReviews lượt đánh giá)</small>
-    </div>
-</div>
-
-<div class="row">
-    @if (!Model.Any())
-    {
-        <div class="col-12 text-center text-muted mt-5">
-            <p>Bạn chưa nhận được đánh giá nào. Cứ yên tâm chạy chuyến đầu tiên, khách hàng sẽ sớm dành lời khen cho bạn!</p>
-        </div>
+<style>
+    .review-header-card {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border: none;
+        border-radius: 20px;
+        color: white;
+        box-shadow: 0 10px 20px rgba(118, 75, 162, 0.2);
     }
+    .review-item {
+        border: none;
+        border-radius: 16px;
+        transition: all 0.3s ease;
+        background: #fff;
+        box-shadow: 0 5px 15px rgba(0,0,0,0.05);
+        margin-bottom: 20px;
+    }
+    .review-item:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 8px 25px rgba(0,0,0,0.1);
+    }
+    .rating-badge {
+        background: #fff3cd;
+        color: #856404;
+        padding: 5px 15px;
+        border-radius: 50px;
+        font-weight: bold;
+        font-size: 0.9rem;
+    }
+    .customer-avatar {
+        width: 45px;
+        height: 45px;
+        border-radius: 50%;
+        background: #e9ecef;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: bold;
+        color: #495057;
+        margin-right: 15px;
+    }
+    .star-filled { color: #ffc107; }
+    .star-empty { color: #dee2e6; }
+    .trip-info-tag {
+        background: #f8f9fa;
+        color: #6c757d;
+        font-size: 0.75rem;
+        padding: 4px 12px;
+        border-radius: 4px;
+        display: inline-block;
+        margin-top: 5px;
+    }
+</style>
 
-    @foreach (var item in Model)
-    {
-        <div class="col-md-6 mb-3">
-            <div class="card shadow-sm h-100 border-0 border-start border-warning border-4">
-                <div class="card-body">
-                    <div class="d-flex justify-content-between">
-                        <h6 class="fw-bold mb-1">@item.Customer.Name</h6>
-                        <div class="text-warning">
-                            @for (int i = 0; i < item.Score; i++)
-                            {
-                                <span>⭐</span>
+<div class="container py-4">
+    <div class="card review-header-card mb-5">
+        <div class="card-body p-4 p-md-5">
+            <div class="row align-items-center">
+                <div class="col-md-7">
+                    <h2 class="fw-bold mb-2">Đánh giá của khách hàng</h2>
+                    <p class="opacity-75 mb-0">Đây là những gì khách hàng nói về dịch vụ của bạn. Hãy duy trì phong độ tốt nhé!</p>
+                </div>
+                <div class="col-md-5 text-md-end mt-4 mt-md-0">
+                    <div class="d-inline-block text-center bg-white bg-opacity-25 rounded-4 p-3 px-4">
+                        <div class="display-4 fw-bold mb-0">@avgScore</div>
+                        <div class="small">@totalReviews lượt đánh giá</div>
+                        <div class="fs-5 star-filled">
+                            @for(int i=1; i<=5; i++) {
+                                <i class="bi bi-star-fill @(i <= Math.Round((double)avgScore) ? "" : "star-empty")"></i>
                             }
                         </div>
                     </div>
-                    <p class="small text-muted mb-2">
-                        Chuyến đi:
-                        @item.Req.Trip.FromStationNavigation.Province.ProvinceName
-                        ➔
-                        @item.Req.Trip.ToStationNavigation.Province.ProvinceName
-                        (Mã chuyến: #@item.Req.TripId)
-                    </p>
-
-                    <p class="mb-0 text-dark fst-italic">"@item.Comment"</p>
                 </div>
             </div>
         </div>
-    }
+    </div>
+
+    <div class="row">
+        @if (!Model.Any())
+        {
+            <div class="col-12 text-center py-5">
+                <div class="bg-light rounded-circle p-4 d-inline-block mb-3">
+                    <i class="bi bi-chat-dots text-muted fs-1"></i>
+                </div>
+                <h5 class="text-muted">Chưa có đánh giá nào</h5>
+                <p>Hãy hoàn thành chuyến xe đầu tiên để nhận phản hồi từ khách hàng.</p>
+            </div>
+        }
+        else
+        {
+            @foreach (var item in Model)
+            {
+                <div class="col-md-6">
+                    <div class="card review-item">
+                        <div class="card-body p-4">
+                            <div class="d-flex justify-content-between align-items-start mb-3">
+                                <div class="d-flex align-items-center">
+                                    <div class="customer-avatar">@((item.Customer?.Name?.Length > 0) ? item.Customer.Name.Substring(0, 1) : "?")</div>
+                                    <div>
+                                        <h6 class="fw-bold mb-0">@item.Customer.Name</h6>
+                                        <small class="text-muted">@item.CreatedAt.ToString("dd/MM/yyyy")</small>
+                                    </div>
+                                </div>
+                                <div class="rating-badge">
+                                    <i class="bi bi-star-fill star-filled me-1"></i> @item.Score
+                                </div>
+                            </div>
+                            
+                            <div class="mb-3">
+                                <div class="trip-info-tag">
+                                    <i class="bi bi-geo-alt-fill me-1"></i>
+                                    @item.Req.Trip.FromStationNavigation.Province.ProvinceName ➔ @item.Req.Trip.ToStationNavigation.Province.ProvinceName
+                                </div>
+                                <div class="trip-info-tag ms-1">
+                                    <i class="bi bi-hash me-1"></i> #@item.Req.TripId
+                                </div>
+                            </div>
+
+                            <p class="mb-0 text-dark" style="font-size: 1.05rem; line-height: 1.6; font-style: italic;">
+                                <i class="bi bi-quote fs-4 text-muted opacity-50"></i>
+                                @item.Comment
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            }
+        }
+    </div>
 </div>
