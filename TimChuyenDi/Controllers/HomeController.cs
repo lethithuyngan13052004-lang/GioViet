@@ -54,8 +54,27 @@ namespace TimChuyenDi.Controllers
                 query = query.Where(t => t.Vehicle.VehicleType.CargoTypes.Any(c => c.CargoTypeId == cargoTypeId.Value));
             }
 
+            // ================== TỰ ĐỘNG DỌN RÁC (DUPLOICATES) DO LỖI CŨ ==================
+            // Chạy 1 lần để dọn dẹp các chuyến xe bị bấm đúp
+            var checkDups = _context.Trips.ToList();
+            var groupedDups = checkDups.GroupBy(t => new { t.DriverId, t.StartTime, t.FromStation, t.ToStation }).Where(g => g.Count() > 1);
+            if (groupedDups.Any())
+            {
+                foreach (var g in groupedDups)
+                {
+                    var dups = g.OrderBy(t => t.TripId).Skip(1).ToList();
+                    foreach (var d in dups) {
+                        if (!_context.Shiprequests.Any(r => r.TripId == d.TripId)) {
+                            _context.Trips.Remove(d);
+                        }
+                    }
+                }
+                _context.SaveChanges();
+            }
+            // =============================================================================
+
             // Relaxed filter: Show trips from today onwards
-            query = query.Where(t => t.StartTime >= DateTime.Today).OrderBy(t => t.StartTime);
+            query = query.Where(t => t.StartTime >= DateTime.Today).OrderBy(t => t.StartTime).ThenByDescending(t => t.TripId);
 
             int pageSize = 6;
             int totalTrips = query.Count();
@@ -111,6 +130,28 @@ namespace TimChuyenDi.Controllers
             }
 
             return View(trips);
+        }
+
+        [HttpGet]
+        public IActionResult FixDuplicates()
+        {
+            var allTrips = _context.Trips.ToList();
+            var grouped = allTrips.GroupBy(t => new { t.DriverId, t.StartTime, t.FromStation, t.ToStation, t.RouteType });
+            int removed = 0;
+            foreach (var g in grouped)
+            {
+                var duplicates = g.OrderBy(t => t.TripId).Skip(1).ToList();
+                foreach(var d in duplicates) {
+                    // Check if it has shiprequests 
+                    var hasReqs = _context.Shiprequests.Any(r => r.TripId == d.TripId);
+                    if(!hasReqs) {
+                        _context.Trips.Remove(d);
+                        removed++;
+                    }
+                }
+            }
+            _context.SaveChanges();
+            return Content("Removed " + removed + " duplicate trips!");
         }
 
         // ==================================================

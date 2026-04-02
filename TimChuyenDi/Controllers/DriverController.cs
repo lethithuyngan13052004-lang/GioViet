@@ -425,6 +425,9 @@ namespace TimChuyenDi.Controllers
                         .ThenInclude(s => s.Province)
                 .Include(r => r.Trip)
                     .ThenInclude(t => t.Vehicle)
+                .Include(r => r.Trip)
+                    .ThenInclude(t => t.TripStations)
+                        .ThenInclude(ts => ts.Station)
                 .FirstOrDefault(r => r.Id == id && r.Trip.DriverId == driverId);
 
             if (requestDetail == null) return NotFound("Không tìm thấy đơn hàng!");
@@ -514,7 +517,6 @@ namespace TimChuyenDi.Controllers
                                            && CapacityKg <= c.MaxWeight);
                                            
 
-
                 _context.Vehicles.Add(model);
                 await _context.SaveChangesAsync();
 
@@ -574,7 +576,6 @@ namespace TimChuyenDi.Controllers
                                                && CapacityKg >= c.MinWeight 
                                                && CapacityKg <= c.MaxWeight);
                                                
-
 
                     vehicle.VehicleTypeId = VehicleTypeId;
                     vehicle.Status = 0; // Sửa xong lại chờ duyệt
