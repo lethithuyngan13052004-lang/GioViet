@@ -246,139 +246,9 @@
     var locationMarkers = L.layerGroup();
     var persistentMarkers = L.layerGroup();
     var lastTotalTimeSeconds = 0;
+    var isRoutingInProgress = false;
+    var routeDebounceTimer;
 
-    const VN_REGIONS = {
-        'North': ["Hà Nội", "Hải Phòng", "Hải Dương", "Hưng Yên", "Bắc Ninh", "Vĩnh Phúc", "Thái Nguyên", "Phú Thọ", "Bắc Giang", "Quảng Ninh", "Bắc Kạn", "Cao Bằng", "Hà Giang", "Lạng Sơn", "Tuyên Quang", "Lào Cai", "Yên Bái", "Điện Biên", "Hòa Bình", "Lai Châu", "Sơn La", "Hà Nam", "Nam Định", "Ninh Bình", "Thái Bình"],
-        'Central': ["Thanh Hóa", "Nghệ An", "Hà Tĩnh", "Quảng Bình", "Quảng Trị", "Thừa Thiên Huế", "Đà Nẵng", "Quảng Nam", "Quảng Ngãi", "Bình Định", "Phú Yên", "Khánh Hòa", "Ninh Thuận", "Bình Thuận", "Kon Tum", "Gia Lai", "Đắk Lắk", "Đắk Nông", "Lâm Đồng"],
-        'South': ["Hồ Chí Minh", "Bình Dương", "Đồng Nai", "Bình Phước", "Tây Ninh", "Bà Rịa - Vũng Tàu", "Long An", "Tiền Giang", "Bến Tre", "Trà Vinh", "Vĩnh Long", "Đồng Tháp", "An Giang", "Kiên Giang", "Cần Thơ", "Hậu Giang", "Sóc Trăng", "Bạc Liêu", "Cà Mau"]
-    };
-
-    const VN_CORRIDOR = [
-        { name: "Hà Tĩnh (AH1)", lat: 18.06, lng: 106.31 },
-        { name: "Quảng Ngãi (AH1)", lat: 15.12, lng: 108.79 },
-        { name: "Phú Yên (AH1)", lat: 13.10, lng: 109.28 },
-        { name: "Ninh Thuận (AH1)", lat: 11.58, lng: 108.98 }
-    ];
-
-    function getRegion(provinceName) {
-        if (!provinceName) return null;
-        for (let region in VN_REGIONS) {
-            if (VN_REGIONS[region].includes(provinceName)) return region;
-        }
-        return null;
-    }
-
-    const iconBase = "https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-";
-    const shadowUrl = "https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png";
-    const createIcon = (color, isLarge = false) => L.icon({
-        iconUrl: iconBase + color + ".png", shadowUrl: shadowUrl,
-        iconSize: isLarge ? [35, 57] : [25, 41], iconAnchor: isLarge ? [17, 57] : [12, 41], popupAnchor: [1, isLarge ? -48 : -34], shadowSize: isLarge ? [50, 50] : [41, 41]
-    });
-
-    const startIcon = createIcon('blue', true);
-    const endIcon = createIcon('red', true);
-    const stopIcon = createIcon('orange', true);
-
-    $(document).ready(function () {
-        initMap();
-        locationMarkers.addTo(map);
-        persistentMarkers.addTo(map);
-        initSelect2();
-
-        // Type Change Listener
-        $('input[name="RouteType"]').change(function() {
-            var val = $(this).val();
-            if (val == "2") $('#intermediateStationsContainer').slideDown();
-            else { $('#intermediateStationsContainer').slideUp(); $('#stopsList').empty(); updateRoute(); }
-        });
-
-        // Vehicle Capacity Auto-fill & Limit Display
-        $(document).on('change', '#vehicleSelect', function () {
-            var kg = $(this).find(':selected').data('kg');
-            if (kg) {
-                $('#vehicleLimits').text(`Tối đa ${kg}kg`).removeClass('text-danger').addClass('text-primary');
-            } else {
-                $('#vehicleLimits').text('Chưa chọn xe').removeClass('text-danger');
-            }
-            checkCapacity();
-        });
-
-        $('#fromStation, #toStation').on('change', updateRoute);
-        $('#startTime').on('change', () => calculateArrivalTime(lastTotalTimeSeconds));
-
-        // Context-Aware Map Sync for Start/End
-        $('#provinceStart, #fromStation').on('select2:opening focus', function() {
-            let pId = $('#provinceStart').val();
-            if (pId) syncMapWithProvince(pId, 'start');
-        });
-        $('#provinceEnd, #toStation').on('select2:opening focus', function() {
-            let pId = $('#provinceEnd').val();
-            if (pId) syncMapWithProvince(pId, 'end');
-        });
-
-        // Initial Route Trigger - Use Razor-rendered logic for 100% accuracy on first render
-        setTimeout(initMapFromRazor, 800);
-    });
-
-    function initMap() {
-        map = L.map('map').setView([16.0544, 108.2022], 6);
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
-        map.setMaxBounds([[4.5, 95.0], [26.0, 115.0]]);
-
-        routingControl = L.Routing.control({
-            waypoints: [],
-            routeWhileDragging: false,
-            show: false,
-            router: L.Routing.osrmv1({ serviceUrl: 'https://router.project-osrm.org/route/v1', profile: 'driving' }),
-            lineOptions: { styles: [{ color: '#0d6efd', opacity: 0.8, weight: 6 }] },
-            createMarker: () => null
-        }).addTo(map);
-
-        routingControl.on('routesfound', function (e) {
-            try {
-                var route = e.routes[0];
-                var summary = route.summary;
-                if (!summary) return;
-                lastTotalTimeSeconds = summary.totalTime || 0;
-                $('#totalDistance').text((summary.totalDistance / 1000).toFixed(1) + " km");
-                $('#totalTime').text((summary.totalTime / 3600).toFixed(1) + " h");
-                $('#distanceInput').val((summary.totalDistance / 1000).toFixed(1));
-                calculateArrivalTime(summary.totalTime);
-            } catch(ex) { console.error("routesfound basic data error:", ex); }
-
-            // Intermediate stations calculation logic (similar to CreateTrip)
-            if (window.lastRealIndices && window.lastRawWaypoints) {
-                let indices = route.waypointIndices;
-                if (!indices) return; // Prevent crash if OSRM doesn't return indices
-                let coords = route.coordinates;
-                let startTimeStr = $('#startTime').val();
-                let startTime = startTimeStr ? new Date(startTimeStr) : new Date();
-                let stopsData = [];
-
-                try {
-                    for (let i = 1; i < window.lastRawWaypoints.length - 1; i++) {
-                        let currIdx = indices[window.lastRealIndices[i]];
-                        let prevIdx = indices[window.lastRealIndices[i - 1]];
-                        if (currIdx === undefined || prevIdx === undefined) continue;
-
-                        let segmentDist = 0;
-                        for (let j = prevIdx; j < currIdx; j++) segmentDist += coords[j].distanceTo(coords[j+1]);
-                        
-                        let distFromStart = 0;
-                        for (let j = 0; j < currIdx; j++) distFromStart += coords[j].distanceTo(coords[j+1]);
-                        let timeRatio = distFromStart / summary.totalDistance;
-                        let timeOffset = summary.totalTime * timeRatio;
-                        let estArrival = new Date(startTime.getTime() + timeOffset * 1000);
-
-                        stopsData.push({ stationId: window.lastRawWaypoints[i].stationId, distance: parseFloat((segmentDist / 1000).toFixed(2)), estArrivalTime: estArrival.toISOString() });
-                    }
-                    $('#hiddenStops').val(JSON.stringify(stopsData));
-                } catch(err) {
-                    console.error("OSRM parse error:", err);
-                }
-            }
-        });
-    }
     
     const VN_CORRIDOR = [
         { name: "Hà Tĩnh (AH1)", lat: 18.06, lng: 106.31 },
@@ -411,6 +281,19 @@
     const startIcon = createIcon('blue', false);
     const endIcon = createIcon('red', false);
     const stopIcon = createIcon('orange', false);
+
+    function showToast(message, isError = false) {
+        var toastEl = document.getElementById('actionToast');
+        var toastMsg = document.getElementById('toastMessage');
+        toastMsg.innerText = message;
+        if (isError) {
+            toastEl.style.borderLeftColor = '#dc3545';
+        } else {
+            toastEl.style.borderLeftColor = '#36b9cc';
+        }
+        var toast = new bootstrap.Toast(toastEl, { delay: isError ? 4000 : 2000 });
+        toast.show();
+    }
 
     function drawRoute(rawWaypoints, startRegion, endRegion, sameRegion, isShortCrossRegion) {
         var finalWaypoints = [];
@@ -464,6 +347,64 @@
         } else {
             routingControl.setWaypoints([]);
         }
+
+        routingControl.on('routesfound', function (e) {
+            isRoutingInProgress = false;
+            
+            var route = e.routes[0];
+            var summary = route.summary;
+            lastTotalTimeSeconds = summary.totalTime;
+            $('#totalDistance').text((summary.totalDistance / 1000).toFixed(1) + " km");
+            $('#totalTime').text((summary.totalTime / 3600).toFixed(1) + " h");
+            $('#distanceInput').val((summary.totalDistance / 1000).toFixed(1));
+            calculateArrivalTime(summary.totalTime);
+
+            // Calculate intermediate stations data
+            if (window.lastRealIndices && window.lastRawWaypoints) {
+                let indices = route.waypointIndices;
+                let coords = route.coordinates;
+                let startTimeStr = $('#startTime').val();
+                let startTime = startTimeStr ? new Date(startTimeStr) : new Date();
+                let stopsData = [];
+
+                for (let i = 1; i < window.lastRawWaypoints.length - 1; i++) {
+                    let currIdx = indices[window.lastRealIndices[i]];
+                    let prevIdx = indices[window.lastRealIndices[i - 1]];
+                    
+                    let segmentDist = 0;
+                    for (let j = prevIdx; j < currIdx; j++) {
+                        segmentDist += coords[j].distanceTo(coords[j+1]);
+                    }
+
+                    let distFromStart = 0;
+                    for (let j = 0; j < currIdx; j++) {
+                        distFromStart += coords[j].distanceTo(coords[j+1]);
+                    }
+                    let timeRatio = distFromStart / summary.totalDistance;
+                    let timeOffset = summary.totalTime * timeRatio;
+                    let estArrival = new Date(startTime.getTime() + timeOffset * 1000);
+
+                    stopsData.push({
+                        stationId: window.lastRawWaypoints[i].stationId,
+                        distance: parseFloat((segmentDist / 1000).toFixed(2)),
+                        estArrivalTime: estArrival.toISOString()
+                    });
+                }
+                $('#hiddenStops').val(JSON.stringify(stopsData));
+                console.log("Edit Intermediate Stations Data Calculated:", stopsData);
+            }
+        });
+
+        routingControl.on('routingerror', function(e) {
+            isRoutingInProgress = false;
+            console.error("Routing Error:", e);
+            showToast("Lỗi khi tính toán lộ trình.", true);
+        });
+    }
+
+    function debounceUpdateRoute() {
+        clearTimeout(routeDebounceTimer);
+        routeDebounceTimer = setTimeout(updateRoute, 600);
     }
 
     function initMapFromRazor() {
@@ -605,8 +546,9 @@
     }
 
     function initSelect2() {
-        $('.select2-bootstrap').select2({ theme: 'bootstrap-5', width: '100%' });
-        $('.select2-stations').select2({ theme: 'bootstrap-5', width: '100%' });
+        $('.select2-bootstrap').select2({ theme: 'bootstrap-5', width: '100%', placeholder: '-- Chọn --', allowClear: true });
+        $('.select2-stations').select2({ theme: 'bootstrap-5', width: '100%', placeholder: '-- Tìm trạm... --', allowClear: true });
+        $('.intermediate-select').select2({ theme: 'bootstrap-5', width: '100%', placeholder: '-- Chọn trạm phụ --', allowClear: true });
     }
 
     async function filterStations(type) {
@@ -628,8 +570,26 @@
     }
 
     function validateAndSubmit() {
-        // Build JSON stops
-        updateRoute(); 
+        if (isRoutingInProgress) {
+            showToast("Vui lòng đợi lộ trình được tính toán xong...", true);
+            return false;
+        }
+        
+        var submitBtn = $('button[type="submit"]');
+        submitBtn.prop('disabled', true);
+        submitBtn.html('<span class="spinner-border spinner-border-sm align-middle me-2"></span><span class="align-middle">ĐANG CẬP NHẬT...</span>');
+        
+        // Ensure hidden stops are up to date
+        var currentJson = $('#hiddenStops').val();
+        if (!currentJson || currentJson === "" || currentJson === "[]") {
+            var selectedStops = [];
+            $('.intermediate-select').each(function() { 
+                var val = $(this).val();
+                if (val) selectedStops.push({ stationId: parseInt(val) }); 
+            });
+            $('#hiddenStops').val(JSON.stringify(selectedStops));
+        }
+        
         return true; 
     }
     
@@ -643,7 +603,7 @@
                 <option value="">-- Chọn Tỉnh --</option>
                 ${provinceOptionsHtml}
             </select></div>
-            <div style="flex: 1;"><select class="form-select select2-stations intermediate-select" onchange="updateRoute()" disabled><option value="">-- Trạm phụ --</option></select></div>
+            <div style="flex: 1;"><select class="form-select select2-stations intermediate-select" onchange="debounceUpdateRoute()" disabled><option value="">-- Trạm phụ --</option></select></div>
             <button type="button" class="btn btn-link text-danger p-0" onclick="removeStop(${id})"><i class="bi bi-trash fs-5"></i></button>
         </div>`;
         $('#stopsList').append(html);
@@ -695,13 +655,15 @@
         if (targetSelect) {
             targetSelect.val(id).trigger('change');
             map.closePopup();
+            showToast(`Đã chọn trạm: ${stationName}`);
             var selectContainer = targetSelect.next('.select2-container');
             selectContainer.addClass('select-highlight');
             setTimeout(() => selectContainer.removeClass('select-highlight'), 1500);
+            debounceUpdateRoute();
         }
     }
 
-    function removeStop(id) { $(`#stopRow_${id}`).remove(); updateRoute(); }
+    function removeStop(id) { $(`#stopRow_${id}`).remove(); debounceUpdateRoute(); }
 
     async function loadStopStations(id) {
         var pId = $(`#stopRow_${id} .province-stop`).val();

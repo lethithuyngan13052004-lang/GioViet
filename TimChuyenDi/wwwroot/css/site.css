@@ -1,6 +1,5 @@
-﻿/* --- TÙY CHỈNH GIAO DIỆN CHUNG --- */
 body {
-    background-color: #f4f6f9; /* Màu xám xanh nhạt - rất dịu và sang */
+    background-color: transparent !important;
     color: #333;
 }
 
@@ -183,3 +182,33 @@ body {
         color: #6FB1FC !important;
         transform: scale(1.1);
     }
+
+/* --- HHT BRANDING --- */
+.hht-blurred-bg {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: -100;
+    background: url('/images/hht_bg.jpg') no-repeat center center;
+    background-size: contain; /* Fitting the logo perfectly without cropping */
+    opacity: 0.4; /* Slightly reduced for better content contrast */
+    filter: none;
+    pointer-events: none;
+}
+
+.navbar-logo {
+    height: 45px;
+    width: auto;
+    margin-right: 12px;
+    border-radius: 50%;
+    background-color: white;
+    padding: 2px;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+    transition: transform 0.3s ease;
+}
+
+.navbar-logo:hover {
+    transform: rotate(10deg) scale(1.1);
+}

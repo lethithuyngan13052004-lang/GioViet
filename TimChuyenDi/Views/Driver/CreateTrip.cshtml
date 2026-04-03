@@ -243,6 +243,8 @@
     var locationMarkers = L.layerGroup();
     var persistentMarkers = L.layerGroup();
     var lastTotalTimeSeconds = 0;
+    var isRoutingInProgress = false;
+    var routeDebounceTimer;
 
     const VN_REGIONS = {
         'North': ["Hà Nội", "Hải Phòng", "Hải Dương", "Hưng Yên", "Bắc Ninh", "Vĩnh Phúc", "Thái Nguyên", "Phú Thọ", "Bắc Giang", "Quảng Ninh", "Bắc Kạn", "Cao Bằng", "Hà Giang", "Lạng Sơn", "Tuyên Quang", "Lào Cai", "Yên Bái", "Điện Biên", "Hòa Bình", "Lai Châu", "Sơn La", "Hà Nam", "Nam Định", "Ninh Bình", "Thái Bình"],
@@ -338,7 +340,7 @@
             checkCapacity();
         });
 
-        $('#fromStation, #toStation').on('change', updateRoute);
+        $('#fromStation, #toStation').on('change', debounceUpdateRoute);
         $('#startTime').on('change', () => calculateArrivalTime(lastTotalTimeSeconds));
 
         // Date/Time restriction
@@ -419,6 +421,8 @@
         }).addTo(map);
 
         routingControl.on('routesfound', function (e) {
+            isRoutingInProgress = false;
+            
             var route = e.routes[0];
             var summary = route.summary;
             lastTotalTimeSeconds = summary.totalTime;
@@ -464,6 +468,17 @@
                 console.log("Intermediate Stations Data Calculated:", stopsData);
             }
         });
+
+        routingControl.on('routingerror', function(e) {
+            isRoutingInProgress = false;
+            console.error("Routing Error:", e);
+            showToast("Lỗi khi tính toán lộ trình. Vui lòng kiểm tra lại kết nối mạng hoặc các điểm dừng.", true);
+        });
+    }
+
+    function debounceUpdateRoute() {
+        clearTimeout(routeDebounceTimer);
+        routeDebounceTimer = setTimeout(updateRoute, 600);
     }
 
     function initSelect2() {
@@ -632,7 +647,7 @@
             </div>
 
             <div style="flex: 1;">
-                <select class="form-select select2-stations intermediate-select" onchange="updateRoute()" disabled>
+                <select class="form-select select2-stations intermediate-select" onchange="debounceUpdateRoute()" disabled>
                     <option value="">-- Trạm phụ --</option>
                 </select>
             </div>
@@ -657,7 +672,7 @@
     }
 
     function removeStop(id) {
-        $(`#stopRow_${id}`).animate({ opacity: 0, height: 0 }, 200, function () { $(this).remove(); updateRoute(); });
+        $(`#stopRow_${id}`).animate({ opacity: 0, height: 0 }, 200, function () { $(this).remove(); debounceUpdateRoute(); });
     }
 
     async function loadStopStations(id) {
@@ -756,6 +771,9 @@
             var selectContainer = targetSelect.next('.select2-container');
             selectContainer.addClass('select-highlight');
             setTimeout(() => selectContainer.removeClass('select-highlight'), 1500);
+            
+            // Explicitly trigger routing update for direct map selection
+            debounceUpdateRoute();
         }
     }
 

@@ -22,14 +22,14 @@ namespace TimChuyenDi.Controllers
             _env = env;
         }
         // GET: Trang chủ của Tài xế - Hiển thị danh sách khách gửi hàng
-        public IActionResult Index()
+        public async Task<IActionResult> Index()
         {
             var userIdStr = User.FindFirstValue("UserId");
             if (string.IsNullOrEmpty(userIdStr)) return RedirectToAction("Login", "Auth");
             int driverId = int.Parse(userIdStr);
 
             // Nối bảng sâu: Đơn hàng -> Chuyến xe -> Trạm -> Tỉnh
-            var requests = _context.Shiprequests
+            var requests = await _context.Shiprequests
                 .Include(r => r.User)
                 .Include(r => r.Trip)
                     .ThenInclude(t => t.FromStationNavigation)
@@ -39,20 +39,19 @@ namespace TimChuyenDi.Controllers
                         .ThenInclude(s => s.Province)
                 .Where(r => r.Trip.DriverId == driverId)
                 .OrderByDescending(r => r.PickupTimeFrom)
-                .ToList();
-
+                .ToListAsync();
 
             return View(requests);
         }
 
         // POST: Xử lý cập nhật trạng thái đơn hàng nâng cao
         [HttpPost]
-        public IActionResult UpdateRequestStatus(int reqId, int status)
+        public async Task<IActionResult> UpdateRequestStatus(int reqId, int status)
         {
-            var request = _context.Shiprequests
+            var request = await _context.Shiprequests
                                   .Include(r => r.Trip)
                                   .Include(r => r.Cargodetails)
-                                  .FirstOrDefault(r => r.Id == reqId);
+                                  .FirstOrDefaultAsync(r => r.Id == reqId);
 
             if (request != null)
             {
@@ -64,25 +63,26 @@ namespace TimChuyenDi.Controllers
                     if (status == 1) // Nếu nhận đơn -> Trừ sức chứa của xe
                     {
                         request.Trip.AvaiCapacityKg -= (int)(request.Cargodetails.FirstOrDefault()?.Weight ?? 0);
-                        // Nếu sau này khách có nhập thể tích (Size), bro có thể trừ tiếp AvaiCapacityM3 ở đây
                     }
-                    _context.SaveChanges();
+                    await _context.SaveChangesAsync();
                 }
                 // 2. Đã xác nhận (1) -> Đang giao (3) HOẶC Đang giao (3) -> Hoàn tất (4)
                 else if ((request.Status == 1 && status == 3) || (request.Status == 3 && status == 4))
                 {
                     request.Status = status;
-                    _context.SaveChanges();
+                    await _context.SaveChangesAsync();
                 }
             }
             return RedirectToAction("Index");
         }
 
         // GET: Xem danh sách các chuyến xe tài xế đã đăng
-        public IActionResult MyTrips(int page = 1)
+        public async Task<IActionResult> MyTrips(int page = 1)
         {
             int pageSize = 9;
-            var driverId = int.Parse(User.FindFirstValue("UserId"));
+            var userIdStr = User.FindFirstValue("UserId");
+            if (string.IsNullOrEmpty(userIdStr)) return RedirectToAction("Login", "Auth");
+            int driverId = int.Parse(userIdStr);
             
             var query = _context.Trips
                 .Include(t => t.FromStationNavigation).ThenInclude(s => s.Province)
@@ -92,13 +92,13 @@ namespace TimChuyenDi.Controllers
                 .Where(t => t.DriverId == driverId && t.StartTime >= DateTime.Now)
                 .OrderByDescending(t => t.StartTime);
 
-            int totalItems = query.Count();
+            int totalItems = await query.CountAsync();
             int totalPages = (int)Math.Ceiling((double)totalItems / pageSize);
 
-            var trips = query
+            var trips = await query
                 .Skip((page - 1) * pageSize)
                 .Take(pageSize)
-                .ToList();
+                .ToListAsync();
 
             ViewBag.CurrentPage = page;
             ViewBag.TotalPages = totalPages;
@@ -108,15 +108,17 @@ namespace TimChuyenDi.Controllers
 
         // GET: Hiển thị form đăng chuyến xe mới
         [HttpGet]
-        public IActionResult CreateTrip()
+        public async Task<IActionResult> CreateTrip()
         {
-            var driverId = int.Parse(User.FindFirstValue("UserId"));
+            var userIdStr = User.FindFirstValue("UserId");
+            if (string.IsNullOrEmpty(userIdStr)) return RedirectToAction("Login", "Auth");
+            int driverId = int.Parse(userIdStr);
 
             // Danh sách trạm đầy đủ để tra cứu trên Map
-            var stations = _context.Stations
+            var stations = await _context.Stations
                 .Include(s => s.Province)
                 .OrderBy(s => s.StationName)
-                .ToList();
+                .ToListAsync();
             
             ViewBag.StationsRaw = stations.Select(s => new {
                 s.StationId,
@@ -128,16 +130,16 @@ namespace TimChuyenDi.Controllers
             }).ToList();
 
             // Loại chuyến đi (Radio Buttons)
-            ViewBag.TripTypes = _context.TripTypes.ToList();
+            ViewBag.TripTypes = await _context.TripTypes.ToListAsync();
 
             // Danh sách Tỉnh/Thành
-            ViewBag.Provinces = _context.Provinces.OrderBy(p => p.ProvinceName).ToList();
+            ViewBag.Provinces = await _context.Provinces.OrderBy(p => p.ProvinceName).ToListAsync();
 
             // Xe của tài xế đã duyệt
-            var myVehicles = _context.Vehicles
+            var myVehicles = await _context.Vehicles
                 .Where(v => v.DriverId == driverId && v.Status == 1)
                 .Include(v => v.VehicleType)
-                .ToList();
+                .ToListAsync();
             ViewBag.Vehicles = myVehicles;
 
             return View();
@@ -190,77 +192,84 @@ namespace TimChuyenDi.Controllers
         [HttpPost]
         public async Task<IActionResult> CreateTrip(Trip model, string intermediateStations)
         {
-            var driverId = int.Parse(User.FindFirstValue("UserId"));
-            var vehicle = _context.Vehicles.FirstOrDefault(v => v.VehicleId == model.VehicleId && v.DriverId == driverId && v.Status == 1);
+            var userIdStr = User.FindFirstValue("UserId");
+            if (string.IsNullOrEmpty(userIdStr)) return RedirectToAction("Login", "Auth");
+            int driverId = int.Parse(userIdStr);
 
-            if (vehicle != null)
+            // Kiểm tra xe có tồn tại và đã được duyệt (Status == 1) hay chưa
+            var vehicle = await _context.Vehicles
+                .FirstOrDefaultAsync(v => v.VehicleId == model.VehicleId && v.DriverId == driverId && v.Status == 1);
+
+            if (vehicle == null)
             {
-                using var transaction = await _context.Database.BeginTransactionAsync();
-                try
-                {
-                    model.DriverId = driverId;
-                    // Mặc định Capacity nếu tài xế không sửa
-                    if (model.AvaiCapacityKg <= 0) model.AvaiCapacityKg = vehicle.CapacityKg;
-
-
-                    _context.Trips.Add(model);
-                    await _context.SaveChangesAsync();
-
-                    // Xử lý trạm trung gian (Dạng JSON)
-                    if (!string.IsNullOrEmpty(intermediateStations))
-                    {
-                        try 
-                        {
-                            var options = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
-                            var stops = JsonSerializer.Deserialize<List<IntermediateStationDto>>(intermediateStations, options);
-                            if (stops != null)
-                            {
-                                for (int i = 0; i < stops.Count; i++)
-                                {
-                                    var ts = new TripStation
-                                    {
-                                        TripId = model.TripId,
-                                        StationId = stops[i].stationId,
-                                        StopOrder = i + 1,
-
-                                        DistanceFromPrev = stops[i].distance,
-                                        EstArrivalTime = stops[i].estArrivalTime
-                                    };
-                                    _context.TripStations.Add(ts);
-                                }
-                                await _context.SaveChangesAsync();
-                            }
-                        }
-                        catch (Exception ex)
-                        {
-                            // Ghi log lỗi để debug nếu cần
-                            System.Diagnostics.Debug.WriteLine("JSON Parse Error: " + ex.Message);
-                            // Có thể log vào Database hoặc file log ở đây
-                        }
-                    }
-
-                    await transaction.CommitAsync();
-                    TempData["Success"] = "Đăng chuyến xe và lộ trình thành công!";
-                }
-                catch (Exception ex)
-                {
-                    await transaction.RollbackAsync();
-                    TempData["Error"] = "Lỗi khi lưu chuyến xe: " + ex.Message;
-                    return RedirectToAction("CreateTrip");
-                }
+                TempData["Error"] = "Không tìm thấy xe hợp lệ hoặc xe của bạn chưa được Admin phê duyệt. Vui lòng kiểm tra lại!";
+                return RedirectToAction("CreateTrip");
             }
 
-            return RedirectToAction("MyTrips");
+            using var transaction = await _context.Database.BeginTransactionAsync();
+            try
+            {
+                model.DriverId = driverId;
+                // Mặc định Capacity nếu tài xế không sửa
+                if (model.AvaiCapacityKg <= 0) model.AvaiCapacityKg = vehicle.CapacityKg;
+
+                _context.Trips.Add(model);
+                // Save lần đầu để có Identity Id cho TripId
+                await _context.SaveChangesAsync();
+
+                // Xử lý trạm trung gian (Dạng JSON)
+                if (!string.IsNullOrEmpty(intermediateStations))
+                {
+                    try 
+                    {
+                        var options = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
+                        var stops = JsonSerializer.Deserialize<List<IntermediateStationDto>>(intermediateStations, options);
+                        if (stops != null)
+                        {
+                            for (int i = 0; i < stops.Count; i++)
+                            {
+                                var ts = new TripStation
+                                {
+                                    TripId = model.TripId,
+                                    StationId = stops[i].stationId,
+                                    StopOrder = i + 1,
+                                    DistanceFromPrev = stops[i].distance,
+                                    EstArrivalTime = stops[i].estArrivalTime
+                                };
+                                _context.TripStations.Add(ts);
+                            }
+                            // Save lần 2 cho các trạm trung gian
+                            await _context.SaveChangesAsync();
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        System.Diagnostics.Debug.WriteLine("JSON Parse Error: " + ex.Message);
+                    }
+                }
+
+                await transaction.CommitAsync();
+                TempData["Success"] = "Đăng chuyến xe và lộ trình thành công!";
+                return RedirectToAction("MyTrips");
+            }
+            catch (Exception ex)
+            {
+                await transaction.RollbackAsync();
+                TempData["Error"] = "Lỗi hệ thống khi lưu chuyến xe: " + ex.Message;
+                return RedirectToAction("CreateTrip");
+            }
         }
 
         // GET: Xem các đánh giá của khách hàng về tài xế
         [HttpGet]
-        public IActionResult MyReviews()
+        public async Task<IActionResult> MyReviews()
         {
-            var driverId = int.Parse(User.FindFirstValue("UserId"));
+            var userIdStr = User.FindFirstValue("UserId");
+            if (string.IsNullOrEmpty(userIdStr)) return RedirectToAction("Login", "Auth");
+            int driverId = int.Parse(userIdStr);
 
             // Logic mới: Đánh giá nối vào Đơn hàng (Req), Đơn hàng nối vào Chuyến xe (Trip)
-            var reviews = _context.Ratings
+            var reviews = await _context.Ratings
                 .Include(r => r.Customer)
                 .Include(r => r.Req)
                     .ThenInclude(req => req.Trip)
@@ -272,7 +281,7 @@ namespace TimChuyenDi.Controllers
                             .ThenInclude(s => s.Province)
                 .Where(r => r.Req.Trip.DriverId == driverId)
                 .OrderByDescending(r => r.RatingId)
-                .ToList();
+                .ToListAsync();
 
             ViewBag.AverageScore = reviews.Any() ? Math.Round(reviews.Average(r => r.Score), 1) : 0;
             ViewBag.TotalReviews = reviews.Count;
@@ -282,19 +291,26 @@ namespace TimChuyenDi.Controllers
 
         // GET: Hiển thị form Sửa chuyến xe
         [HttpGet]
-        public IActionResult EditTrip(int id)
+        public async Task<IActionResult> EditTrip(int id)
         {
-            var driverId = int.Parse(User.FindFirstValue("UserId"));
-            var trip = _context.Trips
+            var userIdStr = User.FindFirstValue("UserId");
+            if (string.IsNullOrEmpty(userIdStr)) return RedirectToAction("Login", "Auth");
+            int driverId = int.Parse(userIdStr);
+
+            var trip = await _context.Trips
                 .Include(t => t.FromStationNavigation).ThenInclude(s => s.Province)
                 .Include(t => t.ToStationNavigation).ThenInclude(s => s.Province)
                 .Include(t => t.TripStations).ThenInclude(ts => ts.Station).ThenInclude(s => s.Province)
-                .FirstOrDefault(t => t.TripId == id && t.DriverId == driverId);
+                .FirstOrDefaultAsync(t => t.TripId == id && t.DriverId == driverId);
 
             if (trip == null) return NotFound();
 
             // All necessary ViewBag data (copied from CreateTrip)
-            var stations = _context.Stations.Include(s => s.Province).OrderBy(s => s.StationName).ToList();
+            var stations = await _context.Stations
+                .Include(s => s.Province)
+                .OrderBy(s => s.StationName)
+                .ToListAsync();
+
             ViewBag.StationsRaw = stations.Select(s => new {
                 s.StationId,
                 s.StationName,
@@ -304,9 +320,12 @@ namespace TimChuyenDi.Controllers
                 s.Address
             }).ToList();
 
-            ViewBag.TripTypes = _context.TripTypes.ToList();
-            ViewBag.Provinces = _context.Provinces.OrderBy(p => p.ProvinceName).ToList();
-            ViewBag.Vehicles = _context.Vehicles.Where(v => v.DriverId == driverId && v.Status == 1).Include(v => v.VehicleType).ToList();
+            ViewBag.TripTypes = await _context.TripTypes.ToListAsync();
+            ViewBag.Provinces = await _context.Provinces.OrderBy(p => p.ProvinceName).ToListAsync();
+            ViewBag.Vehicles = await _context.Vehicles
+                .Where(v => v.DriverId == driverId && v.Status == 1)
+                .Include(v => v.VehicleType)
+                .ToListAsync();
 
             return View(trip);
         }
@@ -315,10 +334,13 @@ namespace TimChuyenDi.Controllers
         [HttpPost]
         public async Task<IActionResult> EditTrip(Trip updatedTrip, string intermediateStations)
         {
-            var driverId = int.Parse(User.FindFirstValue("UserId"));
-            var trip = _context.Trips
+            var userIdStr = User.FindFirstValue("UserId");
+            if (string.IsNullOrEmpty(userIdStr)) return RedirectToAction("Login", "Auth");
+            int driverId = int.Parse(userIdStr);
+
+            var trip = await _context.Trips
                 .Include(t => t.TripStations)
-                .FirstOrDefault(t => t.TripId == updatedTrip.TripId && t.DriverId == driverId);
+                .FirstOrDefaultAsync(t => t.TripId == updatedTrip.TripId && t.DriverId == driverId);
 
             if (trip == null) return NotFound();
 
@@ -341,28 +363,36 @@ namespace TimChuyenDi.Controllers
                 
                 if (!string.IsNullOrEmpty(intermediateStations))
                 {
-                    var options = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
-                    var stops = JsonSerializer.Deserialize<List<IntermediateStationDto>>(intermediateStations, options);
-                    if (stops != null)
+                    try 
                     {
-                        for (int i = 0; i < stops.Count; i++)
+                        var options = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
+                        var stops = JsonSerializer.Deserialize<List<IntermediateStationDto>>(intermediateStations, options);
+                        if (stops != null)
                         {
-                            var ts = new TripStation
+                            for (int i = 0; i < stops.Count; i++)
                             {
-                                TripId = trip.TripId,
-                                StationId = stops[i].stationId,
-                                StopOrder = i + 1,
-                                DistanceFromPrev = stops[i].distance,
-                                EstArrivalTime = stops[i].estArrivalTime
-                            };
-                            _context.TripStations.Add(ts);
+                                var ts = new TripStation
+                                {
+                                    TripId = trip.TripId,
+                                    StationId = stops[i].stationId,
+                                    StopOrder = i + 1,
+                                    DistanceFromPrev = stops[i].distance,
+                                    EstArrivalTime = stops[i].estArrivalTime
+                                };
+                                _context.TripStations.Add(ts);
+                            }
                         }
+                    }
+                    catch (Exception jsonEx)
+                    {
+                        System.Diagnostics.Debug.WriteLine("JSON Parse Error in Edit: " + jsonEx.Message);
                     }
                 }
 
                 await _context.SaveChangesAsync();
                 await transaction.CommitAsync();
                 TempData["Success"] = "Cập nhật chuyến xe và lộ trình thành công!";
+                return RedirectToAction("MyTrips");
             }
             catch (Exception ex)
             {
@@ -370,20 +400,20 @@ namespace TimChuyenDi.Controllers
                 TempData["Error"] = "Lỗi khi cập nhật chuyến xe: " + ex.Message;
                 return RedirectToAction("EditTrip", new { id = updatedTrip.TripId });
             }
-
-            return RedirectToAction("MyTrips");
         }
 
         // POST: Xử lý Xóa chuyến xe
         [HttpPost]
-        public IActionResult DeleteTrip(int id)
+        public async Task<IActionResult> DeleteTrip(int id)
         {
-            var driverId = int.Parse(User.FindFirstValue("UserId"));
+            var userIdStr = User.FindFirstValue("UserId");
+            if (string.IsNullOrEmpty(userIdStr)) return RedirectToAction("Login", "Auth");
+            int driverId = int.Parse(userIdStr);
 
-            var trip = _context.Trips
+            var trip = await _context.Trips
                                .Include(t => t.Shiprequests)
-                               .Include(t => t.Users) // 🔥 thêm dòng này
-                               .FirstOrDefault(t => t.TripId == id && t.DriverId == driverId);
+                               .Include(t => t.Users)
+                               .FirstOrDefaultAsync(t => t.TripId == id && t.DriverId == driverId);
 
             if (trip != null)
             {
@@ -393,11 +423,11 @@ namespace TimChuyenDi.Controllers
                     return RedirectToAction("MyTrips");
                 }
 
-                // 🔥 Xóa quan hệ saved routes (many-to-many)
+                // Xóa quan hệ saved routes (many-to-many)
                 trip.Users.Clear();
 
                 _context.Trips.Remove(trip);
-                _context.SaveChanges();
+                await _context.SaveChangesAsync();
 
                 TempData["Success"] = "Xóa chuyến xe thành công!";
             }
@@ -443,14 +473,17 @@ namespace TimChuyenDi.Controllers
 
         // GET: Danh sách xe của tài xế
         [HttpGet]
-        public IActionResult ManageVehicles()
+        public async Task<IActionResult> ManageVehicles()
         {
-            var driverId = int.Parse(User.FindFirstValue("UserId"));
-            var vehicles = _context.Vehicles
+            var userIdStr = User.FindFirstValue("UserId");
+            if (string.IsNullOrEmpty(userIdStr)) return RedirectToAction("Login", "Auth");
+            int driverId = int.Parse(userIdStr);
+
+            var vehicles = await _context.Vehicles
                 .Include(v => v.VehicleType)
                 .Where(v => v.DriverId == driverId)
                 .OrderByDescending(v => v.VehicleId)
-                .ToList();
+                .ToListAsync();
 
             return View(vehicles);
         }
@@ -534,14 +567,18 @@ namespace TimChuyenDi.Controllers
 
         // GET: Form Sửa thông tin xe
         [HttpGet]
-        public IActionResult EditVehicle(int id)
+        public async Task<IActionResult> EditVehicle(int id)
         {
-            var driverId = int.Parse(User.FindFirstValue("UserId"));
-            var vehicle = _context.Vehicles.FirstOrDefault(v => v.VehicleId == id && v.DriverId == driverId);
+            var userIdStr = User.FindFirstValue("UserId");
+            if (string.IsNullOrEmpty(userIdStr)) return RedirectToAction("Login", "Auth");
+            int driverId = int.Parse(userIdStr);
+
+            var vehicle = await _context.Vehicles
+                .FirstOrDefaultAsync(v => v.VehicleId == id && v.DriverId == driverId);
 
             if (vehicle == null) return NotFound();
 
-            ViewBag.VehicleTypes = new SelectList(_context.VehicleTypes.ToList(), "VehicleTypeId", "TypeName");
+            ViewBag.VehicleTypes = new SelectList(await _context.VehicleTypes.ToListAsync(), "VehicleTypeId", "TypeName");
             return View(vehicle);
         }
 
@@ -557,38 +594,31 @@ namespace TimChuyenDi.Controllers
                 int VehicleTypeId = int.Parse(Request.Form["VehicleTypeId"].ToString());
                 var imageFile = Request.Form.Files.FirstOrDefault(f => f.Name == "imageFile");
 
-                var driverId = int.Parse(User.FindFirstValue("UserId"));
+                var userIdStr = User.FindFirstValue("UserId");
+                if (string.IsNullOrEmpty(userIdStr)) return RedirectToAction("Login", "Auth");
+                int driverId = int.Parse(userIdStr);
                 
                 // Kiểm tra trùng lặp biển số với xe khác
-                if (_context.Vehicles.Any(v => v.PlateNumber == PlateNumber && v.VehicleId != VehicleId))
+                if (await _context.Vehicles.AnyAsync(v => v.PlateNumber == PlateNumber && v.VehicleId != VehicleId))
                 {
                     TempData["Error"] = $"Biển số xe {PlateNumber} đã tồn tại ở một xe khác. Vui lòng kiểm tra lại!";
                     return RedirectToAction("ManageVehicles");
                 }
 
-                var vehicle = _context.Vehicles.FirstOrDefault(v => v.VehicleId == VehicleId && v.DriverId == driverId);
+                var vehicle = await _context.Vehicles
+                    .FirstOrDefaultAsync(v => v.VehicleId == VehicleId && v.DriverId == driverId);
 
                 if (vehicle != null)
                 {
                     vehicle.PlateNumber = PlateNumber;
                     vehicle.CapacityKg = CapacityKg;
-
-                    var capacityConfig = await _context.VehicleCapacityConfigs
-                        .FirstOrDefaultAsync(c => c.VehicleTypeId == VehicleTypeId 
-                                               && CapacityKg >= c.MinWeight 
-                                               && CapacityKg <= c.MaxWeight);
-                                               
-
                     vehicle.VehicleTypeId = VehicleTypeId;
                     vehicle.Status = 0; // Sửa xong lại chờ duyệt
 
                     if (imageFile != null && imageFile.Length > 0)
                     {
                         string uploadFolder = Path.Combine(_env.WebRootPath, "uploads", "vehicles");
-                        if (!Directory.Exists(uploadFolder))
-                        {
-                            Directory.CreateDirectory(uploadFolder);
-                        }
+                        if (!Directory.Exists(uploadFolder)) Directory.CreateDirectory(uploadFolder);
 
                         string uniqueFileName = Guid.NewGuid().ToString() + "_" + Path.GetFileName(imageFile.FileName);
                         string filePath = Path.Combine(uploadFolder, uniqueFileName);
@@ -598,7 +628,7 @@ namespace TimChuyenDi.Controllers
                             await imageFile.CopyToAsync(fileStream);
                         }
 
-                        // Xóa file cũ (tuỳ chọn)
+                        // Xóa file cũ
                         if (!string.IsNullOrEmpty(vehicle.VehicleImage))
                         {
                             var oldFilePath = Path.Combine(_env.WebRootPath, vehicle.VehicleImage.TrimStart('/'));
@@ -618,26 +648,25 @@ namespace TimChuyenDi.Controllers
             catch (Exception ex)
             {
                 var innerMsg = ex.InnerException != null ? " - " + ex.InnerException.Message : "";
-                TempData["Error"] = $"Hệ thống gặp lỗi: {ex.Message}{innerMsg}";
+                TempData["Error"] = "Lỗi hệ thống: " + ex.Message + innerMsg;
             }
-
             return RedirectToAction("ManageVehicles");
         }
 
         // GET: Hiển thị các đơn hàng chờ ghép (chưa có chuyến) có lộ trình phù hợp với tài xế
         [HttpGet]
-        public IActionResult AvailableOrders()
+        public async Task<IActionResult> AvailableOrders()
         {
             var userIdStr = User.FindFirstValue("UserId");
             if (string.IsNullOrEmpty(userIdStr)) return RedirectToAction("Login", "Auth");
             int driverId = int.Parse(userIdStr);
 
             // BƯỚC 1: Lấy danh sách các chuyến xe sắp chạy của tài xế này
-            var activeTrips = _context.Trips
+            var activeTrips = await _context.Trips
                 .Include(t => t.FromStationNavigation).ThenInclude(s => s.Province)
                 .Include(t => t.ToStationNavigation).ThenInclude(s => s.Province)
                 .Where(t => t.DriverId == driverId && t.StartTime > DateTime.Now)
-                .ToList();
+                .ToListAsync();
 
 
             if (!activeTrips.Any())
@@ -650,17 +679,17 @@ namespace TimChuyenDi.Controllers
             var activeRoutes = activeTrips.Select(t => new { From = t.FromStationNavigation.ProvinceId, To = t.ToStationNavigation.ProvinceId }).Distinct().ToList();
 
             // BƯỚC 2: Tìm các đơn hàng chưa có chuyến (TripId == null) và khớp lộ trình
-            var availableRequests = _context.Shiprequests
+            var availableRequests = await _context.Shiprequests
                 .Include(r => r.User)
                 .Include(r => r.Cargodetails)
                 .Include(r => r.Shippingroutes)
                     .ThenInclude(sr => sr.FromStation)
                 .Include(r => r.Shippingroutes)
                     .ThenInclude(sr => sr.ToStation)
-
                 .Where(r => r.TripId == null && (r.Status == 0 || r.Status == null))
-                .ToList() // Thực hiện lọc nốt phía Client nếu logic route phức tạp
-                .Where(r => {
+                .ToListAsync(); // Thực hiện lọc nốt phía Client nếu logic route phức tạp
+                
+            var filteredRequests = availableRequests.Where(r => {
                     var route = r.Shippingroutes.FirstOrDefault();
                     return route != null && activeRoutes.Any(ar => ar.From == route.FromProvinceId && ar.To == route.ToProvinceId);
                 })
@@ -669,17 +698,20 @@ namespace TimChuyenDi.Controllers
 
 
             ViewBag.ActiveTrips = activeTrips;
-            return View(availableRequests);
+            return View(filteredRequests);
         }
 
         // POST: Xóa xe
         [HttpPost]
-        public IActionResult DeleteVehicle(int id)
+        public async Task<IActionResult> DeleteVehicle(int id)
         {
-            var driverId = int.Parse(User.FindFirstValue("UserId"));
-            var vehicle = _context.Vehicles
+            var userIdStr = User.FindFirstValue("UserId");
+            if (string.IsNullOrEmpty(userIdStr)) return RedirectToAction("Login", "Auth");
+            int driverId = int.Parse(userIdStr);
+
+            var vehicle = await _context.Vehicles
                 .Include(v => v.Trips)
-                .FirstOrDefault(v => v.VehicleId == id && v.DriverId == driverId);
+                .FirstOrDefaultAsync(v => v.VehicleId == id && v.DriverId == driverId);
 
             if (vehicle != null)
             {
@@ -699,7 +731,7 @@ namespace TimChuyenDi.Controllers
                     }
 
                     _context.Vehicles.Remove(vehicle);
-                    _context.SaveChanges();
+                    await _context.SaveChangesAsync();
                     TempData["Success"] = "Đã xóa xe thành công!";
                 }
             }
@@ -715,13 +747,14 @@ namespace TimChuyenDi.Controllers
             if (string.IsNullOrEmpty(userIdStr)) return RedirectToAction("Login", "Auth");
             int driverId = int.Parse(userIdStr);
 
-            var request = _context.Shiprequests
+            var request = await _context.Shiprequests
                 .Include(r => r.Cargodetails)
-                .FirstOrDefault(r => r.Id == requestId && (r.Status == 0 || r.Status == null) && r.TripId == null);
-            var trip = _context.Trips
+                .FirstOrDefaultAsync(r => r.Id == requestId && (r.Status == 0 || r.Status == null) && r.TripId == null);
+                
+            var trip = await _context.Trips
                 .Include(t => t.Vehicle)
                 .Include(t => t.RouteTypeNavigation)
-                .FirstOrDefault(t => t.TripId == tripId && t.DriverId == driverId);
+                .FirstOrDefaultAsync(t => t.TripId == tripId && t.DriverId == driverId);
 
             if (request != null && trip != null)
             {
@@ -729,14 +762,13 @@ namespace TimChuyenDi.Controllers
                 request.Status = 1; // Đã xác nhận
                 request.PickupTimeTo = trip.ArrivalTime;
 
-                
                 var cargo = request.Cargodetails.FirstOrDefault();
                 if (cargo != null)
                 {
-                    var vwFactorConfig = _context.SystemConfigs.FirstOrDefault(c => c.KeyName == "VolumeToWeightFactor");
+                    var vwFactorConfig = await _context.SystemConfigs.FirstOrDefaultAsync(c => c.KeyName == "VolumeToWeightFactor");
                     int vwFactor = (int)(vwFactorConfig?.Value ?? 250);
 
-                    var minPriceConfig = _context.SystemConfigs.FirstOrDefault(c => c.KeyName == "MinPrice");
+                    var minPriceConfig = await _context.SystemConfigs.FirstOrDefaultAsync(c => c.KeyName == "MinPrice");
                     decimal minPrice = minPriceConfig?.Value ?? 0;
 
                     decimal length = cargo.Length ?? 0;
@@ -749,23 +781,16 @@ namespace TimChuyenDi.Controllers
                     decimal capacityKg = trip.Vehicle?.CapacityKg ?? 1;
 
                     decimal basePrice = trip.BasePrice * (chargeableWeight / capacityKg);
-                    
                     decimal tripTypeMultiplier = trip.RouteTypeNavigation?.Multiplier ?? 1;
+                    decimal priceAfterCargo = basePrice * tripTypeMultiplier;
                     
-                    decimal cargoMultiplier = 1;
-
-                    decimal priceAfterCargo = basePrice * tripTypeMultiplier * cargoMultiplier;
                     request.TotalPrice = Math.Max(priceAfterCargo, minPrice);
-
                     trip.AvaiCapacityKg -= (int)weight;
                 }
 
                 await _context.SaveChangesAsync();
-
                 TempData["Success"] = $"Đã ghép đơn hàng #{requestId} vào chuyến xe của bạn thành công!";
-
             }
-
             else
             {
                 TempData["Error"] = "Không thể nhận đơn hàng này. Có thể đơn đã được người khác nhận hoặc không hợp lệ.";
