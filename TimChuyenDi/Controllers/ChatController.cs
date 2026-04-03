@@ -13,12 +13,12 @@ namespace TimChuyenDi.Controllers
 {
     public class ChatController : Controller
     {
-        private readonly GeminiService _geminiService;
+        private readonly OpenAIService _openAIService;
         private readonly TimchuyendiContext _context;
 
-        public ChatController(GeminiService geminiService, TimchuyendiContext context)
+        public ChatController(OpenAIService openAIService, TimchuyendiContext context)
         {
-            _geminiService = geminiService;
+            _openAIService = openAIService;
             _context = context;
         }
 
@@ -178,6 +178,8 @@ LƯU Ý CHUNG:
 - Tuyệt đối không tự chế ra chuyến xe.
 - Link 'Lưu' giúp khách lưu tuyến, link 'Xem' mở chi tiết.
 - Không IN HOA TOÀN BỘ. Dùng in đậm (**) cho thông tin quan trọng.
+- QUY TẮC ĐỊNH DẠNG: ĐỐI VỚI CÁC LIÊN KẾT (LINK), HÃY SỬ DỤNG NGUYÊN BẢN MÃ HTML ĐƯỢC CUNG CẤP TRONG DỮ LIỆU. TUYỆT ĐỐI KHÔNG CHUYỂN ĐỔI SANG ĐỊNH DẠNG MARKDOWN (Ví dụ: KHÔNG dùng [Text](URL)).
+- TẤT CẢ CÂU TRẢ LỜI CỦA BẠN PHẢI LÀ VĂN BẢN THUẦN (Text) KÈM THEO HTML NẾU CẦN. KHÔNG DÙNG CÚ PHÁP MARKDOWN CHO CÁC ĐƯỜNG DẪN.
 ";
 
                 // ================= SHARED TRIP SEARCH (For Guests & Customers) =================
@@ -288,6 +290,8 @@ Lưu ý quan trọng:
 1. Trả lời bằng tiếng Việt, lịch sự, thân thiện.
 2. Nếu có mã đơn hàng (#MD...), hãy dùng nó để trả lời khách.
 3. Nếu người dùng hỏi về thông tin không có trong 'DỮ LIỆU' hoặc 'LỊCH SỬ', hãy trả lời rằng bạn chưa có thông tin đó và khuyên họ liên hệ hotline 1900 xxxx.
+4. LUÔN GIỮ NGUYÊN các thẻ <a> trong danh sách chuyến xe. KHÔNG ĐƯỢC CHỈNH SỬA, THÊM DẤU NHÁY HAY KHOẢNG TRẮNG VÀO TRONG THẺ <a>.
+5. PHẢI TRẢ LỜI Ở ĐỊNH DẠNG VĂN BẢN (TEXT) KÈM HTML. KHÔNG DÙNG MARKDOWN CHO CÁC LINK.
 
 Lịch sử trò chuyện:
 {history}
@@ -295,7 +299,7 @@ Lịch sử trò chuyện:
 Người dùng hỏi: {userMessage}
 ";
 
-                var chatTask = _geminiService.SendMessageAsync(finalPrompt);
+                var chatTask = _openAIService.SendMessageAsync(finalPrompt);
                 Task<string> extractTask = null;
 
                 if (int.TryParse(userIdClaim, out int loggedInUserId))
@@ -311,7 +315,7 @@ Nếu có, hãy trả về MỘT mảng JSON duy nhất (không bọc markdown, 
   {{ ""Action"": ""Dislike"", ""Object"": ""Bảo quản"", ""Value"": ""Hàng bị móp méo"" }}
 ]
 ";
-                    extractTask = _geminiService.SendMessageAsync(extractPrompt);
+                    extractTask = _openAIService.SendMessageAsync(extractPrompt);
                 }
 
                 string aiReply = await chatTask;

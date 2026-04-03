@@ -1,4 +1,4 @@
-﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore;
 using TimChuyenDi.Models;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -6,8 +6,8 @@ var builder = WebApplication.CreateBuilder(args);
 // Add services to the container.
 builder.Services.AddControllersWithViews();
 
-// Đăng ký GeminiService vào hệ thống kèm theo HttpClient
-builder.Services.AddHttpClient<TimChuyenDi.Services.GeminiService>();
+// Đăng ký OpenAIService vào hệ thống kèm theo HttpClient
+builder.Services.AddHttpClient<TimChuyenDi.Services.OpenAIService>();
 
 // Đăng ký dịch vụ xác thực bằng Cookie
 builder.Services.AddAuthentication("Cookies")
