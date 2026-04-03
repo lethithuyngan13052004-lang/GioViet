@@ -249,7 +249,106 @@
     var isRoutingInProgress = false;
     var routeDebounceTimer;
 
-    
+    $(document).ready(function () {
+        initMap();
+        locationMarkers.addTo(map);
+        persistentMarkers.addTo(map);
+        initSelect2();
+
+        // Type Change Listener
+        $('input[name="RouteType"]').change(function() {
+            var val = $(this).val();
+            if (val == "2") $('#intermediateStationsContainer').slideDown();
+            else { $('#intermediateStationsContainer').slideUp(); $('#stopsList').empty(); updateRoute(); }
+        });
+
+        // Vehicle Capacity Auto-fill & Limit Display
+        $(document).on('change', '#vehicleSelect', function () {
+            var kg = $(this).find(':selected').data('kg');
+            if (kg) {
+                $('#vehicleLimits').text(`Tối đa ${kg}kg`).removeClass('text-danger').addClass('text-primary');
+            } else {
+                $('#vehicleLimits').text('Chưa chọn xe').removeClass('text-danger');
+            }
+            checkCapacity();
+        });
+
+        $('#fromStation, #toStation').on('change', updateRoute);
+        $('#startTime').on('change', () => calculateArrivalTime(lastTotalTimeSeconds));
+
+        // Context-Aware Map Sync for Start/End
+        $('#provinceStart, #fromStation').on('select2:opening focus', function() {
+            let pId = $('#provinceStart').val();
+            if (pId) syncMapWithProvince(pId, 'start');
+        });
+        $('#provinceEnd, #toStation').on('select2:opening focus', function() {
+            let pId = $('#provinceEnd').val();
+            if (pId) syncMapWithProvince(pId, 'end');
+        });
+
+        // Initial Route Trigger - Use Razor-rendered logic for 100% accuracy on first render
+        setTimeout(initMapFromRazor, 800);
+    });
+
+    function initMap() {
+        map = L.map('map').setView([16.0544, 108.2022], 6);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+        map.setMaxBounds([[4.5, 95.0], [26.0, 115.0]]);
+
+        routingControl = L.Routing.control({
+            waypoints: [],
+            routeWhileDragging: false,
+            show: false,
+            router: L.Routing.osrmv1({ serviceUrl: 'https://router.project-osrm.org/route/v1', profile: 'driving' }),
+            lineOptions: { styles: [{ color: '#0d6efd', opacity: 0.8, weight: 6 }] },
+            createMarker: () => null
+        }).addTo(map);
+
+        routingControl.on('routesfound', function (e) {
+            try {
+                var route = e.routes[0];
+                var summary = route.summary;
+                if (!summary) return;
+                lastTotalTimeSeconds = summary.totalTime || 0;
+                $('#totalDistance').text((summary.totalDistance / 1000).toFixed(1) + " km");
+                $('#totalTime').text((summary.totalTime / 3600).toFixed(1) + " h");
+                $('#distanceInput').val((summary.totalDistance / 1000).toFixed(1));
+                calculateArrivalTime(summary.totalTime);
+            } catch(ex) { console.error("routesfound basic data error:", ex); }
+
+            // Intermediate stations calculation logic (similar to CreateTrip)
+            if (window.lastRealIndices && window.lastRawWaypoints) {
+                let indices = route.waypointIndices;
+                if (!indices) return; // Prevent crash if OSRM doesn't return indices
+                let coords = route.coordinates;
+                let startTimeStr = $('#startTime').val();
+                let startTime = startTimeStr ? new Date(startTimeStr) : new Date();
+                let stopsData = [];
+
+                try {
+                    for (let i = 1; i < window.lastRawWaypoints.length - 1; i++) {
+                        let currIdx = indices[window.lastRealIndices[i]];
+                        let prevIdx = indices[window.lastRealIndices[i - 1]];
+                        if (currIdx === undefined || prevIdx === undefined) continue;
+
+                        let segmentDist = 0;
+                        for (let j = prevIdx; j < currIdx; j++) segmentDist += coords[j].distanceTo(coords[j+1]);
+                        
+                        let distFromStart = 0;
+                        for (let j = 0; j < currIdx; j++) distFromStart += coords[j].distanceTo(coords[j+1]);
+                        let timeRatio = distFromStart / summary.totalDistance;
+                        let timeOffset = summary.totalTime * timeRatio;
+                        let estArrival = new Date(startTime.getTime() + timeOffset * 1000);
+
+                        stopsData.push({ stationId: window.lastRawWaypoints[i].stationId, distance: parseFloat((segmentDist / 1000).toFixed(2)), estArrivalTime: estArrival.toISOString() });
+                    }
+                    $('#hiddenStops').val(JSON.stringify(stopsData));
+                } catch(err) {
+                    console.error("OSRM parse error:", err);
+                }
+            }
+        });
+    }
     const VN_CORRIDOR = [
         { name: "Hà Tĩnh (AH1)", lat: 18.06, lng: 106.31 },
         { name: "Quảng Ngãi (AH1)", lat: 15.12, lng: 108.79 },
