@@ -9,7 +9,7 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
 </head>
 <body>
-
+    <div class="hht-blurred-bg"></div>
     @{
         // 👉 Lấy role 1 lần duy nhất
         var role = User.FindFirst(System.Security.Claims.ClaimTypes.Role)?.Value;
@@ -18,8 +18,9 @@
     <header>
         <nav class="navbar navbar-expand-sm navbar-dark mb-4 shadow" style="background-color: #0d6efd; border-bottom: 3px solid #084298;">
             <div class="container">
-                <a class="navbar-brand fw-bold text-white" asp-controller="Home" asp-action="Index">
-                    <i class="bi bi-truck"></i> Gió Việt
+                <a class="navbar-brand fw-bold text-white d-flex align-items-center" asp-controller="Home" asp-action="Index">
+                    <img src="/images/hht_logo.jpg" alt="Logo" class="navbar-logo" />
+                    Gió Việt 
                 </a>
 
                 <div class="navbar-collapse collapse d-sm-inline-flex justify-content-between">
@@ -137,7 +138,7 @@
                 <!-- Cột 1: Thông tin -->
                 <div class="col-md-5 mb-4 mb-md-0">
                     <h5 class="fw-bold mb-4 d-flex align-items-center">
-                        <i class="bi bi-truck me-2 fs-5"></i> Ghép Hàng Liên Tỉnh
+                        <img src="/images/hht_logo.jpg" alt="Logo" class="me-2 rounded-circle" style="height: 30px;" /> Ghép Hàng Gió Việt
                     </h5>
                     <p class="small text-white-50 lh-lg mb-4">
                         Nền tảng kết nối trực tiếp chủ hàng và nhà xe liên tỉnh trên toàn quốc. Chúng tôi mang đến giải pháp tối ưu chi phí vận chuyển, an toàn và nhanh chóng nhất.
