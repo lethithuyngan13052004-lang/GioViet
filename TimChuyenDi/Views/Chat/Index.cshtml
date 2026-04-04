@@ -1,4 +1,4 @@
-﻿@{
+@{
     ViewData["Title"] = "Trợ lý AI Gemini";
 }
 
@@ -79,9 +79,23 @@
                             var formattedReply = res.reply.replace(/\n/g, "<br>");
                             formattedReply = formattedReply.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
 
+                            // 1. Phân giải nút Xem/Lưu (Placeholder: [[ACTION_BUTTONS_ID]])
+                            formattedReply = formattedReply.replace(/\[\[ACTION_BUTTONS_(\d+)\]\]/g, function(match, tripId) {
+                                return `<br/><a href='/Home/TripDetails/${tripId}' class='btn btn-sm btn-outline-primary fw-bold mt-1' target='_blank'><i class='bi bi-info-circle'></i> Xem chi tiết</a>
+                                        <a href='/Customer/SaveRoute/${tripId}' class='btn btn-sm btn-outline-success fw-bold mt-1 ms-1'><i class='bi bi-bookmark-plus'></i> Lưu chuyến</a>`;
+                            });
+
+                            // 2. Phân giải nút Xác nhận Tạo Đơn (Placeholder: CONFIRM_LINK[params])
+                            formattedReply = formattedReply.replace(/CONFIRM_LINK\[(.*?)\]/g, function(match, params) {
+                                return `<br/><a href='/Customer/ConfirmChatOrder?${params.trim()}' class='btn btn-primary fw-bold mt-2 px-4 shadow-sm'><i class='bi bi-check-circle-fill'></i> Xác nhận Tạo Đơn</a>`;
+                            });
+
+                            // 3. Phân giải Icon Định vị (Placeholder: [[GEO_ICON]])
+                            formattedReply = formattedReply.replace(/\[\[GEO_ICON\]\]/g, '<i class="bi bi-geo-alt-fill text-success"></i>');
+
                             var aiHtml = `
                                 <div class="mb-3 d-flex">
-                                    <div class="p-3 bg-white border rounded-3 text-dark shadow-sm" style="max-width: 80%;">
+                                    <div class="p-3 bg-white border rounded-3 text-dark shadow-sm" style="max-width: 85%;">
                                         <strong>🤖 Trợ lý AI:</strong> <br/> ${formattedReply}
                                     </div>
                                 </div>`;

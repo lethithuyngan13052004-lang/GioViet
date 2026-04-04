@@ -331,7 +331,13 @@
             if (!autoRead) return;
             window.speechSynthesis.cancel();
             const msg = new SpeechSynthesisUtterance();
-            msg.text = text;
+            
+            // 👉 Loại bỏ các mã nút chức năng và HTML trước khi đọc để tự nhiên hơn
+            let cleanText = text.replace(/\[\[.*?\]\]/g, ""); 
+            cleanText = cleanText.replace(/CONFIRM_LINK\[.*?\]/g, "");
+            cleanText = cleanText.replace(/<[^>]*>?/gm, ''); 
+
+            msg.text = cleanText;
             msg.lang = 'vi-VN';
             msg.rate = 1.0;
             window.speechSynthesis.speak(msg);
@@ -421,6 +427,20 @@
                             let reply = rawReply.replace(/\n/g, "<br>");
                             reply = reply.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
                             
+                            // 1. Phân giải nút Xem/Lưu (Placeholder: [[ACTION_BUTTONS_ID]])
+                            reply = reply.replace(/\[\[ACTION_BUTTONS_(\d+)\]\]/g, function(match, tripId) {
+                                return `<br/><a href='/Home/TripDetails/${tripId}' class='btn btn-sm btn-outline-primary fw-bold mt-1' target='_blank'><i class='bi bi-info-circle'></i> Xem chi tiết</a>
+                                        <a href='/Customer/SaveRoute/${tripId}' class='btn btn-sm btn-outline-success fw-bold mt-1 ms-1'><i class='bi bi-bookmark-plus'></i> Lưu chuyến</a>`;
+                            });
+
+                            // 2. Phân giải nút Xác nhận Tạo Đơn (Placeholder: CONFIRM_LINK[params])
+                            reply = reply.replace(/CONFIRM_LINK\[(.*?)\]/g, function(match, params) {
+                                return `<br/><a href='/Customer/ConfirmChatOrder?${params.trim()}' class='btn btn-primary fw-bold mt-2 px-4 shadow-sm'><i class='bi bi-check-circle-fill'></i> Xác nhận Tạo Đơn</a>`;
+                            });
+
+                            // 3. Phân giải Icon Định vị (Placeholder: [[GEO_ICON]])
+                            reply = reply.replace(/\[\[GEO_ICON\]\]/g, '<i class="bi bi-geo-alt-fill text-success"></i>');
+
                             $("#aiChatMessages").append(`<div class="ai-message">${reply}</div>`);
                             aiHistory += "AI: " + res.reply + "\n";
                             

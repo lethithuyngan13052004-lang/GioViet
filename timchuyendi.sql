@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Máy chủ: 127.0.0.1
--- Thời gian đã tạo: Th4 01, 2026 lúc 11:12 AM
+-- Thời gian đã tạo: Th4 04, 2026 lúc 10:39 AM
 -- Phiên bản máy phục vụ: 10.4.32-MariaDB
 -- Phiên bản PHP: 8.0.30
 
@@ -48,7 +48,12 @@ INSERT INTO `behaviorlogs` (`BehaviorId`, `UserId`, `Action`, `Object`, `Value`,
 (22, 3, 'Habit', 'Vị trí', 'Gần chỗ mình', NULL, '2026-04-01 14:29:47'),
 (23, 3, 'Habit', 'Loại chuyến đi', 'Chuyến đi gần', NULL, '2026-04-01 14:29:47'),
 (24, 3, 'Like', 'Thời gian', 'Gần nhất', NULL, '2026-04-01 14:47:01'),
-(25, 3, 'Habit', 'Địa điểm nhận/gửi', 'Liên tỉnh (Lào Cai)', NULL, '2026-04-01 14:49:01');
+(25, 3, 'Habit', 'Địa điểm nhận/gửi', 'Liên tỉnh (Lào Cai)', NULL, '2026-04-01 14:49:01'),
+(26, 3, 'Habit', 'Tuyến đường', 'Lào Cai', NULL, '2026-04-02 15:50:43'),
+(27, 3, 'Habit', 'Tuyến đường', 'Đi Lào Cai', NULL, '2026-04-02 16:15:14'),
+(28, 3, 'Habit', 'Loại hàng hóa', 'Thực phẩm tươi', NULL, '2026-04-03 16:49:31'),
+(29, 3, 'Like', 'Địa điểm', 'Gửi hàng tại bến', NULL, '2026-04-03 16:49:31'),
+(30, 2, 'Habit', 'Loại hàng hóa', 'Thịt gà sống', NULL, '2026-04-03 17:31:24');
 
 -- --------------------------------------------------------
 
@@ -73,7 +78,10 @@ CREATE TABLE `cargodetail` (
 INSERT INTO `cargodetail` (`Id`, `RequestId`, `Weight`, `Length`, `Width`, `Height`, `Description`) VALUES
 (3, 3, 20.00, 40.00, 30.00, 50.00, 'hoa quả'),
 (4, 4, 5.00, 60.00, 30.00, 50.00, 'gấu bông'),
-(5, 5, 10.00, 50.00, 40.00, 30.00, 'cá biển');
+(5, 5, 10.00, 50.00, 40.00, 30.00, 'cá biển'),
+(6, 6, 2.00, 23.00, 3.00, 1.00, '121'),
+(7, 7, 10.00, 10.00, 10.00, 10.00, 'Thực phẩm tươi'),
+(8, 8, 2.00, 10.00, 10.00, 10.00, 'Thực phẩm tươi');
 
 -- --------------------------------------------------------
 
@@ -946,6 +954,13 @@ CREATE TABLE `ratings` (
   `CreatedAt` datetime NOT NULL DEFAULT current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
+--
+-- Đang đổ dữ liệu cho bảng `ratings`
+--
+
+INSERT INTO `ratings` (`RatingId`, `CustomerId`, `ReqId`, `Score`, `Comment`, `CreatedAt`) VALUES
+(1, 3, 6, 3, NULL, '2026-04-03 17:11:24');
+
 -- --------------------------------------------------------
 
 --
@@ -990,6 +1005,13 @@ CREATE TABLE `savedroutes` (
   `TripId` int(11) NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
+--
+-- Đang đổ dữ liệu cho bảng `savedroutes`
+--
+
+INSERT INTO `savedroutes` (`UserId`, `TripId`) VALUES
+(3, 42);
+
 -- --------------------------------------------------------
 
 --
@@ -1021,7 +1043,10 @@ CREATE TABLE `shippingroute` (
 INSERT INTO `shippingroute` (`Id`, `RequestId`, `SenderPhone`, `PickupType`, `PickupAddress`, `Lat`, `Lng`, `FromStationId`, `ReceiverName`, `ReceiverPhone`, `ToStationId`, `DeliveryAddress`, `FromProvinceId`, `ToProvinceId`, `DeliveryType`) VALUES
 (2, 3, '0900000001', 2, NULL, NULL, NULL, 184, 'lê thị thủy ngân', '0357115765', NULL, 'Ngách 147/48 Phố Tân Mai, Giáp Lục, Hoang Mai Ward, Hà Nội, 11720, Vietnam', 48, 1, 1),
 (3, 4, '0900000001', 2, NULL, NULL, NULL, 54, 'huyền lê', '0912345111', 229, NULL, 1, 79, 2),
-(4, 5, '0900000003', 2, NULL, NULL, NULL, 150, 'linh chi', '0355559971', 219, NULL, 31, 79, 2);
+(4, 5, '0900000003', 2, NULL, NULL, NULL, 150, 'linh chi', '0355559971', 219, NULL, 31, 79, 2),
+(5, 6, '0900000002', 2, 'Trạm Dương Hòa', NULL, NULL, 68, 'sdas', '02313435', 231, 'Trạm Phú Cường 1', 1, 79, 2),
+(6, 7, '', 2, 'Trạm Cổ loa', NULL, NULL, 54, 'Khách hàng', '0123456789', 66, 'Trạm Phố Ràng', 1, 10, 2),
+(7, 8, '', 2, 'Trạm Thanh Xuân', NULL, NULL, 67, 'Khách hàng', '0123456789', 116, 'Trạm Nậm Xé', 1, 10, 2);
 
 -- --------------------------------------------------------
 
@@ -1038,17 +1063,21 @@ CREATE TABLE `shiprequest` (
   `TotalPrice` decimal(18,2) DEFAULT 0.00,
   `Note` text DEFAULT NULL,
   `PickupTimeFrom` date NOT NULL DEFAULT current_timestamp(),
-  `PickupTimeTo` date DEFAULT NULL
+  `PickupTimeTo` date DEFAULT NULL,
+  `CreatedAt` datetime DEFAULT current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 --
 -- Đang đổ dữ liệu cho bảng `shiprequest`
 --
 
-INSERT INTO `shiprequest` (`Id`, `UserId`, `TripId`, `Status`, `TotalPrice`, `Note`, `PickupTimeFrom`, `PickupTimeTo`) VALUES
-(3, 2, NULL, 5, 0.00, 'gọi trước khi giao hàng', '2026-03-31', '2026-04-01'),
-(4, 2, NULL, 0, 0.00, 'gọi trước khi giao hàng', '2026-03-31', '2026-04-04'),
-(5, 4, NULL, 0, 0.00, 'gọi trước khi giao hàng', '2026-03-31', '2026-04-02');
+INSERT INTO `shiprequest` (`Id`, `UserId`, `TripId`, `Status`, `TotalPrice`, `Note`, `PickupTimeFrom`, `PickupTimeTo`, `CreatedAt`) VALUES
+(3, 2, NULL, 5, 0.00, 'gọi trước khi giao hàng', '2026-03-31', '2026-04-01', '2026-04-04 15:39:38'),
+(4, 2, 90, 3, 30000.00, 'gọi trước khi giao hàng', '2026-03-31', '2026-04-04', '2026-04-04 15:39:38'),
+(5, 4, NULL, 0, 0.00, 'gọi trước khi giao hàng', '2026-03-31', '2026-04-02', '2026-04-04 15:39:38'),
+(6, 3, 90, 4, 560000.00, '', '2026-04-02', '2026-04-04', '2026-04-04 15:39:38'),
+(7, 3, NULL, 0, 0.00, 'Đã tạo qua Trợ lý AI', '2026-04-03', '2026-04-06', '2026-04-04 15:39:38'),
+(8, 2, 42, 0, 30000.00, 'Đơn hàng tạo từ Trợ lý AI Gió Việt', '2026-04-03', '2026-05-05', '2026-04-04 15:39:38');
 
 -- --------------------------------------------------------
 
@@ -1399,11 +1428,7 @@ INSERT INTO `trips` (`TripId`, `DriverId`, `VehicleId`, `RouteType`, `FromStatio
 (87, 9, 5, 2, 55, 262, '2026-03-31 18:16:00', '2026-04-01 20:54:00', 2500, 50000.00, 2109.50, NULL, NULL),
 (88, 9, 5, 2, 67, 231, '2026-04-01 18:30:00', '2026-04-01 22:19:00', 2500, 50000.00, 280.10, NULL, NULL),
 (89, 9, 5, 2, 181, 234, '2026-04-01 18:36:00', '2026-04-02 10:58:00', 2500, 50000.00, 1256.20, NULL, NULL),
-(90, 9, 5, 2, 68, 231, '2026-04-03 20:42:00', '2026-04-04 17:24:00', 2500, 500000.00, 1605.00, NULL, NULL),
-(91, 9, 5, 2, 68, 231, '2026-04-03 20:42:00', '2026-04-04 17:24:00', 2500, 500000.00, 1605.00, NULL, NULL),
-(92, 9, 5, 2, 68, 231, '2026-04-03 20:42:00', '2026-04-04 17:24:00', 2500, 500000.00, 1605.00, NULL, NULL),
-(93, 9, 5, 2, 68, 231, '2026-04-03 20:42:00', '2026-04-04 17:24:00', 2500, 500000.00, 1605.00, NULL, NULL),
-(94, 9, 5, 2, 68, 231, '2026-04-03 20:42:00', '2026-04-04 17:24:00', 2500, 500000.00, 1605.00, NULL, NULL),
+(90, 9, 5, 2, 68, 231, '2026-04-03 20:42:00', '2026-04-04 17:24:00', 2493, 500000.00, 1605.00, NULL, NULL),
 (95, 9, 5, 2, 56, 262, '2026-04-04 20:54:00', '2026-04-05 23:55:00', 2500, 50000.00, 2117.80, NULL, NULL);
 
 -- --------------------------------------------------------
@@ -1436,10 +1461,6 @@ INSERT INTO `trip_stations` (`TripStationId`, `TripId`, `StationId`, `StopOrder`
 (11, 88, 242, 1, NULL, NULL, 0),
 (12, 89, 237, 1, '2026-03-30 02:19:37', NULL, 1129.76),
 (13, 90, 181, 1, '2026-03-29 22:53:49', NULL, 712.68),
-(14, 91, 181, 1, '2026-03-29 22:53:49', NULL, 712.68),
-(15, 93, 181, 1, '2026-03-29 22:53:49', NULL, 712.68),
-(16, 92, 181, 1, '2026-03-29 22:53:49', NULL, 712.68),
-(17, 94, 181, 1, '2026-03-29 22:53:49', NULL, 712.68),
 (18, 95, 153, 1, '2026-03-31 09:46:51', NULL, 69.05),
 (19, 95, 185, 2, '2026-03-31 20:03:00', NULL, 804.8),
 (20, 95, 230, 3, '2026-04-01 09:08:47', NULL, 1026.38);
@@ -11801,13 +11822,13 @@ ALTER TABLE `wards`
 -- AUTO_INCREMENT cho bảng `behaviorlogs`
 --
 ALTER TABLE `behaviorlogs`
-  MODIFY `BehaviorId` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=26;
+  MODIFY `BehaviorId` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=31;
 
 --
 -- AUTO_INCREMENT cho bảng `cargodetail`
 --
 ALTER TABLE `cargodetail`
-  MODIFY `Id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=6;
+  MODIFY `Id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=9;
 
 --
 -- AUTO_INCREMENT cho bảng `cargotypes`
@@ -11831,7 +11852,7 @@ ALTER TABLE `chatsessions`
 -- AUTO_INCREMENT cho bảng `ratings`
 --
 ALTER TABLE `ratings`
-  MODIFY `RatingId` int(11) NOT NULL AUTO_INCREMENT;
+  MODIFY `RatingId` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=2;
 
 --
 -- AUTO_INCREMENT cho bảng `reports`
@@ -11849,13 +11870,13 @@ ALTER TABLE `request_trip_match`
 -- AUTO_INCREMENT cho bảng `shippingroute`
 --
 ALTER TABLE `shippingroute`
-  MODIFY `Id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=5;
+  MODIFY `Id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=8;
 
 --
 -- AUTO_INCREMENT cho bảng `shiprequest`
 --
 ALTER TABLE `shiprequest`
-  MODIFY `Id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=6;
+  MODIFY `Id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=9;
 
 --
 -- AUTO_INCREMENT cho bảng `stations`

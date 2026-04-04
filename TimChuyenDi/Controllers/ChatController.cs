@@ -42,16 +42,24 @@ namespace TimChuyenDi.Controllers
                 string contextInfo = "";
                 string aiInstruction = "";
                 string currentTime = DateTime.Now.ToString("dd/MM/yyyy HH:mm");
-                bool isFirstMessage = string.IsNullOrWhiteSpace(history);
+                bool isFirstMessage = string.IsNullOrWhiteSpace(history);                
+                
+                // --- 1. Lấy dữ liệu danh mục & Cấu hình ---
+                var minPriceConfig = await _context.SystemConfigs.FirstOrDefaultAsync(c => c.KeyName == "MinPrice");
+                decimal minPrice = minPriceConfig?.Value ?? 0;
+                var vwfConfig = await _context.SystemConfigs.FirstOrDefaultAsync(c => c.KeyName == "VolumeToWeightFactor");
+                decimal vwf = vwfConfig?.Value ?? 250;
 
-                // --- 1. Lấy dữ liệu danh mục để AI map ID (Dùng cho tạo đơn) ---
                 var allProvinces = _context.Provinces.Select(p => new { p.ProvinceId, p.ProvinceName }).ToList();
-                var allCargoTypes = _context.Cargotypes.Select(c => new { c.CargoTypeId, c.TypeName }).ToList();
+                var allCargoTypes = _context.Cargotypes.Select(c => new { c.CargoTypeId, c.TypeName, c.PriceMultiplier }).ToList();
+                
+                // Cung cấp danh sách cho AI map ID nhưng dặn AI không hiển thị ID cho khách
                 string provinceListText = string.Join(", ", allProvinces.Select(p => $"{p.ProvinceName}(ID:{p.ProvinceId})"));
-                string cargoTypeListText = string.Join(", ", allCargoTypes.Select(c => $"{c.TypeName}(ID:{c.CargoTypeId})"));
+                string cargoTypeListText = string.Join(", ", allCargoTypes.Select(c => $"{c.TypeName}(ID:{c.CargoTypeId}, Hệ số x{c.PriceMultiplier})"));
 
-                // --- 1. Tận dụng Normalization (Của cả Guest & User) ---
-                var uMsg = userMessage.ToLower();
+                // --- 1. Tận dụng Normalization ---
+                var searchMsg = (history + " " + userMessage).ToLower();
+                var uMsg = searchMsg; 
                 uMsg = Regex.Replace(uMsg, @"\bhn\b", "hà nội");
                 uMsg = Regex.Replace(uMsg, @"\bhcm\b", "hồ chí minh");
                 uMsg = Regex.Replace(uMsg, @"\bsg\b", "hồ chí minh");
@@ -159,28 +167,41 @@ Bạn là TRỢ LÝ ĐIỀU PHỐI (Dành cho Tài xế).
                     }
                 }
 
+                string gpsHint = (lat.HasValue && lng.HasValue) 
+                    ? "[HỆ THỐNG: Đã có tọa độ GPS của khách, KHÔNG CẦN nhắc khách bấm nút Vị trí nữa.]" 
+                    : "- NHẮC NHỞ GPS: 'Để tìm chuyến chính xác nhất xung quanh bạn, hãy bấm nút **Vị trí [[GEO_ICON]]** (màu xanh ở góc trái khung chat)'.";
+
                 aiInstruction = $@"
 Bạn là Trợ Gió - Trợ lý AI thông minh của Gió Việt.
-Nhiệm vụ 1: TƯ VẤN LỘ TRÌNH: Sử dụng 'CÁC CHUYẾN XE PHÙ HỢP' để trả lời ngay.
-Nhiệm vụ 2: HỖ TRỢ ĐẶT ĐƠN (Gửi hàng):
-- Nếu khách muốn gửi hàng, hãy kiểm tra các thông tin sau trong lịch sử chat:
-  1. Tỉnh đi & Tỉnh đến (Khớp với danh sách Tỉnh: {provinceListText})
-  2. Khối lượng (kg)
-  3. Loại hàng (Khớp với danh sách: {cargoTypeListText})
-  4. SĐT người nhận
-  5. Hình thức: Tại nhà hay Tại bến? (Nếu tại nhà, hãy hỏi ĐỊA CHỈ cụ thể: Số nhà, Tên đường).
-- QUY TẮC: Nếu thiếu thông tin nào, hãy đặt câu hỏi khéo léo để lấy thông tin đó. KHÔNG hỏi tất cả cùng lúc.
-- KẾT THÚC: Khi đã đủ 5 thông tin trên, hãy hiển thị bảng tóm tắt và link: 
-  <a href='/Customer/ConfirmChatOrder?fromId=[ID_TINH_DI]&toId=[ID_TINH_DEN]&weight=[KG]&desc=[TEN_HANG]&phone=[SDT_NHAN]&pType=[1_NHA_2_BEN]&dType=[1_NHA_2_BEN]&pAddr=[DIA_CHI_DI]&dAddr=[DIA_CHI_DEN]' class='btn btn-primary fw-bold mt-2'>[Xác nhận Tạo Đơn]</a>
-  (Thay thế các giá trị trong [] bằng dữ liệu thật thu thập được).
 
-LƯU Ý CHUNG:
-- Tuyệt đối không tự chế ra chuyến xe.
-- Link 'Lưu' giúp khách lưu tuyến, link 'Xem' mở chi tiết.
-- Không IN HOA TOÀN BỘ. Dùng in đậm (**) cho thông tin quan trọng.
-- QUY TẮC ĐỊNH DẠNG: ĐỐI VỚI CÁC LIÊN KẾT (LINK), HÃY SỬ DỤNG NGUYÊN BẢN MÃ HTML ĐƯỢC CUNG CẤP TRONG DỮ LIỆU. TUYỆT ĐỐI KHÔNG CHUYỂN ĐỔI SANG ĐỊNH DẠNG MARKDOWN (Ví dụ: KHÔNG dùng [Text](URL)).
-- TẤT CẢ CÂU TRẢ LỜI CỦA BẠN PHẢI LÀ VĂN BẢN THUẦN (Text) KÈM THEO HTML NẾU CẦN. KHÔNG DÙNG CÚ PHÁP MARKDOWN CHO CÁC ĐƯỜNG DẪN.
+Nhiệm vụ 1: TƯ VẤN LỘ TRÌNH & HÀNG HÓA:
+- Sử dụng 'HỆ THỐNG TRIP DATA' bên dưới để trả lời khách.
+- ÁNH XẠ HÀNG HÓA TỰ ĐỘNG: Nếu khách nói 'cá', 'thịt', 'hải sản', 'tôm', 'cua', 'tươi sống', 'thực phẩm sống'... hãy tự hiểu là 'Thực phẩm tươi'. Đừng hỏi lại khách nếu đã rõ.
+- ƯU TIÊN & THAY THẾ: 
+  + Nếu là 'Thực phẩm tươi', ƯU TIÊN gợi ý chuyến có 'Xe đông lạnh'.
+  + Nếu KHÔNG có xe đông lạnh, hãy VẪN gợi ý các chuyến xe thường cùng tuyến (nếu có) kèm theo CẢNH BÁO BẢO QUẢN.
+- CẢNH BÁO BẢO QUẢN: 'Lưu ý: Chuyến này không có xe đông lạnh, bạn cần tự chuẩn bị cách bảo quản (đá khô, thùng xốp) kỹ càng nhé. Tài xế chỉ nhận hàng và chở đi thôi ạ'.
+- CẤM GỢI Ý RA TRẠM: Tuyệt đối KHÔNG bảo khách 'mang hàng ra trạm để tìm chuyến' hoặc 'mang ra trạm chờ'. Chỉ tư vấn chuyến có sẵn hoặc tạo đơn chờ.
+- CẤU TRÚC PHẢN HỒI: Liệt kê các chuyến bằng gạch đầu dòng, in đậm Mã chuyến, Lộ trình, Thời gian. 
+
+Nhiệm vụ 2: TÍNH GIÁ CƯỚC ƯỚC TÍNH:
+- Công thức (NỘI BỘ): Giá ước tính = Max({minPrice}, (BasePrice * Khối lượng / Sức chứa xe) * Hệ số Tuyến * Hệ số Loại hàng).
+- QUY TẮC HIỂN THỊ GIÁ: 
+  + TUYỆT ĐỐI KHÔNG HIỂN THỊ CÔNG THỨC. CHỈ TRẢ VỀ KẾT QUẢ CUỐI CÙNG.
+  + NẾU THIẾU THÔNG TIN (Khối lượng, Lộ trình...) hoặc KHÔNG CÓ CHUYẾN: KHÔNG tính giá, không ghi 'Giá ước tính = ...'.
+- Nếu khách đã nói '2kg cá', hãy lấy khối lượng 2 và Hệ số 'Thực phẩm tươi' để tính ngay nếu tìm được chuyến.
+
+Nhiệm vụ 3: HỖ TRỢ ĐẶT ĐƠN & DỊCH VỤ:
+- ĐƠN HÀNG CHỜ: Nếu KHÔNG tìm thấy bất kỳ chuyến xe nào phù hợp, hãy nói: 'Hiện chưa có chuyến xe nào chạy tuyến này vào thời gian bạn yêu cầu. Tuy nhiên, mình có thể giúp bạn đăng một **đơn hàng chờ** lên hệ thống nhé!'. 
+- LƯU Ý ĐĂNG NHẬP: Nếu khách chưa đăng nhập (không thấy lịch sử đơn hàng), hãy nhắc: 'Bạn vui lòng đăng nhập tài khoản để mình có thể hỗ trợ tạo đơn hàng này nhé!'. TUYỆT ĐỐI không cung cấp link CONFIRM_LINK cho ĐƠN HÀNG CHỜ nếu khách chưa đăng nhập.
+- PHÍ LẤY HÀNG TẬN NƠI: Nếu khách chọn 'Tại nhà', nhắc: 'Việc lấy hàng tận nơi có thể phát sinh thêm chi phí nhỏ do tài xế báo trực tiếp cho bạn nhé'.
+{gpsHint}
+- QUY TẮC GIAO TIẾP: KHÔNG hiển thị ID hệ thống. Tuyệt đối KHÔNG DÙNG VIẾT HOA TOÀN BỘ (CAPSLOCK) khi trả lời khách (trừ các từ viết tắt hợp lệ).
+- KẾT THÚC: Nếu đã đủ thông tin và khách ĐÃ ĐĂNG NHẬP, hiển thị link: 
+  CONFIRM_LINK[fromId=[ID_TÌNH_ĐI]&toId=[ID_TỈNH_ĐẾN]&weight=[KG]&desc=[LOẠI_HÀNG]&phone=[SDT_NHẬN]&pType=[2_BẾN_1_NHÀ]&dType=[2_BẾN_1_NHÀ]&pAddr=[ĐC_ĐI]&dAddr=[ĐC_ĐẾN]&tripId=[MÃ_CHUYẾN]]
+  *(Nếu là đơn ghép vào chuyến cụ thể thì mới cho phép guest nhấn để nhảy sang trang đăng nhập)*
 ";
+
 
                 // ================= SHARED TRIP SEARCH (For Guests & Customers) =================
                 if (roleClaim != "1" && roleClaim != "3")
@@ -233,6 +254,8 @@ LƯU Ý CHUNG:
                         .Include(t => t.FromStationNavigation).ThenInclude(s => s.Province)
                         .Include(t => t.ToStationNavigation).ThenInclude(s => s.Province)
                         .Include(t => t.TripStations).ThenInclude(ts => ts.Station).ThenInclude(s => s.Province)
+                        .Include(t => t.Vehicle).ThenInclude(v => v.VehicleType)
+                        .Include(t => t.RouteTypeNavigation)
                         .Include(t => t.Driver)
                         .Where(t => t.StartTime > DateTime.Now)
                         .AsQueryable();
@@ -258,27 +281,20 @@ LƯU Ý CHUNG:
 
                     var trips = tripQuery.OrderBy(t => t.StartTime).Take(15).ToList();
 
-                    contextInfo += "\nDANH SÁCH CÁC CHUYẾN XE PHÙ HỢP CÓ TRONG HỆ THỐNG:\n";
+                    contextInfo += "\nHỆ THỐNG TRIP DATA:\n";
+
                     if (trips.Any()) {
                         foreach (var t in trips) {
                             var intermediateStops = string.Join(" -> ", t.TripStations.OrderBy(ts => ts.StopOrder).Select(ts => $"{ts.Station.StationName}({ts.Station.Province.ProvinceName})").Distinct());
                             var stopsText = string.IsNullOrEmpty(intermediateStops) ? "" : $" (Đi qua: {intermediateStops})";
                             
-                            // Link HTML cho chức năng Xem và Lưu
-                            string actions = $" <a href='/Home/TripDetails/{t.TripId}' style='color:#0d6efd;font-weight:bold;text-decoration:none;'>[Xem]</a>";
-                            actions += $" <a href='/Customer/SaveRoute/{t.TripId}' style='color:#198754;font-weight:bold;text-decoration:none;margin-left:8px;'>[Lưu]</a>";
-
-                            contextInfo += $"- Mã {t.TripId}: {t.FromStationNavigation.StationName} ({t.FromStationNavigation.Province.ProvinceName}) → {t.ToStationNavigation.StationName} ({t.ToStationNavigation.Province.ProvinceName}){stopsText} | Giá: {t.BasePrice:N0}đ | Khởi hành: {t.StartTime:dd/MM HH:mm}{actions}\n";
+                            contextInfo += $"- Mã {t.TripId}: {t.FromStationNavigation.StationName} ({t.FromStationNavigation.Province.ProvinceName}) đi {t.ToStationNavigation.StationName} ({t.ToStationNavigation.Province.ProvinceName}){stopsText} | Khởi hành lúc {t.StartTime:HH:mm} ngày {t.StartTime:dd/MM} | Loại xe: {t.Vehicle?.VehicleType?.TypeName ?? "N/A"} | Sức chứa: {t.Vehicle?.CapacityKg ?? 1000}kg | BasePrice: {t.BasePrice} | Hệ số Tuyến: {t.RouteTypeNavigation?.Multiplier ?? 1}\n";
                         }
                     } else {
                         contextInfo += "[Hệ thống báo cáo: Không tìm thấy chuyến xe nào phù hợp với yêu cầu này trên CSDL]\n";
                     }
                 }
 
-                    if (!lat.HasValue || !lng.HasValue) 
-                    {
-                        aiInstruction += "\n- LƯU Ý MỞ RỘNG: Hiện tại khách hàng BỊ TẮT ĐỊNH VỊ. Nếu khách đang muốn tìm chuyến xe, hãy khéo léo chèn thêm 1 câu nhắc nhở nhẹ nhàng ở cuối: 'Để tìm chuyến chính xác nhất, bạn có thể bấm nút Vị trí 📍 màu xanh góc trái để mình ưu tiên tìm các trạm gửi hàng gần bạn nhất nhé!'";
-                    }
 
                 string finalPrompt = $@"
 Hệ thống: Gió Việt (Dịch vụ vận tải/ghép hàng liên tỉnh).
@@ -290,8 +306,8 @@ Lưu ý quan trọng:
 1. Trả lời bằng tiếng Việt, lịch sự, thân thiện.
 2. Nếu có mã đơn hàng (#MD...), hãy dùng nó để trả lời khách.
 3. Nếu người dùng hỏi về thông tin không có trong 'DỮ LIỆU' hoặc 'LỊCH SỬ', hãy trả lời rằng bạn chưa có thông tin đó và khuyên họ liên hệ hotline 1900 xxxx.
-4. LUÔN GIỮ NGUYÊN các thẻ <a> trong danh sách chuyến xe. KHÔNG ĐƯỢC CHỈNH SỬA, THÊM DẤU NHÁY HAY KHOẢNG TRẮNG VÀO TRONG THẺ <a>.
-5. PHẢI TRẢ LỜI Ở ĐỊNH DẠNG VĂN BẢN (TEXT) KÈM HTML. KHÔNG DÙNG MARKDOWN CHO CÁC LINK.
+4. TUYỆT ĐỐI KHÔNG dùng mã HTML (như <a>). Hãy chỉ dùng các placeholder: [[ACTION_BUTTONS_ID]] hoặc CONFIRM_LINK[...] như đã hướng dẫn trong phần Vai trò.
+5. PHẢI TRẢ LỜI Ở ĐỊNH DẠNG VĂN BẢN PHẲNG (PLAIN TEXT). Không dùng Markdown cho link.
 
 Lịch sử trò chuyện:
 {history}
