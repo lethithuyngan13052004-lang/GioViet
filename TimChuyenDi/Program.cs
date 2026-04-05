@@ -8,6 +8,8 @@ builder.Services.AddControllersWithViews();
 
 // Đăng ký OpenAIService vào hệ thống kèm theo HttpClient
 builder.Services.AddHttpClient<TimChuyenDi.Services.OpenAIService>();
+builder.Services.AddHttpClient<TimChuyenDi.Services.RoutingService>();
+builder.Services.AddScoped<TimChuyenDi.Services.BehaviorService>();
 
 // Đăng ký dịch vụ xác thực bằng Cookie
 builder.Services.AddAuthentication("Cookies")
@@ -43,6 +45,8 @@ var connectionString = builder.Configuration.GetConnectionString("DefaultConnect
 builder.Services.AddDbContext<TimchuyendiContext>(options =>
     options.UseMySql(connectionString, ServerVersion.AutoDetect(connectionString)));
 
+builder.Services.AddSignalR();
+
 var app = builder.Build();
 
 // Configure the HTTP request pipeline.
@@ -62,6 +66,8 @@ app.UseAuthentication(); // Kích hoạt kiểm tra đăng nhập
 app.UseAuthorization();     // Kích hoạt kiểm tra quyền (Role)
 
 app.UseAuthorization();
+
+app.MapHub<TimChuyenDi.Hubs.ChatHub>("/chatHub");
 
 app.MapControllerRoute(
     name: "default",

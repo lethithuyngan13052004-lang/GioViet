@@ -134,7 +134,8 @@ namespace TimChuyenDi.Controllers
                 Status = 0,
                 Note = Note,
                 PickupTimeFrom = DateTime.Now,
-                PickupTimeTo = ExpectedDeliveryDate ?? trip.ArrivalTime
+                PickupTimeTo = ExpectedDeliveryDate ?? trip.ArrivalTime,
+                CreatedAt = DateTime.Now
             };
 
             _context.Shiprequests.Add(request);
@@ -233,7 +234,8 @@ namespace TimChuyenDi.Controllers
                 Status = 0,
                 Note = Note,
                 PickupTimeFrom = DateTime.Now,
-                PickupTimeTo = ExpectedDeliveryDate
+                PickupTimeTo = ExpectedDeliveryDate,
+                CreatedAt = DateTime.Now
             };
 
             _context.Shiprequests.Add(request);
@@ -574,27 +576,20 @@ namespace TimChuyenDi.Controllers
 
         [HttpGet]
         public IActionResult GetStations(int provinceId)
-
         {
             var stations = _context.Stations
                 .Where(s => s.ProvinceId == provinceId)
                 .Select(s => new { 
                     s.StationId, 
-                    s.StationName,
-                    s.Address,
-                    s.Latitude,
-                    s.Longitude
-                })
-                .ToList();
+                    s.StationName
+                }).ToList();
             return Json(stations);
         }
 
-        // ==========================================
-        // 11. XÁC NHẬN TẠO ĐƠN TỪ CHATBOT (AI)
-        // ==========================================
         [HttpGet]
         public async Task<IActionResult> ConfirmChatOrder(int fromId, int toId, decimal weight, string desc, string phone, 
-            int pType = 2, int dType = 2, string pAddr = "", string dAddr = "", int cType = 0, int? tripId = null)
+            int pType = 2, int dType = 2, string pAddr = "", string dAddr = "", int cType = 0, int? tripId = null,
+            decimal l = 10, decimal w = 10, decimal h = 10)
         {
             var userIdStr = User.FindFirstValue("UserId") ?? User.FindFirstValue(ClaimTypes.NameIdentifier);
             if (string.IsNullOrEmpty(userIdStr)) return RedirectToAction("Login", "Auth");
@@ -617,21 +612,19 @@ namespace TimChuyenDi.Controllers
             if (trip != null)
             {
                 var vwFactorConfig = _context.SystemConfigs.FirstOrDefault(c => c.KeyName == "VolumeToWeightFactor");
-                int vwFactor = (int)(vwFactorConfig?.Value ?? 250);
+                decimal vwFactor = vwFactorConfig?.Value ?? 250;
 
                 var minPriceConfig = _context.SystemConfigs.FirstOrDefault(c => c.KeyName == "MinPrice");
                 decimal minPrice = minPriceConfig?.Value ?? 0;
 
-                // Mặc định kích thước nhỏ nếu đặt qua Chat
-                decimal length = 10, width = 10, height = 10;
-                decimal volume = (length * width * height) / 1000000m;
+                // Sử dụng kích thước được truyền từ Chat
+                decimal volume = (l * w * h) / 1000000m;
                 decimal chargeableWeight = Math.Max(weight, volume * vwFactor);
                 decimal capacityKg = trip.Vehicle?.CapacityKg ?? 1;
 
                 decimal basePrice = trip.BasePrice * (chargeableWeight / capacityKg);
                 decimal tripTypeMultiplier = trip.RouteTypeNavigation?.Multiplier ?? 1;
                 
-                // Mặc định nhân hệ số hàng hóa = 1 (vì chưa chọn cụ thể loại hàng qua ID chat một cách chính xác)
                 decimal priceAfterCargo = basePrice * tripTypeMultiplier;
                 totalPrice = Math.Max(priceAfterCargo, minPrice);
             }
@@ -646,19 +639,23 @@ namespace TimChuyenDi.Controllers
                 PickupTimeFrom = DateTime.Now,
                 PickupTimeTo = trip?.ArrivalTime ?? DateTime.Now.AddDays(3),
                 TotalPrice = totalPrice,
-                OrderCode = "TC" + DateTime.Now.Ticks.ToString().Substring(10) // Mã đơn tạm
+                OrderCode = "TC" + DateTime.Now.Ticks.ToString().Substring(10), 
+                CreatedAt = DateTime.Now
             };
+
             _context.Shiprequests.Add(request);
             await _context.SaveChangesAsync();
             request.OrderCode = "TC" + request.Id; // Cập nhật mã chuẩn
 
-            // 4. Tạo Cargo Detail
+            // 4. Lưu Hàng hóa (Cargodetail)
             var cargo = new Cargodetail
             {
                 RequestId = request.Id,
-                Description = desc ?? "Hàng hóa từ Chatbot",
-                Weight = weight > 0 ? weight : 1,
-                Length = 10, Width = 10, Height = 10 
+                Weight = weight,
+                Length = l,
+                Width = w,
+                Height = h,
+                Description = desc ?? "Hàng hóa từ Chatbot"
             };
             _context.Cargodetails.Add(cargo);
 
@@ -687,7 +684,6 @@ namespace TimChuyenDi.Controllers
             }
             else
             {
-                // Tự động tìm trạm đầu tiên của tỉnh nếu đi tại bến (Guest flow)
                 if (pType == 2 && fromId > 0)
                 {
                     var st = _context.Stations.FirstOrDefault(s => s.ProvinceId == fromId);

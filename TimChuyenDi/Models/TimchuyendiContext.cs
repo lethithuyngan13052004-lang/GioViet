@@ -346,6 +346,9 @@ public partial class TimchuyendiContext : DbContext
                 .HasMaxLength(10)
                 .ValueGeneratedOnAddOrUpdate();
             entity.Property(e => e.PickupTimeTo).HasColumnType("datetime");
+            entity.Property(e => e.CreatedAt)
+                .HasDefaultValueSql("current_timestamp()")
+                .HasColumnType("datetime");
 
 
             entity.HasOne(d => d.User).WithMany(p => p.Shiprequests)

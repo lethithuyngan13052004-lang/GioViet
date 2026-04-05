@@ -6,13 +6,23 @@
     <div class="col-md-8">
         <div class="card shadow border-0" style="border-radius: 15px; overflow: hidden;">
             <div class="card-header text-white fw-bold d-flex align-items-center p-3" style="background: linear-gradient(90deg, #0052D4 0%, #4364F7 100%);">
-                <i class="bi bi-robot fs-4 me-2"></i> Trợ lý AI Tư vấn Ghép Hàng
+                <i class="bi bi-robot fs-4 me-2"></i> Trợ lý AI Gió Việt
+                <span class="badge bg-white text-primary ms-auto shadow-sm">
+                    <i class="bi bi-person-badge"></i> @(ViewBag.UserRole == "1" ? "Quản trị viên" : ViewBag.UserRole == "3" ? "Tài xế" : "Khách hàng")
+                </span>
             </div>
 
             <div class="card-body" id="chatBox" style="height: 450px; overflow-y: auto; background-color: #f4f6f9;">
                 <div class="mb-3 d-flex">
                     <div class="p-3 bg-white border rounded-3 shadow-sm text-dark" style="max-width: 80%;">
-                        <strong>🤖 Trợ lý AI:</strong> Xin chào! Tôi là trợ lý ảo của nền tảng Ghép Hàng Liên Tỉnh. Tôi có thể giúp bạn tìm chuyến xe, tính toán chi phí hoặc giải đáp thắc mắc về dịch vụ. Bạn cần hỗ trợ gì?
+                        <strong>🤖 Trợ lý AI:</strong>
+                        @if (ViewBag.UserRole == "1") {
+                            <span>Xin chào Quản trị viên <strong>@ViewBag.UserDisplayName</strong>. Tôi là trợ lý hệ thống, sẵn sàng hỗ trợ bạn theo dõi và điều chỉnh cấu hình vận hành Gió Việt.</span>
+                        } else if (ViewBag.UserRole == "3") {
+                            <span>Chào bác tài <strong>@ViewBag.UserDisplayName</strong>! Rất vui được gặp lại bạn. Bạn muốn kiểm tra lịch trình hay đăng chuyến xe mới hôm nay?</span>
+                        } else {
+                            <span>Xin chào <strong>@ViewBag.UserDisplayName</strong>! Tôi là trợ lý ảo của Gió Việt. Tôi có thể giúp bạn tìm chuyến xe, tính giá cước hoặc tạo đơn hàng chờ. Bạn cần hỗ trợ gì?</span>
+                        }
                     </div>
                 </div>
             </div>
@@ -20,6 +30,9 @@
             <div class="card-footer bg-white p-3 border-top-0">
                 <form id="chatForm" class="d-flex gap-2">
                     <input type="text" id="userInput" class="form-control" placeholder="Nhập câu hỏi của bạn tại đây..." required autocomplete="off" style="border-radius: 20px;" />
+                    <button type="button" id="btnMicChat" class="btn btn-outline-primary fw-bold" style="border-radius: 20px; width: 45px; height: 45px; display: flex; align-items: center; justify-content: center;" title="Nói để nhập tin nhắn">
+                        <i class="bi bi-mic-fill" id="micIconChat"></i>
+                    </button>
                     <button type="submit" class="btn btn-primary fw-bold" id="btnSend" style="border-radius: 20px; padding: 0 25px;">
                         <i class="bi bi-send-fill"></i> Gửi
                     </button>
@@ -32,17 +45,24 @@
 @section Scripts {
     <script>
         // 1. Khởi tạo một biến toàn cục để lưu "Trí nhớ" của AI
-        let conversationHistory = "";
+        let conversationHistory = sessionStorage.getItem('aiHistory') || "";
 
         $(document).ready(function () {
+            // Tải lại lịch sử từ Session Storage nếu có (Đồng bộ với bong bóng chat)
+            const savedContent = sessionStorage.getItem('aiChatContent');
+            if (savedContent) {
+                $("#chatBox").html(savedContent);
+                $("#chatBox").scrollTop($("#chatBox")[0].scrollHeight);
+            }
             $("#chatForm").submit(function (e) {
                 e.preventDefault();
 
                 var message = $("#userInput").val();
                 if (!message.trim()) return;
 
-                // Cập nhật câu hỏi của bạn vào Trí nhớ
-                conversationHistory += "Khách hàng nói: " + message + "\n";
+                var userRolePrefix = "@(ViewBag.UserRole == "1" ? "Admin" : ViewBag.UserRole == "3" ? "Tài xế" : "Khách hàng")";
+                // Cập nhật câu hỏi vào Trí nhớ
+                conversationHistory += userRolePrefix + " nói: " + message + "\n";
 
                 // In tin nhắn của Bạn lên màn hình (Giữ nguyên code cũ của bạn)
                 var userHtml = `
@@ -63,6 +83,10 @@
                     </div>`;
                 $("#chatBox").append(loadingHtml);
                 $("#chatBox").scrollTop($("#chatBox")[0].scrollHeight);
+
+                // Cập nhật vào Session Storage (User message)
+                sessionStorage.setItem('aiHistory', conversationHistory);
+                sessionStorage.setItem('aiChatContent', $("#chatBox").html());
 
                 // 2. Gửi cả Câu hỏi mới VÀ Lịch sử chat xuống Backend
                 $.ajax({
@@ -86,8 +110,19 @@
                             });
 
                             // 2. Phân giải nút Xác nhận Tạo Đơn (Placeholder: CONFIRM_LINK[params])
-                            formattedReply = formattedReply.replace(/CONFIRM_LINK\[(.*?)\]/g, function(match, params) {
+                            formattedReply = formattedReply.replace(/CONFIRM_LINK\[([\s\S]*?)\]/g, function(match, params) {
                                 return `<br/><a href='/Customer/ConfirmChatOrder?${params.trim()}' class='btn btn-primary fw-bold mt-2 px-4 shadow-sm'><i class='bi bi-check-circle-fill'></i> Xác nhận Tạo Đơn</a>`;
+                            });
+
+                            // 2.5 Phân giải nút Xác nhận Tạo Chuyến cho Tài xế (Placeholder: CONFIRM_TRIP_LINK[params])
+                            // Regex hỗ trợ lồng ngoặc vuông 1 cấp cho tham số stops=[{...}]
+                            formattedReply = formattedReply.replace(/CONFIRM_TRIP_LINK\[(vId=[^\]]*?(?:\[[^\]]*\])?[^\]]*?)\]/g, function(match, params) {
+                                return `<br/><a href='/Driver/ConfirmChatTrip?${params.trim()}' class='btn btn-success fw-bold mt-2 px-4 shadow-sm'><i class='bi bi-truck'></i> Xác nhận Đăng Chuyến</a>`;
+                            });
+
+                            // 2.6 Phân giải nút Xác nhận Cấu hình cho Admin (Placeholder: CONFIRM_CONFIG_LINK[params])
+                            formattedReply = formattedReply.replace(/CONFIRM_CONFIG_LINK\[(key=[^\]]*?)\]/g, function(match, params) {
+                                return `<br/><a href='/Admin/ConfirmChatConfig?${params.trim()}' class='btn btn-warning fw-bold mt-2 px-4 shadow-sm text-dark'><i class='bi bi-gear-fill'></i> Xác nhận Cập nhật Cấu hình</a>`;
                             });
 
                             // 3. Phân giải Icon Định vị (Placeholder: [[GEO_ICON]])
@@ -107,6 +142,10 @@
                             alert("Có lỗi: " + res.reply);
                         }
                         $("#chatBox").scrollTop($("#chatBox")[0].scrollHeight);
+
+                        // Cập nhật vào Session Storage để đồng bộ với bong bóng chat
+                        sessionStorage.setItem('aiHistory', conversationHistory);
+                        sessionStorage.setItem('aiChatContent', $("#chatBox").html());
                     },
                     error: function () {
                         $("#loadingMsg").remove();
@@ -114,6 +153,42 @@
                     }
                 });
             });
+
+            // 3. Khởi tạo Nhận diện giọng nói (Speech-to-Text) cho Chat chính
+            if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
+                const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+                const recognitionChat = new SpeechRecognition();
+                recognitionChat.lang = 'vi-VN';
+                recognitionChat.interimResults = false;
+                recognitionChat.maxAlternatives = 1;
+
+                $("#btnMicChat").click(function() {
+                    try {
+                        recognitionChat.start();
+                        $("#micIconChat").addClass("mic-recording");
+                    } catch (e) {
+                        console.warn("STT already started or blocked.");
+                    }
+                });
+
+                recognitionChat.onresult = (event) => {
+                    const text = event.results[0][0].transcript;
+                    $("#userInput").val(text);
+                    $("#micIconChat").removeClass("mic-recording");
+                };
+
+                recognitionChat.onerror = (event) => {
+                    console.error("Lỗi STT Chat: " + event.error);
+                    $("#micIconChat").removeClass("mic-recording");
+                    if(event.error === 'not-allowed') alert("Vui lòng cấp quyền truy cập Micro cho trình duyệt.");
+                };
+
+                recognitionChat.onend = () => {
+                    $("#micIconChat").removeClass("mic-recording");
+                };
+            } else {
+                $("#btnMicChat").hide();
+            }
         });
     </script>
 }

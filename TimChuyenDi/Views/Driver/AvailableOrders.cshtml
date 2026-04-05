@@ -44,7 +44,11 @@
                         <div class="card-header bg-white border-0 p-3 pt-4 d-flex justify-content-between align-items-start">
                             <div>
                                 <span class="badge bg-light text-primary border border-primary-subtle rounded-pill mb-2">#@(item.OrderCode ?? ("MD" + item.Id))</span>
-                                <div class="text-muted small"><i class="bi bi-clock me-1"></i>Vận chuyển: @item.PickupTimeFrom.ToString("dd/MM/yyyy") @(item.PickupTimeTo.HasValue ? " - " + item.PickupTimeTo.Value.ToString("dd/MM/yyyy") : "")</div>
+                                <div class="text-muted small">
+                                    <i class="bi bi-clock me-1"></i> Đã đăng: @item.CreatedAt.ToString("dd/MM HH:mm")
+                                    <br />
+                                    <i class="bi bi-truck me-1"></i> Vận chuyển: @item.PickupTimeFrom.ToString("dd/MM/yyyy") @(item.PickupTimeTo.HasValue ? " - " + item.PickupTimeTo.Value.ToString("dd/MM/yyyy") : "")
+                                </div>
 
                             </div>
                             <div class="text-end">

@@ -515,5 +515,22 @@ namespace TimChuyenDi.Controllers
             }
             return RedirectToAction("ManageSettings");
         }
+
+        [HttpGet]
+        public IActionResult ConfirmChatConfig(string key, decimal val)
+        {
+            var item = _context.SystemConfigs.Find(key);
+            if (item != null)
+            {
+                item.Value = val;
+                _context.SaveChanges();
+                TempData["SuccessMessage"] = $"Cập nhật cấu hình hệ thống: {key} = {val} thành công!";
+            }
+            else
+            {
+                TempData["ErrorMessage"] = $"Không tìm thấy cấu hình mang tên: {key}";
+            }
+            return RedirectToAction("ManageSettings");
+        }
     }
 }

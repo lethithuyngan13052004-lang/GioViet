@@ -146,12 +146,12 @@
     <!-- ALERT -->
     @if (TempData["Success"] != null)
     {
-        <div class="alert alert-success py-2">@TempData["Success"]</div>
+        <div class="alert alert-success py-2 text-center shadow-sm" style="border-radius: 12px;">@TempData["Success"]</div>
     }
 
     @if (TempData["Error"] != null)
     {
-        <div class="alert alert-danger py-2">@TempData["Error"]</div>
+        <div class="alert alert-danger py-2 text-center shadow-sm" style="border-radius: 12px;">@TempData["Error"]</div>
     }
 
     <!-- LIST -->
@@ -224,17 +224,53 @@
 
                         <!-- FOOTER -->
                         <div class="trip-footer">
-                            <a asp-action="EditTrip" asp-route-id="@item.TripId" class="btn btn-outline-dark btn-sm-custom">
-                                Chi tiết
-                            </a>
+                            <div class="d-flex gap-1 flex-wrap">
+                                <a asp-action="EditTrip" asp-route-id="@item.TripId" class="btn btn-outline-dark btn-sm-custom">
+                                    Chi tiết
+                                </a>
 
-                            <form asp-action="DeleteTrip" method="post">
-                                <input type="hidden" name="id" value="@item.TripId" />
-                                <button class="btn btn-outline-danger btn-sm-custom"
-                                        onclick="return confirm('Xóa chuyến này?')">
-                                    Xóa
-                                </button>
-                            </form>
+                                @{
+                                    var hasStarted = item.Shiprequests.Any(r => r.Status == 3);
+                                }
+
+                                @if (item.ArrivalTime == null && !hasStarted)
+                                {
+                                    <form asp-action="StartJourney" method="post">
+                                        <input type="hidden" name="tripId" value="@item.TripId" />
+                                        <button type="submit" class="btn btn-primary btn-sm-custom fw-bold px-3">
+                                            <i class="bi bi-play-fill"></i> Khởi hành
+                                        </button>
+                                    </form>
+                                }
+                                else if (item.ArrivalTime == null)
+                                {
+                                    <button type="button" class="btn btn-success btn-sm-custom fw-bold px-3" 
+                                            onclick="checkArrival(@item.TripId, @(item.ToStationNavigation?.Latitude ?? 0), @(item.ToStationNavigation?.Longitude ?? 0))">
+                                        <i class="bi bi-flag-fill"></i> Cập bến
+                                    </button>
+
+                                    <form id="finishForm-@item.TripId" asp-action="FinishJourney" method="post" style="display:none;">
+                                        <input type="hidden" name="tripId" value="@item.TripId" />
+                                    </form>
+                                }
+                                else
+                                {
+                                    <span class="badge bg-secondary rounded-pill py-2 px-3">
+                                        <i class="bi bi-check-circle-fill me-1"></i> Đã về đích: @item.ArrivalTime.Value.ToString("HH:mm dd/MM")
+                                    </span>
+                                }
+                            </div>
+
+                            @if (item.ArrivalTime == null && !hasStarted)
+                            {
+                                <form asp-action="DeleteTrip" method="post">
+                                    <input type="hidden" name="id" value="@item.TripId" />
+                                    <button class="btn btn-outline-danger border-0 btn-sm-custom"
+                                            onclick="return confirm('Xóa chuyến này?')">
+                                        <i class="bi bi-trash"></i>
+                                    </button>
+                                </form>
+                            }
                         </div>
 
                     </div>
@@ -259,3 +295,78 @@
     }
 
 </div>
+
+@section Scripts {
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script>
+        function checkArrival(tripId, destLat, destLon) {
+            if (!navigator.geolocation) {
+                alert("Trình duyệt không hỗ trợ định vị GPS.");
+                return;
+            }
+
+            Swal.fire({
+                title: 'Đang kiểm tra vị trí...',
+                text: 'Vui lòng chờ trong giây lát',
+                allowOutsideClick: false,
+                didOpen: () => { Swal.showLoading(); }
+            });
+
+            navigator.geolocation.getCurrentPosition(position => {
+                const curLat = position.coords.latitude;
+                const curLon = position.coords.longitude;
+                const distanceMeters = calculateDistance(curLat, curLon, destLat, destLon) * 1000;
+
+                Swal.close();
+
+                let warnings = [];
+                if (distanceMeters > 500 && destLat !== 0) {
+                    warnings.push(`Bạn còn cách điểm đến khoảng ${Math.round(distanceMeters)}m (Yêu cầu < 500m).`);
+                }
+
+                if (warnings.length > 0) {
+                    Swal.fire({
+                        title: 'Cảnh báo hành trình',
+                        html: `<div class="text-start">${warnings.join('<br>')}</div><br><b>Bạn vẫn muốn xác nhận cập bến?</b>`,
+                        icon: 'warning',
+                        showCancelButton: true,
+                        confirmButtonText: 'Vẫn xác nhận',
+                        cancelButtonText: 'Quay lại',
+                        confirmButtonColor: '#198754'
+                    }).then((result) => {
+                        if (result.isConfirmed) {
+                            document.getElementById('finishForm-' + tripId).submit();
+                        }
+                    });
+                } else {
+                    document.getElementById('finishForm-' + tripId).submit();
+                }
+
+            }, error => {
+                Swal.close();
+                Swal.fire('Lỗi định vị', 'Không thể lấy vị trí hiện tại. Vui lòng bật GPS.', 'error');
+            }, {
+                enableHighAccuracy: true,
+                timeout: 5000,
+                maximumAge: 0
+            });
+        }
+
+        function calculateDistance(lat1, lon1, lat2, lon2) {
+            const R = 6371; // Radius of the earth in km
+            const dLat = deg2rad(lat2 - lat1);
+            const dLon = deg2rad(lon2 - lon1);
+            const a =
+                Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+                Math.cos(deg2rad(lat1)) * Math.cos(deg2rad(lat2)) *
+                Math.sin(dLon / 2) * Math.sin(dLon / 2)
+                ;
+            const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+            return R * c; // Distance in km
+        }
+
+        function deg2rad(deg) {
+            return deg * (Math.PI / 180);
+        }
+    </script>
+}

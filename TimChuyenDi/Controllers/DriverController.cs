@@ -6,6 +6,7 @@ using System.Security.Claims;
 using System.Text.Json;
 using System.Collections.Generic;
 using TimChuyenDi.Models;
+using TimChuyenDi.Services;
 
 namespace TimChuyenDi.Controllers
 {
@@ -14,12 +15,13 @@ namespace TimChuyenDi.Controllers
     {
         private readonly TimchuyendiContext _context;
         private readonly IWebHostEnvironment _env;
+        private readonly RoutingService _routingService;
 
-        public DriverController(TimchuyendiContext context, IWebHostEnvironment env)
+        public DriverController(TimchuyendiContext context, IWebHostEnvironment env, RoutingService routingService)
         {
             _context = context;
-
             _env = env;
+            _routingService = routingService;
         }
         // GET: Trang chủ của Tài xế - Hiển thị danh sách khách gửi hàng
         public async Task<IActionResult> Index()
@@ -63,6 +65,34 @@ namespace TimChuyenDi.Controllers
                     if (status == 1) // Nếu nhận đơn -> Trừ sức chứa của xe
                     {
                         request.Trip.AvaiCapacityKg -= (int)(request.Cargodetails.FirstOrDefault()?.Weight ?? 0);
+
+                        // --- TẠO GROUP CHAT ---
+                        var existingSession = await _context.Chatsessions.FirstOrDefaultAsync(s => s.ReqId == request.Id);
+                        if (existingSession == null)
+                        {
+                            var newSession = new Chatsession
+                            {
+                                ReqId = request.Id,
+                                CustomerId = request.UserId,
+                                DriverId = request.Trip.DriverId,
+                                CreatedAt = DateTime.Now,
+                                Status = 0 // Active
+                            };
+                            _context.Chatsessions.Add(newSession);
+                            await _context.SaveChangesAsync();
+
+                            // Tin nhắn chào mừng từ Bot
+                            var welcomeMsg = new Chatmessage
+                            {
+                                SessionId = newSession.SessionId,
+                                SenderId = request.Trip.DriverId, // Bot messages usually don't have a user, but we'll use driver as anchor or just mark role
+                                Message = "Đơn hàng của bạn đã được xác nhận, vui lòng xác nhận lại với tài xế về chi tiết đơn hàng và các chi phí phát sinh nếu có.",
+                                SenderRole = "bot",
+                                CreatedAt = DateTime.Now
+                            };
+                            _context.Chatmessages.Add(welcomeMsg);
+                            await _context.SaveChangesAsync();
+                        }
                     }
                     await _context.SaveChangesAsync();
                 }
@@ -89,7 +119,8 @@ namespace TimChuyenDi.Controllers
                 .Include(t => t.ToStationNavigation).ThenInclude(s => s.Province)
                 .Include(t => t.Vehicle)
                 .Include(t => t.RouteTypeNavigation)
-                .Where(t => t.DriverId == driverId && t.StartTime >= DateTime.Now)
+                .Include(t => t.Shiprequests)
+                .Where(t => t.DriverId == driverId && t.StartTime >= DateTime.Now.AddDays(-1))
                 .OrderByDescending(t => t.StartTime);
 
             int totalItems = await query.CountAsync();
@@ -104,6 +135,45 @@ namespace TimChuyenDi.Controllers
             ViewBag.TotalPages = totalPages;
 
             return View(trips);
+        }
+
+        [HttpPost]
+        public async Task<IActionResult> StartJourney(int tripId)
+        {
+            var userIdStr = User.FindFirstValue("UserId");
+            int driverId = int.Parse(userIdStr);
+
+            var trip = await _context.Trips
+                .Include(t => t.Shiprequests)
+                .FirstOrDefaultAsync(t => t.TripId == tripId && t.DriverId == driverId);
+
+            if (trip == null) return NotFound();
+
+            // Cập nhật tất cả đơn hàng đã nhận sagn "Đang giao" (3)
+            foreach (var req in trip.Shiprequests.Where(r => r.Status == 1))
+            {
+                req.Status = 3;
+            }
+
+            await _context.SaveChangesAsync();
+            TempData["Success"] = "Chuyến xe đã khởi hành! Các đơn hàng đã được chuyển sang trạng thái Đang giao.";
+            return RedirectToAction("MyTrips");
+        }
+
+        [HttpPost]
+        public async Task<IActionResult> FinishJourney(int tripId)
+        {
+            var userIdStr = User.FindFirstValue("UserId");
+            int driverId = int.Parse(userIdStr);
+
+            var trip = await _context.Trips.FirstOrDefaultAsync(t => t.TripId == tripId && t.DriverId == driverId);
+            if (trip == null) return NotFound();
+
+            trip.ArrivalTime = DateTime.Now;
+            await _context.SaveChangesAsync();
+
+            TempData["Success"] = "Chuyến xe đã cập bến thành công!";
+            return RedirectToAction("MyTrips");
         }
 
         // GET: Hiển thị form đăng chuyến xe mới
@@ -789,6 +859,34 @@ namespace TimChuyenDi.Controllers
                 }
 
                 await _context.SaveChangesAsync();
+
+                // --- TẠO GROUP CHAT ---
+                var existingSession = await _context.Chatsessions.FirstOrDefaultAsync(s => s.ReqId == request.Id);
+                if (existingSession == null)
+                {
+                    var newSession = new Chatsession
+                    {
+                        ReqId = request.Id,
+                        CustomerId = request.UserId,
+                        DriverId = trip.DriverId,
+                        CreatedAt = DateTime.Now,
+                        Status = 0 // Active
+                    };
+                    _context.Chatsessions.Add(newSession);
+                    await _context.SaveChangesAsync();
+
+                    var welcomeMsg = new Chatmessage
+                    {
+                        SessionId = newSession.SessionId,
+                        SenderId = trip.DriverId,
+                        Message = "Đơn hàng của bạn đã được xác nhận, vui lòng xác nhận lại với tài xế về chi tiết đơn hàng và các chi phí phát sinh nếu có.",
+                        SenderRole = "bot",
+                        CreatedAt = DateTime.Now
+                    };
+                    _context.Chatmessages.Add(welcomeMsg);
+                    await _context.SaveChangesAsync();
+                }
+
                 TempData["Success"] = $"Đã ghép đơn hàng #{requestId} vào chuyến xe của bạn thành công!";
             }
             else
@@ -797,6 +895,96 @@ namespace TimChuyenDi.Controllers
             }
 
             return RedirectToAction("Index");
+        }
+
+        [HttpGet]
+        public async Task<IActionResult> ConfirmChatTrip(int vId, int fS, int tS, DateTime sT, int rT, decimal bP, string stops = "")
+        {
+            var userIdStr = User.FindFirstValue("UserId");
+            if (string.IsNullOrEmpty(userIdStr)) return RedirectToAction("Login", "Auth");
+            int driverId = int.Parse(userIdStr);
+
+            var vehicle = await _context.Vehicles.FirstOrDefaultAsync(v => v.VehicleId == vId && v.DriverId == driverId && v.Status == 1);
+            var fromSt = await _context.Stations.FindAsync(fS);
+            var toSt = await _context.Stations.FindAsync(tS);
+
+            if (vehicle == null || fromSt == null || toSt == null)
+            {
+                TempData["Error"] = "Dữ liệu chuyến đi không hợp lệ!";
+                return RedirectToAction("MyTrips");
+            }
+
+            var trip = new Trip
+            {
+                DriverId = driverId,
+                VehicleId = vId,
+                FromStation = fS,
+                ToStation = tS,
+                StartTime = sT,
+                RouteType = rT,
+                BasePrice = bP,
+                AvaiCapacityKg = vehicle.CapacityKg
+            };
+
+            // Tự động tính toán Distance và ArrivalTime
+            var coords = new List<(double lat, double lng)>();
+            if (fromSt.Latitude.HasValue && fromSt.Longitude.HasValue)
+                coords.Add(((double)fromSt.Latitude.Value, (double)fromSt.Longitude.Value));
+
+            List<IntermediateStationDto> intermediateStops = null;
+            if (!string.IsNullOrEmpty(stops))
+            {
+                try
+                {
+                    intermediateStops = JsonSerializer.Deserialize<List<IntermediateStationDto>>(stops);
+                    if (intermediateStops != null)
+                    {
+                        foreach (var s in intermediateStops)
+                        {
+                            var st = await _context.Stations.FindAsync(s.stationId);
+                            if (st != null && st.Latitude.HasValue && st.Longitude.HasValue)
+                                coords.Add(((double)st.Latitude.Value, (double)st.Longitude.Value));
+                        }
+                    }
+                }
+                catch { }
+            }
+
+            if (toSt.Latitude.HasValue && toSt.Longitude.HasValue)
+                coords.Add(((double)toSt.Latitude.Value, (double)toSt.Longitude.Value));
+
+            if (coords.Count >= 2)
+            {
+                var (dist, dur) = await _routingService.GetRouteAsync(coords);
+                trip.Distance = (decimal)dist;
+                trip.ArrivalTime = sT.AddSeconds(dur);
+            }
+            else
+            {
+                trip.ArrivalTime = sT.AddHours(5); // Fallback
+            }
+
+            _context.Trips.Add(trip);
+            await _context.SaveChangesAsync();
+
+            // Lưu trạm trung gian nếu có
+            if (intermediateStops != null)
+            {
+                for (int i = 0; i < intermediateStops.Count; i++)
+                {
+                    var ts = new TripStation
+                    {
+                        TripId = trip.TripId,
+                        StationId = intermediateStops[i].stationId,
+                        StopOrder = i + 1
+                    };
+                    _context.TripStations.Add(ts);
+                }
+                await _context.SaveChangesAsync();
+            }
+
+            TempData["Success"] = "Đăng chuyến xe mới từ Trợ lý AI thành công!";
+            return RedirectToAction("MyTrips");
         }
         public class IntermediateStationDto
     {

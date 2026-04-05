@@ -46,6 +46,9 @@
 
 
 
+                <small class="text-muted d-block mb-1">
+                    <i class="bi bi-clock-history me-1"></i> Ngày tạo đơn: @Model.CreatedAt.ToString("dd/MM/yyyy HH:mm")
+                </small>
                 <small class="text-muted">
                     Thời gian lấy hàng: @Model.PickupTimeFrom.ToString("dd/MM/yyyy") @(Model.PickupTimeTo.HasValue ? " - " + Model.PickupTimeTo.Value.ToString("dd/MM/yyyy") : "")
                 </small>

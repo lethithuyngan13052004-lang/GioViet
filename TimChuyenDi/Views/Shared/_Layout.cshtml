@@ -11,8 +11,9 @@
 <body>
     <div class="hht-blurred-bg"></div>
     @{
-        // 👉 Lấy role 1 lần duy nhất
+        // 👉 Lấy role và userId 1 lần duy nhất
         var role = User.FindFirst(System.Security.Claims.ClaimTypes.Role)?.Value;
+        var currentUserId = User.FindFirst("UserId")?.Value;
     }
 
     <header>
@@ -90,7 +91,6 @@
                                 <a class="nav-link text-white px-3 fw-medium rounded-pill hover-bg-light-alpha transition-all" asp-controller="Admin" asp-action="ManageSettings"><i class="bi bi-gear-fill me-1"></i> Cấu hình</a>
                             </li>
                         }
-
                     </ul>
 
                     <!-- MENU BÊN PHẢI -->
@@ -121,7 +121,7 @@
                         }
                     </ul>
 
-                </div>
+                </div> 
             </div>
         </nav>
     </header>
@@ -195,13 +195,20 @@
         
         <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center py-3">
             <div class="d-flex align-items-center">
-                <span class="fw-bold"><i class="bi bi-robot me-2"></i> Trợ lý Gió Việt AI</span>
-                <button type="button" class="btn btn-sm btn-link text-white ms-2 p-0" id="aiVoiceToggle" title="Bật/Tắt giọng nói" onclick="toggleAutoRead()">
+                <span class="fw-bold"><i class="bi bi-robot me-2"></i> Gió Việt AI</span>
+                
+                <!-- Nút Toàn màn hình -->
+                <a href="/Chat/Index" class="btn btn-sm btn-link text-white ms-3 p-0" title="Toàn màn hình">
+                    <i class="bi bi-arrows-fullscreen fs-6"></i>
+                </a>
+
+                <button type="button" class="btn btn-sm btn-link text-white ms-3 p-0" id="aiVoiceToggle" title="Bật/Tắt giọng nói" onclick="toggleAutoRead()">
                     <i class="bi bi-volume-up-fill fs-5" id="aiVoiceIcon"></i>
                 </button>
+
                 <!-- Nút Xóa Lịch Sử -->
                 <button type="button" class="btn btn-sm btn-link text-white ms-3 p-0" title="Xóa lịch sử trò chuyện" onclick="clearAIChat()">
-                    <i class="bi bi-trash3 fs-6"></i> Xóa chat
+                    <i class="bi bi-trash3 fs-6"></i>
                 </button>
             </div>
             <button type="button" class="btn-close btn-close-white" onclick="toggleAIChat()"></button>
@@ -259,10 +266,61 @@
     </style>
 
 
+    <div class="toast-container position-fixed bottom-0 start-0 p-3" id="notificationContainer" style="z-index: 2000;">
+        <!-- Toasts will appear here -->
+    </div>
+
     <script src="~/lib/jquery/dist/jquery.min.js"></script>
     <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/7.0.0/signalr.min.js"></script>
 
     <script>
+        // --- 1. Global SignalR for Notifications ---
+        const globalConnection = new signalR.HubConnectionBuilder()
+            .withUrl("/chatHub")
+            .withAutomaticReconnect()
+            .build();
+
+        globalConnection.on("ReceiveMessage", function (senderId, message, role, time, name) {
+            // Kiểm tra nếu người dùng đang ở trang chat của chính session này thì không hiện thông báo
+            if (typeof sessionId !== 'undefined') return; 
+
+            showNotification(name, message, role);
+        });
+
+        globalConnection.start().then(() => {
+            const userId = "@currentUserId";
+            if (userId && userId !== "") {
+                globalConnection.invoke("JoinAllMyGroups", userId);
+            }
+        }).catch(err => console.error(err));
+
+        function showNotification(name, message, role) {
+            const id = "toast_" + Date.now();
+            const toastHtml = `
+                <div id="${id}" class="toast shadow-lg border-0" role="alert" aria-live="assertive" aria-atomic="true" style="border-radius: 12px; background: white;">
+                    <div class="toast-header bg-primary text-white border-0" style="border-top-left-radius: 12px; border-top-right-radius: 12px;">
+                        <i class="bi bi-chat-fill me-2"></i>
+                        <strong class="me-auto">Tin nhắn mới từ ${name}</strong>
+                        <small>Vừa xong</small>
+                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="toast" aria-label="Close"></button>
+                    </div>
+                    <div class="toast-body p-3">
+                        <div class="text-muted small mb-1">${role === 'bot' ? 'Trợ lý AI' : 'Thành viên nhóm'}</div>
+                        <div class="text-dark fw-bold">${message.length > 50 ? message.substring(0, 50) + '...' : message}</div>
+                        <div class="mt-2 text-end">
+                            <a href="/Customer/RequestHistory" class="btn btn-sm btn-link p-0 text-primary fw-bold text-decoration-none">Xem ngay <i class="bi bi-arrow-right"></i></a>
+                        </div>
+                    </div>
+                </div>`;
+            
+            $("#notificationContainer").append(toastHtml);
+            const toastElement = document.getElementById(id);
+            const toast = new bootstrap.Toast(toastElement, { delay: 10000 });
+            toast.show();
+        }
+        
+        // ... (rest of AI chat scripts)
         let aiHistory = "";
         let autoRead = true;
         let recognition = null;
