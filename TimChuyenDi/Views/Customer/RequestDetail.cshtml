@@ -212,6 +212,10 @@
                                     {
                                         <p class="mb-0 text-danger small">Kết thúc lúc @Model.Trip.ArrivalTime.Value.ToString("HH:mm dd/MM")</p>
                                     }
+                                    else if (Model.Trip.EstArrivalTime.HasValue)
+                                    {
+                                        <p class="mb-0 text-info small">Dự kiến đến lúc @Model.Trip.EstArrivalTime.Value.ToString("HH:mm dd/MM")</p>
+                                    }
                                     <p>@Model.Trip.ToStationNavigation.Address</p>
                                 </div>
                             </div>

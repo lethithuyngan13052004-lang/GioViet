@@ -21,7 +21,7 @@ public partial class Trip
     public int ToStation { get; set; }
 
     public DateTime StartTime { get; set; }
-
+    public DateTime? EstArrivalTime { get; set; }
     public DateTime? ArrivalTime { get; set; }
 
     public int AvaiCapacityKg { get; set; }

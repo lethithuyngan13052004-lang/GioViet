@@ -423,7 +423,7 @@ namespace TimChuyenDi.Controllers
                 trip.FromStation = updatedTrip.FromStation;
                 trip.ToStation = updatedTrip.ToStation;
                 trip.StartTime = updatedTrip.StartTime;
-                trip.ArrivalTime = updatedTrip.ArrivalTime;
+                trip.EstArrivalTime = updatedTrip.EstArrivalTime;
                 trip.AvaiCapacityKg = updatedTrip.AvaiCapacityKg;
                 trip.BasePrice = updatedTrip.BasePrice;
                 trip.Distance = updatedTrip.Distance;

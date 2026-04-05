@@ -217,6 +217,14 @@
                                 <b>@avaiKg / @totalKg kg</b>
                             </div>
 
+                            @if (item.EstArrivalTime.HasValue && item.ArrivalTime == null)
+                            {
+                                <div class="trip-row">
+                                    <span class="text-info opacity-75">Dự kiến đến</span>
+                                    <b class="text-info">@item.EstArrivalTime.Value.ToString("HH:mm dd/MM")</b>
+                                </div>
+                            }
+
                             <div class="progress">
                                 <div class="progress-bar bg-primary" style="width:@percent%"></div>
                             </div>

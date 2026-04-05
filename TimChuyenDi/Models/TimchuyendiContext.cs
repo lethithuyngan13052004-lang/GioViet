@@ -473,6 +473,7 @@ public partial class TimchuyendiContext : DbContext
             entity.HasIndex(e => e.VehicleId, "VehicleId");
 
             entity.Property(e => e.TripId).HasColumnType("int(11)");
+            entity.Property(e => e.EstArrivalTime).HasColumnType("datetime");
             entity.Property(e => e.ArrivalTime).HasColumnType("datetime");
             entity.Property(e => e.AvaiCapacityKg).HasColumnType("int(11)");
             entity.Property(e => e.BasePrice).HasPrecision(18, 2).HasDefaultValueSql("'0.00'").HasComment("Giá mở đầu do tài xế nhập");
