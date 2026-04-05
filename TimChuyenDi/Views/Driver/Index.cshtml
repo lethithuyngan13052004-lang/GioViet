@@ -74,14 +74,6 @@
                                         <button type="submit" class="btn btn-sm btn-outline-danger mb-1">Từ chối</button>
                                     </form>
                                 }
-                                else if (item.Status == 1)
-                                {
-                                    <form asp-action="UpdateRequestStatus" method="post" class="d-inline">
-                                        <input type="hidden" name="reqId" value="@item.Id" />
-                                        <input type="hidden" name="status" value="3" />
-                                        <button type="submit" class="btn btn-sm btn-info text-dark mb-1">Bắt đầu giao</button>
-                                    </form>
-                                }
                                 else if (item.Status == 3)
                                 {
                                     <span class="badge bg-info text-dark">Đang giao</span>

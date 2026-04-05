@@ -149,7 +149,10 @@ namespace TimChuyenDi.Controllers
 
             if (trip == null) return NotFound();
 
-            // Cập nhật tất cả đơn hàng đã nhận sagn "Đang giao" (3)
+            // Cập nhật trip status
+            trip.Status = 1; // InProgress
+
+            // Cập nhật tất cả đơn hàng đã nhận sang "Đang giao" (3)
             foreach (var req in trip.Shiprequests.Where(r => r.Status == 1))
             {
                 req.Status = 3;
@@ -166,10 +169,20 @@ namespace TimChuyenDi.Controllers
             var userIdStr = User.FindFirstValue("UserId");
             int driverId = int.Parse(userIdStr);
 
-            var trip = await _context.Trips.FirstOrDefaultAsync(t => t.TripId == tripId && t.DriverId == driverId);
+            var trip = await _context.Trips
+                .Include(t => t.Shiprequests)
+                .FirstOrDefaultAsync(t => t.TripId == tripId && t.DriverId == driverId);
             if (trip == null) return NotFound();
 
             trip.ArrivalTime = DateTime.Now;
+            trip.Status = 2; // Completed
+
+            // Cập nhật tất cả đơn hàng đang giao sang "Đã hoàn thành" (4)
+            foreach (var req in trip.Shiprequests.Where(r => r.Status == 3))
+            {
+                req.Status = 4;
+            }
+
             await _context.SaveChangesAsync();
 
             TempData["Success"] = "Chuyến xe đã cập bến thành công!";
@@ -487,10 +500,13 @@ namespace TimChuyenDi.Controllers
 
             if (trip != null)
             {
+                // Nếu có đơn hàng, chuyển tất cả sang trạng thái "Hủy" (-1)
                 if (trip.Shiprequests.Any())
                 {
-                    TempData["Error"] = "Không thể xóa vì đã có khách hàng đặt chỗ. Vui lòng từ chối đơn trước!";
-                    return RedirectToAction("MyTrips");
+                    foreach (var req in trip.Shiprequests)
+                    {
+                        req.Status = -1; // Cancelled
+                    }
                 }
 
                 // Xóa quan hệ saved routes (many-to-many)

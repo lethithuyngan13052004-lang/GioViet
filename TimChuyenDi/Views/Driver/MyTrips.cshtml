@@ -237,11 +237,7 @@
                                     Chi tiết
                                 </a>
 
-                                @{
-                                    var hasStarted = item.Shiprequests.Any(r => r.Status == 3);
-                                }
-
-                                @if (item.ArrivalTime == null && !hasStarted)
+                                @if (item.Status == 0)
                                 {
                                     <form asp-action="StartJourney" method="post">
                                         <input type="hidden" name="tripId" value="@item.TripId" />
@@ -250,7 +246,7 @@
                                         </button>
                                     </form>
                                 }
-                                else if (item.ArrivalTime == null)
+                                else if (item.Status == 1)
                                 {
                                     <button type="button" class="btn btn-success btn-sm-custom fw-bold px-3" 
                                             onclick="checkArrival(@item.TripId, @(item.ToStationNavigation?.Latitude ?? 0), @(item.ToStationNavigation?.Longitude ?? 0))">
@@ -261,15 +257,21 @@
                                         <input type="hidden" name="tripId" value="@item.TripId" />
                                     </form>
                                 }
-                                else
+                                else if (item.Status == 2)
                                 {
                                     <span class="badge bg-secondary rounded-pill py-2 px-3">
-                                        <i class="bi bi-check-circle-fill me-1"></i> Đã về đích: @item.ArrivalTime.Value.ToString("HH:mm dd/MM")
+                                        <i class="bi bi-check-circle-fill me-1"></i> Đã về đích: @item.ArrivalTime?.ToString("HH:mm dd/MM")
+                                    </span>
+                                }
+                                else if (item.Status == 3)
+                                {
+                                    <span class="badge bg-danger rounded-pill py-2 px-3">
+                                        <i class="bi bi-x-circle-fill me-1"></i> Đã hủy
                                     </span>
                                 }
                             </div>
 
-                            @if (item.ArrivalTime == null && !hasStarted)
+                            @if (item.Status == 0)
                             {
                                 <form asp-action="DeleteTrip" method="post">
                                     <input type="hidden" name="id" value="@item.TripId" />

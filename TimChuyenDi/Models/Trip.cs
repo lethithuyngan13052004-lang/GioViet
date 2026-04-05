@@ -10,6 +10,7 @@ public partial class Trip
     public int DriverId { get; set; }
 
     public int VehicleId { get; set; }
+    public int Status { get; set; }
 
     /// <summary>
     /// 1: Direct, 2: Multi-stop

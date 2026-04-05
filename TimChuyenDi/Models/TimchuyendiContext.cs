@@ -62,7 +62,7 @@ public partial class TimchuyendiContext : DbContext
 
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
 #warning To protect potentially sensitive information in your connection string, you should move it out of source code. You can avoid scaffolding the connection string by using the Name= syntax to read it from configuration - see https://go.microsoft.com/fwlink/?linkid=2131148. For more guidance on storing connection strings, see https://go.microsoft.com/fwlink/?LinkId=723263.
-        => optionsBuilder.UseMySql("server=localhost;database=timchuyendi;uid=root", Microsoft.EntityFrameworkCore.ServerVersion.Parse("10.4.32-mariadb"));
+        => optionsBuilder.UseMySql("Server=103.179.189.136;Port=3306;Database=gio_viet_db;User=gio_viet;Password=Nobita@2001;", Microsoft.EntityFrameworkCore.ServerVersion.Parse("10.4.32-mariadb"));
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -487,6 +487,7 @@ public partial class TimchuyendiContext : DbContext
             entity.Property(e => e.StartTime).HasColumnType("datetime");
             entity.Property(e => e.ToStation).HasColumnType("int(11)");
             entity.Property(e => e.VehicleId).HasColumnType("int(11)");
+            entity.Property(e => e.Status).HasColumnType("int(11)").HasDefaultValue(0);
 
             entity.Property(e => e.PlatformFee).HasPrecision(10, 2);
             entity.Property(e => e.DriverEarning).HasPrecision(10, 2);

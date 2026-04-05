@@ -141,18 +141,6 @@
                                     Từ chối đơn
                                 </button>
                             }
-                            else if (Model.Status == 1) // Đã xác nhận -> Cho phép bắt đầu giao
-                            {
-                                <button type="submit" name="status" value="3" class="btn btn-primary btn-lg fw-bold shadow-sm">
-                                    <i class="bi bi-truck me-1"></i> Bắt đầu đi giao hàng
-                                </button>
-                            }
-                            else if (Model.Status == 3) // Đang giao -> Cho phép chốt hoàn thành
-                            {
-                                <button type="submit" name="status" value="4" class="btn btn-success btn-lg fw-bold shadow-sm" onclick="return confirm('Xác nhận đã giao hàng thành công và thu tiền?');">
-                                    <i class="bi bi-check2-all me-1"></i> Đã giao thành công
-                                </button>
-                            }
                         </form>
                     </div>
 
