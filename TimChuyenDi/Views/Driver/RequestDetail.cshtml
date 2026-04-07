@@ -118,7 +118,11 @@
                             <span class="fw-bold text-danger fs-5">@(Model.Cargodetails.FirstOrDefault()?.Weight) kg</span>
                         </li>
                         <li class="list-group-item bg-transparent px-0 d-flex justify-content-between">
-                            <span class="text-muted">Thuộc chuyến xe:</span>
+                            <span class="text-muted">Mã chuyến xe:</span>
+                            <span class="fw-bold text-primary">#CX-@Model.TripId</span>
+                        </li>
+                        <li class="list-group-item bg-transparent px-0 d-flex justify-content-between">
+                            <span class="text-muted">Biển số phương tiện:</span>
                             <span class="fw-bold text-dark">@Model.Trip.Vehicle.PlateNumber</span>
                         </li>
                     </ul>

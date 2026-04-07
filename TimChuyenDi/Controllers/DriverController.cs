@@ -33,6 +33,7 @@ namespace TimChuyenDi.Controllers
             // Nối bảng sâu: Đơn hàng -> Chuyến xe -> Trạm -> Tỉnh
             var requests = await _context.Shiprequests
                 .Include(r => r.User)
+                .Include(r => r.Cargodetails)
                 .Include(r => r.Trip)
                     .ThenInclude(t => t.FromStationNavigation)
                         .ThenInclude(s => s.Province)

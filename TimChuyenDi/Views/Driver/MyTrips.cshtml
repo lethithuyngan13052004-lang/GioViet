@@ -180,6 +180,9 @@
                         <div class="trip-header">
                             <div class="route">
                                 @item.FromStationNavigation.Province.ProvinceName → @item.ToStationNavigation.Province.ProvinceName
+                                <div class="badge bg-primary-subtle text-primary border border-primary-subtle rounded-pill px-2 mt-1" style="font-size: 0.7rem;">
+                                    Mã Chuyến: #CX-@item.TripId
+                                </div>
                                 <small>
                                     @item.FromStationNavigation.StationName - @item.ToStationNavigation.StationName
                                 </small>

@@ -532,5 +532,83 @@ namespace TimChuyenDi.Controllers
             }
             return RedirectToAction("ManageSettings");
         }
+
+        [HttpGet]
+        public IActionResult ConfirmChatCargoType(int id, string name, decimal multi)
+        {
+            if (id == 0) // Add new
+            {
+                _context.Cargotypes.Add(new Cargotype { TypeName = name, PriceMultiplier = multi });
+                TempData["SuccessMessage"] = $"Đã thêm loại hàng mới: {name} (x{multi})";
+            }
+            else // Update
+            {
+                var item = _context.Cargotypes.Find(id);
+                if (item != null)
+                {
+                    item.TypeName = name;
+                    item.PriceMultiplier = multi;
+                    TempData["SuccessMessage"] = $"Đã cập nhật loại hàng ID {id}: {name} (x{multi})";
+                }
+                else
+                {
+                    TempData["ErrorMessage"] = $"Không tìm thấy loại hàng ID: {id}";
+                }
+            }
+            _context.SaveChanges();
+            return RedirectToAction("ManageSettings");
+        }
+
+        [HttpGet]
+        public IActionResult ConfirmChatVehicleType(int id, string name, string? desc)
+        {
+            if (id == 0) // Add new
+            {
+                _context.VehicleTypes.Add(new VehicleType { TypeName = name, Description = desc });
+                TempData["SuccessMessage"] = $"Đã thêm loại xe mới: {name}";
+            }
+            else // Update
+            {
+                var item = _context.VehicleTypes.Find(id);
+                if (item != null)
+                {
+                    item.TypeName = name;
+                    item.Description = desc;
+                    TempData["SuccessMessage"] = $"Đã cập nhật loại xe ID {id}: {name}";
+                }
+                else
+                {
+                    TempData["ErrorMessage"] = $"Không tìm thấy loại xe ID: {id}";
+                }
+            }
+            _context.SaveChanges();
+            return RedirectToAction("ManageSettings");
+        }
+
+        [HttpGet]
+        public IActionResult ConfirmChatTripType(int id, string type, decimal multi)
+        {
+            if (id == 0) // Add new
+            {
+                _context.TripTypes.Add(new TripType { Type = type, Multiplier = multi });
+                TempData["SuccessMessage"] = $"Đã thêm loại hình vận chuyển: {type} (x{multi})";
+            }
+            else // Update
+            {
+                var item = _context.TripTypes.Find(id);
+                if (item != null)
+                {
+                    item.Type = type;
+                    item.Multiplier = multi;
+                    TempData["SuccessMessage"] = $"Đã cập nhật loại hình vận chuyển ID {id}: {type} (x{multi})";
+                }
+                else
+                {
+                    TempData["ErrorMessage"] = $"Không tìm thấy loại hình ID: {id}";
+                }
+            }
+            _context.SaveChanges();
+            return RedirectToAction("ManageSettings");
+        }
     }
 }

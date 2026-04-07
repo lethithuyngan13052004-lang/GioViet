@@ -26,18 +26,7 @@ namespace TimChuyenDi.Controllers
             _routingService = routingService;
         }
 
-        public IActionResult Index()
-        {
-            var role = User.FindFirstValue(ClaimTypes.Role);
-            var fullName = User.FindFirstValue("FullName");
-
-            ViewBag.UserRole = role; // "1": Admin, "2": Customer, "3": Driver
-            ViewBag.UserDisplayName = fullName ?? User.Identity.Name ?? "Bạn";
-
-            return View();
-        }
-
-                [HttpPost]
+        [HttpPost]
         public async Task<IActionResult> SendMessage(string userMessage, string history, double? lat, double? lng)
         {
             try
@@ -90,26 +79,52 @@ namespace TimChuyenDi.Controllers
                         int activeTrips = _context.Trips.Count(t => t.StartTime > DateTime.Now);
                         int totalOrders = _context.Shiprequests.Count();
 
+                        var allVehicleTypes = _context.VehicleTypes.Select(v => new { v.VehicleTypeId, v.TypeName, v.Description }).ToList();
+                        var allTripTypes = _context.TripTypes.Select(t => new { t.IdType, t.Type, t.Multiplier }).ToList();
+
                         contextInfo = $@"
 THỐNG KÊ HỆ THỐNG (Báo cáo lúc {currentTime}):
 - Tổng đơn hàng: {totalOrders}
 - Chuyến đang chạy: {activeTrips}
 - Xe chờ duyệt: {pendingVehicles}
 
-CẤU HÌNH HỆ THỐNG HIỆN TẠI:
+DANH SÁCH CẤU HÌNH HỆ THỐNG HIỆN TẠI:
 ";
                         foreach(var c in sysConfigs) {
                             contextInfo += $"- {c.KeyName}: {c.Value}\n";
                         }
 
+                        contextInfo += "\nDANH SÁCH LOẠI HÀNG (CargoTypes):\n";
+                        foreach(var ct in allCargoTypes) {
+                            contextInfo += $"- {ct.TypeName} (ID: {ct.CargoTypeId}): Hệ số {ct.PriceMultiplier}\n";
+                        }
+
+                        contextInfo += "\nDANH SÁCH LOẠI XE (VehicleTypes):\n";
+                        foreach(var vt in allVehicleTypes) {
+                            contextInfo += $"- {vt.TypeName} (ID: {vt.VehicleTypeId}): {vt.Description}\n";
+                        }
+
+                        contextInfo += "\nDANH SÁCH LOẠI HÌNH VẬN CHUYỂN (TripTypes):\n";
+                        foreach(var tt in allTripTypes) {
+                            contextInfo += $"- {tt.Type} (ID: {tt.IdType}): Hệ số {tt.Multiplier}\n";
+                        }
+
                         aiInstruction = $@"
 Bạn là TRỢ LÝ QUẢN TRỊ VIÊN Gió Việt.
 Nhiệm vụ 1: Báo cáo vận hành: Sử dụng các con số thống kê ở trên để nhấc nhở Admin (ví dụ: duyệt xe).
-Nhiệm vụ 2: Quản lý cấu hình: 
-- Nếu Admin muốn thay đổi một cấu hình (ví dụ: 'Đổi giá tối thiểu thành 400k'), hãy tìm key phù hợp (như 'MinPrice') và cung cấp link xác nhận:
+Nhiệm vụ 2: Quản lý cấu hình & Danh mục: 
+- Bạn được phép hỗ trợ Admin sửa đổi các thông số hệ thống.
+- Nếu Admin muốn thay đổi một cấu hình hệ thống (ví dụ: 'Đổi giá tối thiểu thành 400k'), hãy dùng:
   CONFIRM_CONFIG_LINK[key=[KEY]&val=[VALUE]]
-- Chỉ dẫn Admin về ý nghĩa các thông số nếu họ hỏi.
-- Luôn giữ thái độ chuyên nghiệp, tôn trọng Quản trị viên.
+- Nếu Admin muốn thêm/sửa Loại hàng (ví dụ: 'Thêm loại hàng hải sản hệ số 1.5'), hãy dùng:
+  CONFIRM_CARGO_LINK[id=[ID_HOẶC_0]&name=[TÊN]&multi=[HỆ_SỐ]]
+- Nếu Admin muốn thêm/sửa Loại xe (ví dụ: 'Sửa loại xe tải nhỏ thành xe tải vừa'), hãy dùng:
+  CONFIRM_VEHICLE_LINK[id=[ID_HOẶC_0]&name=[TÊN]&desc=[MÔ_TẢ]]
+- Nếu Admin muốn thêm/sửa Loại hình vận chuyển (ví dụ: 'Chỉnh hệ số ghép hàng lên 0.9'), hãy dùng:
+  CONFIRM_TRIPTYPE_LINK[id=[ID_HOẶC_0]&type=[TÊN]&multi=[HỆ_SỐ]]
+- Nếu là THÊM MỚI, đặt id=0. Nếu là SỬA, hãy dùng đúng ID từ danh sách được cung cấp.
+
+Lưu ý: Bạn là trợ lý cấp cao, KHÔNG bảo Admin gọi hotline. Nếu không rõ yêu cầu, hãy hỏi lại chi tiết từ Admin.
 ";
                     }
                     else if (roleClaim == "3") // Driver
@@ -405,7 +420,9 @@ Dữ liệu hiện hành tại hệ thống:
 Lưu ý quan trọng:
 1. Trả lời bằng tiếng Việt, lịch sự, thân thiện.
 2. Nếu có mã đơn hàng (#MD...), hãy dùng nó để trả lời khách.
-3. Nếu người dùng hỏi về thông tin không có trong 'DỮ LIỆU' hoặc 'LỊCH SỬ', hãy trả lời rằng bạn chưa có thông tin đó và khuyên họ liên hệ hotline 1900 xxxx.
+3. Nếu người dùng hỏi về thông tin không có trong 'DỮ LIỆU' hoặc 'LỊCH SỬ': 
+   - Với Khách hàng/Tài xế: Khuyên họ liên hệ hotline 1900 xxxx.
+   - Với Quản trị viên: KHÔNG gợi ý hotline, hãy đề nghị họ kiểm tra lại thông tin hoặc yêu cầu thêm chi tiết.
 4. TUYỆT ĐỐI KHÔNG dùng mã HTML (như <a>). Hãy chỉ dùng các placeholder: [[ACTION_BUTTONS_ID]] hoặc CONFIRM_LINK[...] như đã hướng dẫn trong phần Vai trò.
 5. PHẢI TRẢ LỜI Ở ĐỊNH DẠNG VĂN BẢN PHẲNG (PLAIN TEXT). Không dùng Markdown cho link.
 
