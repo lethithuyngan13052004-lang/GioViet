@@ -409,10 +409,12 @@
             waypoints: [],
             routeWhileDragging: false,
             show: false,
+            fitSelectedRoutes: false,
             // Reverting to standard OSRM router to avoid 400 errors from trip/v1
             router: L.Routing.osrmv1({
                 serviceUrl: 'https://router.project-osrm.org/route/v1',
-                profile: 'driving'
+                profile: 'driving',
+                timeout: 5000
             }),
             lineOptions: { 
                 styles: [{ color: '#0d6efd', opacity: 0.8, weight: 6 }] 
@@ -622,11 +624,15 @@
         if (finalWaypoints.length >= 2) {
             window.lastRawWaypoints = rawWaypoints;
             window.lastRealIndices = realIndices;
+            isRoutingInProgress = true;
+            setTimeout(function() { isRoutingInProgress = false; }, 5000); // Failsafe against OSRM hanging
             routingControl.setWaypoints(finalWaypoints);
             
             // Fit map bounds
-            var group = L.featureGroup(rawWaypoints.map(w => L.marker([w.lat, w.lng])));
-            map.fitBounds(group.getBounds().pad(0.2));
+            setTimeout(() => {
+                var group = L.featureGroup(rawWaypoints.map(w => L.marker([w.lat, w.lng])));
+                map.fitBounds(group.getBounds().pad(0.2));
+            }, 500);
             console.log("Routing updated with corridor checkpoints. Waypoints used:", finalWaypoints.length);
         }
     }
@@ -829,10 +835,16 @@
             return false; 
         }
 
+        var form = document.getElementById('tripForm');
+        if (!form.checkValidity()) {
+            form.reportValidity();
+            return false;
+        }
+
         // Chống thao tác click quá nhanh (spam submit) dẫn đến duplicate database record
         var submitBtn = $('button[type="submit"]');
-        submitBtn.prop('disabled', true);
         submitBtn.html('<span class="spinner-border spinner-border-sm align-middle me-2"></span><span class="align-middle">ĐANG XỬ LÝ...</span>');
+        setTimeout(() => { submitBtn.prop('disabled', true); }, 50);
 
         // Form hợp lệ, return true để cho phép form submit native
         return true;

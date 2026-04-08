@@ -1,181 +1,366 @@
-@model IEnumerable<TimChuyenDi.Models.User>
 @{
-    ViewData["Title"] = "Quản lý Người dùng";
+    ViewData["Title"] = "Thống Kê Tổng Quan";
+    var tripCounts = ViewBag.TripStatusCounts as Dictionary<int, int> ?? new Dictionary<int, int>();
+    var orderCounts = ViewBag.OrderStatusCounts as Dictionary<int, int> ?? new Dictionary<int, int>();
 }
 
 <div class="container-fluid py-4" style="max-width: 1200px;">
-    <h3 class="fw-bold mb-4"><i class="bi bi-people-fill me-2"></i>Quản lý Người dùng</h3>
+    <!-- NỬA TRÊN: KHÔNG BỊ ẢNH HƯỞNG BỞI FILTER -->
+    <h3 class="fw-bold mb-4 text-primary"><i class="bi bi-pie-chart-fill me-2"></i>Tổng Quan Trạng Thái (Toàn thời gian)</h3>
 
-    @if (TempData["SuccessMessage"] != null)
-    {
-        <div class="alert alert-success alert-dismissible fade show rounded-3 shadow-sm"><i class="bi bi-check-circle me-2"></i>@TempData["SuccessMessage"]<button type="button" class="btn-close" data-bs-dismiss="alert"></button></div>
-    }
-    @if (TempData["ErrorMessage"] != null)
-    {
-        <div class="alert alert-danger alert-dismissible fade show rounded-3 shadow-sm"><i class="bi bi-exclamation-triangle me-2"></i>@TempData["ErrorMessage"]<button type="button" class="btn-close" data-bs-dismiss="alert"></button></div>
-    }
+    <div class="row g-4 mb-4">
+        <!-- Khách hàng -->
+        <div class="col-xl-3 col-lg-4 col-sm-6">
+            <div class="card border-0 shadow-sm rounded-4 h-100 bg-primary bg-opacity-10">
+                <div class="card-body">
+                    <div class="d-flex align-items-center justify-content-between mb-3">
+                        <div class="bg-primary text-white rounded-circle d-flex align-items-center justify-content-center" style="width: 50px; height: 50px;">
+                            <i class="bi bi-person-fill fs-4"></i>
+                        </div>
+                        <span class="badge bg-primary rounded-pill">Total</span>
+                    </div>
+                    <h6 class="text-muted fw-bold mb-1">Khách hàng</h6>
+                    <h2 class="fw-bold mb-0 text-primary">@ViewBag.TotalCustomers.ToString("N0")</h2>
+                </div>
+            </div>
+        </div>
 
-    <!-- Nơi tìm kiếm (Search) -->
-    <div class="card border-0 shadow-sm rounded-4 mb-4">
-        <div class="card-body p-3">
-            <form asp-action="Index" method="get" class="row gx-2 gy-2 align-items-center">
-                <div class="col-auto">
-                    <label class="col-form-label fw-bold text-muted"><i class="bi bi-search me-1"></i>Tìm theo số điện thoại:</label>
+        <!-- Tài xế -->
+        <div class="col-xl-3 col-lg-4 col-sm-6">
+            <div class="card border-0 shadow-sm rounded-4 h-100 bg-info bg-opacity-10">
+                <div class="card-body">
+                    <div class="d-flex align-items-center justify-content-between mb-3">
+                        <div class="bg-info text-white rounded-circle d-flex align-items-center justify-content-center" style="width: 50px; height: 50px;">
+                            <i class="bi bi-car-front-fill fs-4"></i>
+                        </div>
+                        <span class="badge bg-info rounded-pill text-dark">Total</span>
+                    </div>
+                    <h6 class="text-muted fw-bold mb-1">Tài xế</h6>
+                    <h2 class="fw-bold mb-0 text-info">@ViewBag.TotalDrivers.ToString("N0")</h2>
                 </div>
-                <div class="col-md-4 col-sm-6">
-                    <input type="text" name="searchPhone" class="form-control rounded-pill" value="@ViewBag.SearchPhone" placeholder="Nhập SĐT..." />
+            </div>
+        </div>
+
+        <!-- Chuyến xe -->
+        <div class="col-xl-3 col-lg-4 col-sm-6">
+            <div class="card border-0 shadow-sm rounded-4 h-100 bg-success bg-opacity-10">
+                <div class="card-body">
+                    <div class="d-flex align-items-center justify-content-between mb-3">
+                        <div class="bg-success text-white rounded-circle d-flex align-items-center justify-content-center" style="width: 50px; height: 50px;">
+                            <i class="bi bi-truck-front-fill fs-4"></i>
+                        </div>
+                        <span class="badge bg-success rounded-pill">Total</span>
+                    </div>
+                    <h6 class="text-muted fw-bold mb-1">Chuyến xe</h6>
+                    <h2 class="fw-bold mb-0 text-success">@ViewBag.TotalTrips.ToString("N0")</h2>
                 </div>
-                <div class="col-auto">
-                    <button type="submit" class="btn btn-primary rounded-pill fw-bold"><i class="bi bi-search me-1"></i>Tìm kiếm</button>
-                    <a asp-action="Index" class="btn btn-light rounded-pill text-primary border"><i class="bi bi-arrow-clockwise me-1"></i>Làm mới</a>
+            </div>
+        </div>
+
+        <!-- Đơn hàng -->
+        <div class="col-xl-3 col-lg-4 col-sm-6">
+            <div class="card border-0 shadow-sm rounded-4 h-100 bg-warning bg-opacity-10">
+                <div class="card-body">
+                    <div class="d-flex align-items-center justify-content-between mb-3">
+                        <div class="bg-warning text-white rounded-circle d-flex align-items-center justify-content-center" style="width: 50px; height: 50px;">
+                            <i class="bi bi-box-seam-fill fs-4"></i>
+                        </div>
+                        <span class="badge bg-warning rounded-pill text-dark">Total</span>
+                    </div>
+                    <h6 class="text-muted fw-bold mb-1">Đơn hàng</h6>
+                    <h2 class="fw-bold mb-0 text-warning text-dark">@ViewBag.TotalOrders.ToString("N0")</h2>
                 </div>
-            </form>
+            </div>
         </div>
     </div>
 
-    <!-- Danh sách User -->
-    <div class="card border-0 shadow-sm rounded-4 overflow-hidden">
-        <div class="card-header bg-primary text-white rounded-top-4 py-3 d-flex justify-content-between align-items-center">
-            <span class="fw-bold"><i class="bi bi-list-ul me-2"></i>Danh sách tài khoản hệ thống</span>
+    <!-- Charts / Breakdown Tables (Unaffected) -->
+    <div class="row g-4 mb-5">
+        <!-- Phân loại chuyến xe -->
+        <div class="col-lg-6">
+            <div class="card border-0 shadow-sm rounded-4 h-100">
+                <div class="card-header bg-white border-0 py-3">
+                    <h5 class="fw-bold mb-0"><i class="bi bi-list-task me-2 text-success"></i>Trạng thái Chuyến xe</h5>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th class="ps-4">Trạng thái</th>
+                                    <th class="text-end pe-4">Số lượng</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td class="ps-4"><span class="badge bg-warning text-dark"><i class="bi bi-clock-fill me-1"></i>Đã tạo / Chờ ghép</span></td>
+                                    <td class="text-end pe-4 fw-bold">@(tripCounts.ContainsKey(1) ? tripCounts[1] : 0)</td>
+                                </tr>
+                                <tr>
+                                    <td class="ps-4"><span class="badge bg-primary"><i class="bi bi-truck me-1"></i>Đang chạy / Khoá ghép</span></td>
+                                    <td class="text-end pe-4 fw-bold">@(tripCounts.ContainsKey(2) ? tripCounts[2] : 0)</td>
+                                </tr>
+                                <tr>
+                                    <td class="ps-4"><span class="badge bg-success"><i class="bi bi-check-circle-fill me-1"></i>Hoàn thành</span></td>
+                                    <td class="text-end pe-4 fw-bold">@(tripCounts.ContainsKey(3) ? tripCounts[3] : 0)</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
         </div>
-        <div class="card-body p-0">
-            <div class="table-responsive">
-                <table class="table table-hover align-middle mb-0">
-                    <thead class="table-light">
-                        <tr>
-                            <th class="ps-3 text-muted">ID</th>
-                            <th>Họ và Tên</th>
-                            <th>Số điện thoại</th>
-                            <th>Email</th>
-                            <th class="text-center">Vai trò</th>
-                            <th>Ngày tạo</th>
-                            <th class="text-center">Trạng thái</th>
-                            <th>Lý do khóa</th>
-                            <th class="text-center pe-3" style="width:130px">Thao tác</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @foreach (var item in Model)
-                        {
-                            <tr>
-                                <td class="ps-3 text-muted small">#@item.UserId</td>
-                                <td class="fw-semibold text-dark">@item.Name</td>
-                                <td>@item.Phone</td>
-                                <td class="text-muted">@(string.IsNullOrEmpty(item.Email) ? "—" : item.Email)</td>
-                                <td class="text-center">
-                                    @if (item.Role == 1)
-                                    {
-                                        <span class="badge bg-danger bg-opacity-10 text-danger border border-danger border-opacity-25 rounded-pill px-3 py-2"><i class="bi bi-shield-lock me-1"></i>Admin</span>
-                                    }
-                                    else if (item.Role == 3)
-                                    {
-                                        <span class="badge bg-info bg-opacity-10 text-info border border-info border-opacity-25 rounded-pill px-3 py-2 text-dark"><i class="bi bi-car-front me-1"></i>Tài xế</span>
-                                    }
-                                    else
-                                    {
-                                        <span class="badge bg-success bg-opacity-10 text-success border border-success border-opacity-25 rounded-pill px-3 py-2"><i class="bi bi-person me-1"></i>Khách hàng</span>
-                                    }
-                                </td>
-                                <td class="text-muted small">@item.CreatedAt.ToString("dd/MM/yyyy HH:mm")</td>
-                                <td class="text-center">
-                                    @if (item.IsActive == true)
-                                    {
-                                        <span class="badge bg-primary rounded-pill px-3"><i class="bi bi-check-circle me-1"></i>Hoạt động</span>
-                                    }
-                                    else
-                                    {
-                                        <span class="badge bg-secondary rounded-pill px-3"><i class="bi bi-lock-fill me-1"></i>Đã khóa</span>
-                                    }
-                                </td>
-                                <td>
-                                    @if (item.IsActive != true && !string.IsNullOrEmpty(item.LockReason))
-                                    {
-                                        <span class="text-danger small"><i class="bi bi-exclamation-triangle me-1"></i>@item.LockReason</span>
-                                    }
-                                    else
-                                    {
-                                        <span class="text-muted">—</span>
-                                    }
-                                </td>
-                                <td class="text-center pe-3">
-                                    @if (item.UserId == 1)
-                                    {
-                                        <span class="text-muted small"><i class="bi bi-shield-fill-check text-warning me-1"></i>Bảo vệ</span>
-                                    }
-                                    else if (item.Role != 0)
-                                    {
-                                        @if (item.IsActive == true)
-                                        {
-                                            <button type="button" class="btn btn-sm btn-outline-danger rounded-pill px-3" 
-                                                    onclick="openLockModal(@item.UserId, '@item.Name')">
-                                                <i class="bi bi-lock-fill"></i> Khóa
-                                            </button>
-                                        }
-                                        else
-                                        {
-                                            <form asp-action="ToggleStatus" method="post" class="d-inline">
-                                                <input type="hidden" name="userId" value="@item.UserId" />
-                                                <button type="submit" class="btn btn-sm btn-success rounded-pill px-3" onclick="return confirm('Xác nhận mở khóa tài khoản này?');">
-                                                    <i class="bi bi-unlock-fill"></i> Mở
-                                                </button>
-                                            </form>
-                                        }
-                                    }
-                                    else
-                                    {
-                                        <span class="text-muted small">Hệ thống</span>
-                                    }
-                                </td>
-                            </tr>
-                        }
-                        @if (!Model.Any())
-                        {
-                            <tr><td colspan="9" class="text-center py-4 text-muted">Không tìm thấy người dùng nào!</td></tr>
-                        }
-                    </tbody>
-                </table>
+
+        <!-- Phân loại Đơn hàng -->
+        <div class="col-lg-6">
+            <div class="card border-0 shadow-sm rounded-4 h-100">
+                <div class="card-header bg-white border-0 py-3">
+                    <h5 class="fw-bold mb-0"><i class="bi bi-bar-chart-steps me-2 text-warning"></i>Trạng thái Đơn yêu cầu</h5>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th class="ps-4">Trạng thái</th>
+                                    <th class="text-end pe-4">Số lượng</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td class="ps-4"><span class="badge bg-secondary"><i class="bi bi-hourglass-top me-1"></i>Chờ xử lý</span></td>
+                                    <td class="text-end pe-4 fw-bold">@(orderCounts.ContainsKey(0) ? orderCounts[0] : 0)</td>
+                                </tr>
+                                <tr>
+                                    <td class="ps-4"><span class="badge bg-primary"><i class="bi bi-check me-1"></i>Đã được chấp nhận</span></td>
+                                    <td class="text-end pe-4 fw-bold">@(orderCounts.ContainsKey(1) ? orderCounts[1] : 0)</td>
+                                </tr>
+                                <tr>
+                                    <td class="ps-4"><span class="badge bg-info text-dark"><i class="bi bi-truck me-1"></i>Đang giao hàng</span></td>
+                                    <td class="text-end pe-4 fw-bold">@(orderCounts.ContainsKey(3) ? orderCounts[3] : 0)</td>
+                                </tr>
+                                <tr>
+                                    <td class="ps-4"><span class="badge bg-success"><i class="bi bi-check-circle-fill me-1"></i>Hoàn thành</span></td>
+                                    <td class="text-end pe-4 fw-bold">@(orderCounts.ContainsKey(4) ? orderCounts[4] : 0)</td>
+                                </tr>
+                                <tr>
+                                    <td class="ps-4"><span class="badge bg-danger"><i class="bi bi-x-circle-fill me-1"></i>Bị từ chối / Hủy</span></td>
+                                    <td class="text-end pe-4 fw-bold">@(orderCounts.ContainsKey(2) ? orderCounts[2] : 0)</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
-</div>
 
-<!-- Modal Khóa Tài Khoản -->
-<div class="modal fade" id="lockAccountModal" tabindex="-1">
-    <div class="modal-dialog">
-        <form asp-action="ToggleStatus" method="post" class="modal-content rounded-4 border-0 shadow">
-            <div class="modal-header bg-danger text-white rounded-top-4">
-                <h5 class="modal-title"><i class="bi bi-exclamation-triangle-fill me-2"></i>Khóa Tài Khoản</h5>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
-            </div>
-            <div class="modal-body">
-                <p class="mb-3">Thao tác khóa tài khoản của: <br/><strong id="lockUserName" class="text-danger fs-5"></strong></p>
-                <input type="hidden" name="userId" id="lockUserId" value="" />
-                
-                <div class="mb-3">
-                    <label for="lockReason" class="form-label fw-bold">Lý do khóa <span class="text-danger">*</span></label>
-                    <textarea class="form-control rounded-3" id="lockReason" name="lockReason" rows="3" required placeholder="Nhập chi tiết lý do vi phạm..."></textarea>
-                </div>
-            </div>
-            <div class="modal-footer border-top-0">
-                <button type="button" class="btn btn-light rounded-pill" data-bs-dismiss="modal">Hủy</button>
-                <button type="submit" class="btn btn-danger rounded-pill fw-bold"><i class="bi bi-lock-fill me-1"></i>Xác nhận khóa</button>
-            </div>
+    <hr class="mb-5 text-muted"/>
+
+    <!-- NỬA DƯỚI: THUỘC VỀ DOANH THU LỌC THEO THÁNG NĂM -->
+    <div class="d-flex flex-wrap justify-content-between align-items-center mb-4 gap-3">
+        <h3 class="fw-bold text-danger mb-0"><i class="bi bi-bar-chart-fill me-2"></i>Phân Tích Doanh Thu</h3>
+        <form asp-action="Index" method="get" class="d-flex align-items-center bg-white px-3 py-2 rounded-pill shadow-sm border">
+            <i class="bi bi-calendar-event text-muted me-2"></i>
+            <label class="form-label mb-0 me-2 fw-bold text-muted text-nowrap">Từ Tháng:</label>
+            <select name="startMonth" class="form-select rounded-pill form-select-sm border-primary text-primary fw-bold me-2" style="width: 70px;" onchange="this.form.submit()">
+                @for(int m=1; m<=12; m++) {
+                    if (ViewBag.StartMonth == m) {
+                        <option value="@m" selected>@m</option>
+                    } else {
+                        <option value="@m">@m</option>
+                    }
+                }
+            </select>
+            
+            <label class="form-label mb-0 me-2 fw-bold text-muted text-nowrap">Đến:</label>
+            <select name="endMonth" class="form-select rounded-pill form-select-sm border-primary text-primary fw-bold me-3" style="width: 70px;" onchange="this.form.submit()">
+                @for(int m=1; m<=12; m++) {
+                    if (ViewBag.EndMonth == m) {
+                        <option value="@m" selected>@m</option>
+                    } else {
+                        <option value="@m">@m</option>
+                    }
+                }
+            </select>
+
+            <label class="form-label mb-0 me-2 fw-bold text-muted text-nowrap border-start ps-3">Năm:</label>
+            <select name="filterYear" class="form-select rounded-pill form-select-sm border-primary text-primary fw-bold" style="width: 90px; cursor: pointer;" onchange="this.form.submit()">
+                @for (int y = DateTime.Now.Year; y >= 2023; y--)
+                {
+                    if (ViewBag.CurrentYear == y) {
+                        <option value="@y" selected>@y</option>
+                    } else {
+                        <option value="@y">@y</option>
+                    }
+                }
+            </select>
         </form>
+    </div>
+    
+    <div class="row g-4 mb-4">
+        <!-- Doanh thu tổng (Giá trị hàng vận chuyển) -->
+        <div class="col-lg-6">
+            <div class="card border-0 shadow-sm rounded-4 h-100 bg-danger bg-opacity-10">
+                <div class="card-body">
+                    <div class="d-flex align-items-center justify-content-between mb-3">
+                        <div class="bg-danger text-white rounded-circle d-flex align-items-center justify-content-center" style="width: 50px; height: 50px;">
+                            <i class="bi bi-cash-coin fs-4"></i>
+                        </div>
+                        <span class="badge bg-danger rounded-pill">Chỉ đếm đơn thành công</span>
+                    </div>
+                    <h6 class="text-muted fw-bold mb-1">Tổng giá trị lưu thông (GMV)</h6>
+                    <h2 class="fw-bold mb-0 text-danger">@ViewBag.TotalRevenue.ToString("N0") VNĐ</h2>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Doanh thu Platform (Phí Nền Tảng) -->
+        <div class="col-lg-6">
+            <div class="card border-0 shadow-sm rounded-4 h-100 bg-dark bg-opacity-10">
+                <div class="card-body">
+                    <div class="d-flex align-items-center justify-content-between mb-3">
+                        <div class="bg-dark text-white rounded-circle d-flex align-items-center justify-content-center" style="width: 50px; height: 50px;">
+                            <i class="bi bi-wallet-fill fs-4"></i>
+                        </div>
+                        <span class="badge bg-dark rounded-pill">Doanh thu Web</span>
+                    </div>
+                    <h6 class="text-muted fw-bold mb-1">Phí Nền Tảng (Platform Fee)</h6>
+                    <h2 class="fw-bold mb-0 text-dark">@ViewBag.TotalPlatformFee.ToString("N0") VNĐ</h2>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Biểu đồ Thống kê -->
+    <div class="row mt-4">
+        <div class="col-12">
+            <div class="card border-0 shadow-sm rounded-4">
+                <div class="card-header bg-white border-0 py-3 d-flex justify-content-between align-items-center">
+                    <h5 class="fw-bold mb-0"><i class="bi bi-graph-up text-primary me-2"></i>Biểu đồ Theo Thời Gian Đã Chọn</h5>
+                </div>
+                <div class="card-body">
+                    <div style="height: 400px; width: 100%;">
+                        <canvas id="revenueChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
 </div>
 
 @section Scripts {
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script>
-        function openLockModal(userId, userName) {
-            document.getElementById('lockUserId').value = userId;
-            document.getElementById('lockUserName').innerText = userName;
-            document.getElementById('lockReason').value = '';
-            new bootstrap.Modal(document.getElementById('lockAccountModal')).show();
-        }
+        document.addEventListener("DOMContentLoaded", function () {
+            var ctx = document.getElementById('revenueChart').getContext('2d');
+            
+            // Dữ liệu từ ViewBag đã được tuần tự hóa JSON
+            var chartLabels = @Html.Raw(ViewBag.ChartLabels);
+            var gmvData = @Html.Raw(ViewBag.GmvData);
+            var feeData = @Html.Raw(ViewBag.FeeData);
+
+            var revenueChart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: chartLabels,
+                    datasets: [
+                        {
+                            label: 'Tổng GMV (Lưu thông)',
+                            data: gmvData,
+                            backgroundColor: 'rgba(220, 53, 69, 0.6)', /* text-danger opacity */
+                            borderColor: 'rgba(220, 53, 69, 1)',
+                            borderWidth: 1,
+                            borderRadius: 4,
+                            yAxisID: 'y'
+                        },
+                        {
+                            label: 'Phí Nền Tảng (Thu Nhập)',
+                            data: feeData,
+                            type: 'line',
+                            fill: true,
+                            backgroundColor: 'rgba(33, 37, 41, 0.15)', /* text-dark opacity */
+                            borderColor: 'rgba(33, 37, 41, 1)',
+                            borderWidth: 2,
+                            tension: 0.3,
+                            pointBackgroundColor: 'rgba(33, 37, 41, 1)',
+                            yAxisID: 'y1'
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    interaction: {
+                        mode: 'index',
+                        intersect: false,
+                    },
+                    plugins: {
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    let label = context.dataset.label || '';
+                                    if (label) {
+                                        label += ': ';
+                                    }
+                                    if (context.parsed.y !== null) {
+                                        label += new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(context.parsed.y);
+                                    }
+                                    return label;
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            grid: {
+                                display: false
+                            }
+                        },
+                        y: {
+                            type: 'linear',
+                            display: true,
+                            position: 'left',
+                            title: {
+                                display: true,
+                                text: 'GMV (VNĐ)'
+                            },
+                            ticks: {
+                                callback: function(value) {
+                                    if (value >= 1000000) return (value / 1000000) + ' Tr';
+                                    if (value >= 1000) return (value / 1000) + ' k';
+                                    return value;
+                                }
+                            }
+                        },
+                        y1: {
+                            type: 'linear',
+                            display: true,
+                            position: 'right',
+                            title: {
+                                display: true,
+                                text: 'Phí Nền Tảng (VNĐ)'
+                            },
+                            grid: {
+                                drawOnChartArea: false
+                            },
+                            ticks: {
+                                callback: function(value) {
+                                    if (value >= 1000000) return (value / 1000000) + ' Tr';
+                                    if (value >= 1000) return (value / 1000) + ' k';
+                                    return value;
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        });
     </script>
 }
 
 <style>
-    body { background-color: #f0f2f5; }
-    .table th { font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.5px; }
+    body { background-color: #f8f9fa; }
+    .card { transition: transform 0.2s ease, box-shadow 0.2s ease; border: 1px solid rgba(0,0,0,0.05); }
+    .card:hover { transform: translateY(-3px); box-shadow: 0 .5rem 1rem rgba(0,0,0,.1)!important; }
 </style>

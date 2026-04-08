@@ -196,7 +196,9 @@
                             <button type="submit" class="btn btn-primary py-3 fw-bold shadow-lg rounded-pill" onclick="return validateAndSubmit()">
                                 <i class="bi bi-save-fill me-2"></i> CẬP NHẬT CHUYẾN XE
                             </button>
-                            <a asp-action="MyTrips" class="btn btn-light rounded-pill py-2">Hủy quay về</a>
+                            <a asp-action="MyTrips" class="btn btn-outline-secondary rounded-pill py-2 fw-bold">
+                                ← Quay về
+                            </a>
                         </div>
                     </div>
                 </div>
@@ -218,7 +220,11 @@
                                 <div class="vr"></div>
                                 <div class="text-center px-4">
                                     <span class="d-block small text-muted">Thời gian di chuyển</span>
-                                    <span class="h5 fw-bold mb-0 text-success" id="totalTime">-- h</span>
+                                    @{
+                                        var initialTotalTime = Model.EstArrivalTime.HasValue ? (Model.EstArrivalTime.Value - Model.StartTime).TotalHours : 0;
+                                        string timeDisplay = initialTotalTime > 0 ? initialTotalTime.ToString("F1") : "--";
+                                    }
+                                    <span class="h5 fw-bold mb-0 text-success" id="totalTime">@timeDisplay h</span>
                                 </div>
                                 <div class="vr"></div>
                                 <div class="text-center px-4">
@@ -248,6 +254,7 @@
     var lastTotalTimeSeconds = 0;
     var isRoutingInProgress = false;
     var routeDebounceTimer;
+    var isInitialRoute = true;
 
     $(document).ready(function () {
         initMap();
@@ -286,8 +293,8 @@
             if (pId) syncMapWithProvince(pId, 'end');
         });
 
-        // Initial Route Trigger - Use Razor-rendered logic for 100% accuracy on first render
-        setTimeout(initMapFromRazor, 800);
+        // Initial Route Trigger - Read from populated DOM for 100% accurate first render
+        setTimeout(updateRoute, 600);
     });
 
     function initMap() {
@@ -299,12 +306,24 @@
             waypoints: [],
             routeWhileDragging: false,
             show: false,
-            router: L.Routing.osrmv1({ serviceUrl: 'https://router.project-osrm.org/route/v1', profile: 'driving' }),
+            addWaypoints: false,
+            draggableWaypoints: false,
+            fitSelectedRoutes: false,
+            router: L.Routing.osrmv1({ serviceUrl: 'https://router.project-osrm.org/route/v1', profile: 'driving', timeout: 5000 }),
             lineOptions: { styles: [{ color: '#0d6efd', opacity: 0.8, weight: 6 }] },
             createMarker: () => null
         }).addTo(map);
 
         routingControl.on('routesfound', function (e) {
+            isRoutingInProgress = false;
+            
+            if (isInitialRoute) {
+                isInitialRoute = false;
+                // Only load visual path initially, do not overwrite DB figures for distance/times on first render
+                console.log("Initial routing complete - DB values preserved");
+                return;
+            }
+
             try {
                 var route = e.routes[0];
                 var summary = route.summary;
@@ -314,7 +333,6 @@
                 $('#totalTime').text((summary.totalTime / 3600).toFixed(1) + " h");
                 $('#distanceInput').val((summary.totalDistance / 1000).toFixed(1));
                 calculateArrivalTime(summary.totalTime);
-            } catch(ex) { console.error("routesfound basic data error:", ex); }
 
             // Intermediate stations calculation logic (similar to CreateTrip)
             if (window.lastRealIndices && window.lastRawWaypoints) {
@@ -347,6 +365,7 @@
                     console.error("OSRM parse error:", err);
                 }
             }
+            } catch(ex) { console.error("routesfound basic data error:", ex); }
         });
     }
     const VN_CORRIDOR = [
@@ -403,7 +422,7 @@
            if (isNaN(curr.lat) || isNaN(curr.lng) || curr.lat === 0 || curr.lat === null) continue;
            try {
                var latLng = L.latLng(curr.lat, curr.lng);
-               L.marker(latLng, { icon: curr.icon }).addTo(persistentMarkers).bindPopup(`${curr.name}`);
+               L.marker(latLng, { icon: curr.icon }).addTo(persistentMarkers).bindPopup(curr.name);
                realIndices.push(finalWaypoints.length);
                finalWaypoints.push(latLng);
            } catch(e) { console.error("Layer error:", e); continue; }
@@ -440,148 +459,26 @@
         if (finalWaypoints.length >= 2) {
             window.lastRawWaypoints = rawWaypoints;
             window.lastRealIndices = realIndices;
+            isRoutingInProgress = true;
+            setTimeout(function() { isRoutingInProgress = false; }, 5000); // Failsafe against OSRM hanging
             routingControl.setWaypoints(finalWaypoints);
-            var group = L.featureGroup(rawWaypoints.map(w => L.marker([w.lat, w.lng])));
-            map.fitBounds(group.getBounds().pad(0.2));
+            setTimeout(() => {
+                var group = L.featureGroup(rawWaypoints.map(w => L.marker([w.lat, w.lng])));
+                map.fitBounds(group.getBounds().pad(0.2));
+            }, 500);
         } else {
             routingControl.setWaypoints([]);
         }
 
-        routingControl.on('routesfound', function (e) {
-            isRoutingInProgress = false;
-            
-            var route = e.routes[0];
-            var summary = route.summary;
-            lastTotalTimeSeconds = summary.totalTime;
-            $('#totalDistance').text((summary.totalDistance / 1000).toFixed(1) + " km");
-            $('#totalTime').text((summary.totalTime / 3600).toFixed(1) + " h");
-            $('#distanceInput').val((summary.totalDistance / 1000).toFixed(1));
-            calculateArrivalTime(summary.totalTime);
-
-            // Calculate intermediate stations data
-            if (window.lastRealIndices && window.lastRawWaypoints) {
-                let indices = route.waypointIndices;
-                let coords = route.coordinates;
-                let startTimeStr = $('#startTime').val();
-                let startTime = startTimeStr ? new Date(startTimeStr) : new Date();
-                let stopsData = [];
-
-                for (let i = 1; i < window.lastRawWaypoints.length - 1; i++) {
-                    let currIdx = indices[window.lastRealIndices[i]];
-                    let prevIdx = indices[window.lastRealIndices[i - 1]];
-                    
-                    let segmentDist = 0;
-                    for (let j = prevIdx; j < currIdx; j++) {
-                        segmentDist += coords[j].distanceTo(coords[j+1]);
-                    }
-
-                    let distFromStart = 0;
-                    for (let j = 0; j < currIdx; j++) {
-                        distFromStart += coords[j].distanceTo(coords[j+1]);
-                    }
-                    let timeRatio = distFromStart / summary.totalDistance;
-                    let timeOffset = summary.totalTime * timeRatio;
-                    let estArrival = new Date(startTime.getTime() + timeOffset * 1000);
-
-                    stopsData.push({
-                        stationId: window.lastRawWaypoints[i].stationId,
-                        distance: parseFloat((segmentDist / 1000).toFixed(2)),
-                        estArrivalTime: estArrival.toISOString()
-                    });
-                }
-                $('#hiddenStops').val(JSON.stringify(stopsData));
-                console.log("Edit Intermediate Stations Data Calculated:", stopsData);
-            }
-        });
-
         routingControl.on('routingerror', function(e) {
             isRoutingInProgress = false;
-            console.error("Routing Error:", e);
-            showToast("Lỗi khi tính toán lộ trình.", true);
+            console.warn("Routing lỗi → vẫn cho submit");
         });
     }
 
     function debounceUpdateRoute() {
         clearTimeout(routeDebounceTimer);
         routeDebounceTimer = setTimeout(updateRoute, 600);
-    }
-
-    function initMapFromRazor() {
-        persistentMarkers.clearLayers();
-        var startPoint = null, endPoint = null;
-        var intermediateStops = [];
-
-        @if (Model.FromStationNavigation != null)
-        {
-            <text>
-            var sLat = @((Model.FromStationNavigation.Latitude ?? 0).ToString(System.Globalization.CultureInfo.InvariantCulture));
-            var sLng = @((Model.FromStationNavigation.Longitude ?? 0).ToString(System.Globalization.CultureInfo.InvariantCulture));
-            if (sLat && sLng) {
-                startPoint = { lat: sLat, lng: sLng, icon: startIcon, name: `<b>Bắt đầu:</b> @Html.Raw(Model.FromStationNavigation.StationName?.Replace("`", ""))`, province: `@Html.Raw(Model.FromStationNavigation.Province?.ProvinceName ?? "")` };
-            }
-            </text>
-        }
-
-        @if (Model.TripStations != null)
-        {
-            foreach (var ts in Model.TripStations.OrderBy(x => x.StopOrder))
-            {
-                if (ts.Station != null)
-                {
-                    <text>
-                    var iLat = @((ts.Station.Latitude ?? 0).ToString(System.Globalization.CultureInfo.InvariantCulture));
-                    var iLng = @((ts.Station.Longitude ?? 0).ToString(System.Globalization.CultureInfo.InvariantCulture));
-                    if (iLat && iLng) {
-                        intermediateStops.push({ lat: iLat, lng: iLng, icon: stopIcon, name: `<b>Trạm đi qua:</b> @Html.Raw(ts.Station.StationName?.Replace("`", ""))`, province: `@Html.Raw(ts.Station.Province?.ProvinceName ?? "")` });
-                    }
-                    </text>
-                }
-            }
-        }
-
-        @if (Model.ToStationNavigation != null)
-        {
-            <text>
-            var eLat = @((Model.ToStationNavigation.Latitude ?? 0).ToString(System.Globalization.CultureInfo.InvariantCulture));
-            var eLng = @((Model.ToStationNavigation.Longitude ?? 0).ToString(System.Globalization.CultureInfo.InvariantCulture));
-            if (eLat && eLng) {
-                endPoint = { lat: eLat, lng: eLng, icon: endIcon, name: `<b>Kết thúc:</b> @Html.Raw(Model.ToStationNavigation.StationName?.Replace("`", ""))`, province: `@Html.Raw(Model.ToStationNavigation.Province?.ProvinceName ?? "")` };
-            }
-            </text>
-        }
-
-        function sortRawWaypoints(start, end, stops) {
-            if (stops.length <= 1) return stops;
-            const vecAB = { lat: end.lat - start.lat, lng: end.lng - start.lng };
-            return stops.sort((a, b) => {
-                const projA = (a.lat - start.lat) * vecAB.lat + (a.lng - start.lng) * vecAB.lng;
-                const projB = (b.lat - start.lat) * vecAB.lat + (b.lng - start.lng) * vecAB.lng;
-                return projA - projB;
-            });
-        }
-
-        if (startPoint && endPoint && intermediateStops.length > 0) {
-            intermediateStops = sortRawWaypoints(startPoint, endPoint, intermediateStops);
-        }
-
-        var rawWaypoints = [];
-        if (startPoint) rawWaypoints.push(startPoint);
-        intermediateStops.forEach(s => rawWaypoints.push(s));
-        if (endPoint) rawWaypoints.push(endPoint);
-
-        var startRegion = startPoint ? getRegion(startPoint.province) : null;
-        var endRegion = endPoint ? getRegion(endPoint.province) : null;
-        var sameRegion = (startRegion && endRegion && startRegion === endRegion);
-        var isShortCrossRegion = false;
-        
-        if (startRegion && endRegion && !sameRegion) {
-            if ((startRegion === 'Central' && (endRegion === 'North' || endRegion === 'South')) ||
-                (endRegion === 'Central' && (startRegion === 'North' || startRegion === 'South'))) {
-                isShortCrossRegion = true;
-            }
-        }
-
-        drawRoute(rawWaypoints, startRegion, endRegion, sameRegion, isShortCrossRegion);
     }
 
     function updateRoute() {
@@ -670,13 +567,8 @@
 
     function validateAndSubmit() {
         if (isRoutingInProgress) {
-            showToast("Vui lòng đợi lộ trình được tính toán xong...", true);
-            return false;
+            console.warn("Routing chưa xong → vẫn submit");
         }
-        
-        var submitBtn = $('button[type="submit"]');
-        submitBtn.prop('disabled', true);
-        submitBtn.html('<span class="spinner-border spinner-border-sm align-middle me-2"></span><span class="align-middle">ĐANG CẬP NHẬT...</span>');
         
         // Ensure hidden stops are up to date
         var currentJson = $('#hiddenStops').val();
@@ -688,6 +580,16 @@
             });
             $('#hiddenStops').val(JSON.stringify(selectedStops));
         }
+
+        var form = document.getElementById('tripForm');
+        if (!form.checkValidity()) {
+            form.reportValidity();
+            return false;
+        }
+        
+        var submitBtn = $('button[type="submit"]');
+        submitBtn.html('<span class="spinner-border spinner-border-sm align-middle me-2"></span><span class="align-middle">ĐANG CẬP NHẬT...</span>');
+        setTimeout(() => { submitBtn.prop('disabled', true); }, 50);
         
         return true; 
     }

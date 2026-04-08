@@ -16,8 +16,84 @@ namespace TimChuyenDi.Controllers
             _context = context;
         }
 
+        // GET: Thống kê (Dashboard)
+        public IActionResult Index(int? filterYear, int? startMonth, int? endMonth)
+        {
+            var year = filterYear ?? DateTime.Now.Year;
+            var startM = startMonth ?? 1;
+            var endM = endMonth ?? 12;
+
+            if (startM > endM)
+            {
+                var temp = startM;
+                startM = endM;
+                endM = temp;
+            }
+
+            var totalCustomers = _context.Users.Count(u => u.Role == 2);
+            var totalDrivers = _context.Users.Count(u => u.Role == 3);
+            var totalTrips = _context.Trips.Count();
+            var totalOrders = _context.Shiprequests.Count();
+            
+            // Lọc theo khoảng thời gian cho Doanh thu và Phí nền tảng
+            var ordersInPeriod = _context.Shiprequests.Where(s => s.CreatedAt.Year == year && s.CreatedAt.Month >= startM && s.CreatedAt.Month <= endM);
+            var tripsInPeriod = _context.Trips.Where(t => t.StartTime.Year == year && t.StartTime.Month >= startM && t.StartTime.Month <= endM);
+
+            var totalRevenue = ordersInPeriod.Where(s => s.Status == 4).Sum(s => (decimal?)s.TotalPrice) ?? 0;
+            var totalPlatformFee = tripsInPeriod.Sum(t => (decimal?)t.PlatformFee) ?? 0;
+
+            // Thống kê trạng thái (Toàn thời gian để quản lý chung)
+            var tripStatusCounts = _context.Trips.GroupBy(t => t.Status).Select(g => new { Status = g.Key, Count = g.Count() }).ToDictionary(x => x.Status, x => x.Count);
+            var orderStatusCounts = _context.Shiprequests.GroupBy(s => s.Status).Select(g => new { Status = g.Key, Count = g.Count() }).ToDictionary(x => x.Status ?? 0, x => x.Count);
+
+            ViewBag.TotalCustomers = totalCustomers;
+            ViewBag.TotalDrivers = totalDrivers;
+            ViewBag.TotalTrips = totalTrips;
+            ViewBag.TotalOrders = totalOrders;
+            
+            ViewBag.TotalRevenue = totalRevenue;
+            ViewBag.TotalPlatformFee = totalPlatformFee;
+            ViewBag.TripStatusCounts = tripStatusCounts;
+            ViewBag.OrderStatusCounts = orderStatusCounts;
+
+            // ---- Thống kê doanh thu theo tháng của khoảng thời gian được chọn ----
+            var gmvByMonth = ordersInPeriod
+                .Where(s => s.Status == 4)
+                .GroupBy(s => s.CreatedAt.Month)
+                .Select(g => new { Month = g.Key, Total = g.Sum(s => (decimal?)s.TotalPrice) ?? 0 })
+                .ToDictionary(x => x.Month, x => x.Total);
+
+            var feeByMonth = tripsInPeriod
+                .GroupBy(t => t.StartTime.Month)
+                .Select(g => new { Month = g.Key, Total = g.Sum(t => (decimal?)t.PlatformFee) ?? 0 })
+                .ToDictionary(x => x.Month, x => x.Total);
+
+            // Tạo danh sách Labels và Dữ liệu chỉ tương ứng với các tháng được chọn
+            int monthCount = endM - startM + 1;
+            var labels = new string[monthCount];
+            var gmvData = new decimal[monthCount];
+            var feeData = new decimal[monthCount];
+
+            for (int i = 0; i < monthCount; i++)
+            {
+                int currentM = startM + i;
+                labels[i] = "Tháng " + currentM;
+                gmvData[i] = gmvByMonth.ContainsKey(currentM) ? gmvByMonth[currentM] : 0;
+                feeData[i] = feeByMonth.ContainsKey(currentM) ? feeByMonth[currentM] : 0;
+            }
+
+            ViewBag.CurrentYear = year;
+            ViewBag.StartMonth = startM;
+            ViewBag.EndMonth = endM;
+            ViewBag.ChartLabels = System.Text.Json.JsonSerializer.Serialize(labels);
+            ViewBag.GmvData = System.Text.Json.JsonSerializer.Serialize(gmvData);
+            ViewBag.FeeData = System.Text.Json.JsonSerializer.Serialize(feeData);
+
+            return View();
+        }
+
         // GET: Quản lý danh sách User (có kèm tìm kiếm)
-        public IActionResult Index(string searchPhone)
+        public IActionResult ManageUsers(string searchPhone)
         {
             var query = _context.Users.AsQueryable();
 
@@ -43,7 +119,7 @@ namespace TimChuyenDi.Controllers
             if (userId == 1)
             {
                 TempData["ErrorMessage"] = "Không thể khoá tài khoản Admin tối cao!";
-                return RedirectToAction("Index");
+                return RedirectToAction("ManageUsers");
             }
 
             var user = _context.Users.Find(userId);
@@ -69,7 +145,7 @@ namespace TimChuyenDi.Controllers
                 _context.SaveChanges();
             }
 
-            return RedirectToAction("Index");
+            return RedirectToAction("ManageUsers");
         }
 
         // GET: Quản lý toàn bộ chuyến xe
