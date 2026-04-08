@@ -13,12 +13,12 @@
                 <thead class="table-light">
                     <tr>
                         <th>Khách hàng</th>
+                        <th>Ngày đặt</th>
                         <th>Tuyến đường</th>
                         <th>Khối lượng</th>
                         <th>Cước phí</th>
                         <th>Trạng thái</th>
                         <th>Thao tác</th>
-                        <th></th>
                     </tr>
                 </thead>
                 <tbody>
@@ -33,8 +33,13 @@
                                 <strong>@item.User.Name</strong><br />
                                 <small class="text-muted"><i class="bi bi-telephone"></i> @item.User.Phone</small>
                             </td>
+                            <td class="small">
+                                @item.CreatedAt.ToString("dd/MM/yyyy")<br />
+                                @item.CreatedAt.ToString("HH:mm")
+                            </td>
                             <td>
                                 @(item.Trip?.FromStationNavigation?.Province?.ProvinceName ?? "Không rõ") <i class="bi bi-arrow-right"></i> @(item.Trip?.ToStationNavigation?.Province?.ProvinceName ?? "Không rõ")<br />
+                                <small class="text-dark d-block">Mã Chuyến: #CX-@item.TripId</small>
                                 <small class="text-primary">Khởi hành: @item.Trip?.StartTime.ToString("dd/MM/yyyy HH:mm")</small>
                             </td>
                             <td class="text-danger fw-bold">@(item.Cargodetails.FirstOrDefault()?.Weight ?? 0) kg</td>
@@ -46,55 +51,52 @@
                                 }
                                 else if (item.Status == 1)
                                 {
-
                                     <span class="badge bg-success">Đã xác nhận</span>
                                 }
                                 else if (item.Status == 2)
                                 {
-
                                     <span class="badge bg-danger">Đã từ chối</span>
-                                }
-                            </td>
-                            <td>
-                                @if (item.Status == 0)
-                                {
-                                    <form asp-action="UpdateRequestStatus" method="post" class="d-inline">
-                                        <input type="hidden" name="reqId" value="@item.Id" />
-                                        <input type="hidden" name="status" value="1" />
-                                        <button type="submit" class="btn btn-sm btn-success mb-1">Nhận đơn</button>
-                                    </form>
-                                    <form asp-action="UpdateRequestStatus" method="post" class="d-inline">
-                                        <input type="hidden" name="reqId" value="@item.Id" />
-                                        <input type="hidden" name="status" value="2" />
-                                        <button type="submit" class="btn btn-sm btn-outline-danger mb-1">Từ chối</button>
-                                    </form>
-                                }
-                                else if (item.Status == 1)
-                                {
-                                    <form asp-action="UpdateRequestStatus" method="post" class="d-inline">
-                                        <input type="hidden" name="reqId" value="@item.Id" />
-                                        <input type="hidden" name="status" value="3" />
-                                        <button type="submit" class="btn btn-sm btn-info text-dark mb-1">Bắt đầu giao</button>
-                                    </form>
                                 }
                                 else if (item.Status == 3)
                                 {
-                                    <form asp-action="UpdateRequestStatus" method="post" class="d-inline">
-                                        <input type="hidden" name="reqId" value="@item.Id" />
-                                        <input type="hidden" name="status" value="4" />
-                                        <button type="submit" class="btn btn-sm btn-primary mb-1">Hoàn thành</button>
-                                    </form>
+                                    <span class="badge bg-info text-dark">Đang giao</span>
+                                }
+                                else if (item.Status == 4)
+                                {
+                                    <span class="badge bg-secondary">Hoàn thành</span>
                                 }
                                 else
                                 {
-                                    <span class="text-muted small">Đã xử lý xong</span>
+                                    <span class="badge bg-danger">Đã hủy</span>
                                 }
                             </td>
-
                             <td>
-                                <a asp-action="RequestDetail" asp-controller="Driver" asp-route-id="@item.Id" class="btn btn-outline-primary btn-sm mt-1">
-                                    <i class="bi bi-eye"></i> Xem chi tiết
-                                </a>
+                                <div class="d-flex flex-wrap gap-2">
+                                    @if (item.Status == 0)
+                                    {
+                                        <form asp-action="UpdateRequestStatus" method="post" class="d-inline">
+                                            <input type="hidden" name="reqId" value="@item.Id" />
+                                            <input type="hidden" name="status" value="1" />
+                                            <button type="submit" class="btn btn-sm btn-success">Nhận đơn</button>
+                                        </form>
+                                        <form asp-action="UpdateRequestStatus" method="post" class="d-inline">
+                                            <input type="hidden" name="reqId" value="@item.Id" />
+                                            <input type="hidden" name="status" value="2" />
+                                            <button type="submit" class="btn btn-sm btn-outline-danger">Từ chối</button>
+                                        </form>
+                                    }
+
+                                    <a asp-action="RequestDetail" asp-controller="Driver" asp-route-id="@item.Id" class="btn btn-outline-primary btn-sm">
+                                        <i class="bi bi-eye"></i> Chi tiết
+                                    </a>
+
+                                    @if (item.Status == 1 || item.Status == 3 || item.Status == 4)
+                                    {
+                                        <a asp-action="ChatByRequest" asp-controller="GroupChat" asp-route-requestId="@item.Id" class="btn btn-primary btn-sm">
+                                            <i class="bi bi-chat-text"></i> Chat
+                                        </a>
+                                    }
+                                </div>
                             </td>
 
                         </tr>

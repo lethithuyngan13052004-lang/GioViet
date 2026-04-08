@@ -46,6 +46,9 @@
 
 
 
+                <small class="text-muted d-block mb-1">
+                    <i class="bi bi-clock-history me-1"></i> Ngày tạo đơn: @Model.CreatedAt.ToString("dd/MM/yyyy HH:mm")
+                </small>
                 <small class="text-muted">
                     Thời gian lấy hàng: @Model.PickupTimeFrom.ToString("dd/MM/yyyy") @(Model.PickupTimeTo.HasValue ? " - " + Model.PickupTimeTo.Value.ToString("dd/MM/yyyy") : "")
                 </small>
@@ -115,7 +118,11 @@
                             <span class="fw-bold text-danger fs-5">@(Model.Cargodetails.FirstOrDefault()?.Weight) kg</span>
                         </li>
                         <li class="list-group-item bg-transparent px-0 d-flex justify-content-between">
-                            <span class="text-muted">Thuộc chuyến xe:</span>
+                            <span class="text-muted">Mã chuyến xe:</span>
+                            <span class="fw-bold text-primary">#CX-@Model.TripId</span>
+                        </li>
+                        <li class="list-group-item bg-transparent px-0 d-flex justify-content-between">
+                            <span class="text-muted">Biển số phương tiện:</span>
                             <span class="fw-bold text-dark">@Model.Trip.Vehicle.PlateNumber</span>
                         </li>
                     </ul>
@@ -136,18 +143,6 @@
                                 </button>
                                 <button type="submit" name="status" value="2" class="btn btn-outline-danger shadow-sm mt-2" onclick="return confirm('Bạn chắc chắn muốn từ chối đơn này?');">
                                     Từ chối đơn
-                                </button>
-                            }
-                            else if (Model.Status == 1) // Đã xác nhận -> Cho phép bắt đầu giao
-                            {
-                                <button type="submit" name="status" value="3" class="btn btn-primary btn-lg fw-bold shadow-sm">
-                                    <i class="bi bi-truck me-1"></i> Bắt đầu đi giao hàng
-                                </button>
-                            }
-                            else if (Model.Status == 3) // Đang giao -> Cho phép chốt hoàn thành
-                            {
-                                <button type="submit" name="status" value="4" class="btn btn-success btn-lg fw-bold shadow-sm" onclick="return confirm('Xác nhận đã giao hàng thành công và thu tiền?');">
-                                    <i class="bi bi-check2-all me-1"></i> Đã giao thành công
                                 </button>
                             }
                         </form>

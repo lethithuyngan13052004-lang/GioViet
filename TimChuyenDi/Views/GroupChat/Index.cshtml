@@ -1,0 +1,143 @@
+@model TimChuyenDi.Models.Chatsession
+@{
+    ViewData["Title"] = "Phòng Chat Đơn hàng #" + Model.ReqId;
+    var currentUserId = (int)ViewBag.CurrentUserId;
+}
+
+<div class="container mt-4 mb-5">
+    <div class="card shadow-lg border-0 rounded-4 overflow-hidden" style="height: 80vh;">
+        <!-- Header -->
+        <div class="card-header bg-primary text-white p-3 d-flex justify-content-between align-items-center">
+            <div class="d-flex align-items-center">
+                <div class="avatar-circle me-3">
+                    <i class="bi bi-chat-dots-fill fs-4"></i>
+                </div>
+                <div>
+                    <h5 class="mb-0 fw-bold">Nhóm Chat Đơn #@Model.ReqId</h5>
+                    <small class="opacity-75">Tài xế: @Model.Driver.Name | Khách: @Model.Customer.Name</small>
+                </div>
+            </div>
+            <a href="javascript:history.back()" class="btn btn-outline-light btn-sm rounded-pill px-3">
+                <i class="bi bi-arrow-left"></i> Quay lại
+            </a>
+        </div>
+
+        <!-- Chat Body -->
+        <div class="card-body p-0 d-flex flex-column bg-light">
+            <div id="chatMessages" class="flex-grow-1 p-3 overflow-auto d-flex flex-column">
+                <!-- Messages will be loaded here -->
+                <div class="text-center my-5 text-muted">
+                    <div class="spinner-border spinner-border-sm" role="status"></div>
+                    <span class="ms-2">Đang tải lịch sử trò chuyện...</span>
+                </div>
+            </div>
+
+            <!-- Input Area -->
+            <div class="p-3 bg-white border-top">
+                <form id="chatForm" class="d-flex gap-2">
+                    <input type="text" id="userInput" class="form-control rounded-pill px-4 border-2 shadow-none" 
+                           placeholder="Nhập tin nhắn của bạn..." autocomplete="off">
+                    <button type="submit" id="sendButton" class="btn btn-primary rounded-circle shadow-sm" style="width: 48px; height: 48px;">
+                        <i class="bi bi-send-fill"></i>
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .avatar-circle { width: 40px; height: 40px; background: rgba(255,255,255,0.2); border-radius: 50%; display: flex; align-items: center; justify-content: center; }
+    
+    #chatMessages::-webkit-scrollbar { width: 6px; }
+    #chatMessages::-webkit-scrollbar-thumb { background: #cbd5e0; border-radius: 10px; }
+    
+    .msg-bubble { max-width: 75%; padding: 12px 16px; border-radius: 20px; margin-bottom: 15px; position: relative; animation: fadeIn 0.3s ease; }
+    .msg-bot { align-self: center; background: #edf2ff; color: #4c6ef5; border: 1px solid #d0ebff; font-style: italic; border-radius: 12px; margin: 10px 0; max-width: 90%; text-align: center; font-size: 0.9rem; }
+    .msg-self { align-self: flex-end; background: #007bff; color: white; border-bottom-right-radius: 4px; }
+    .msg-other { align-self: flex-start; background: white; color: #2d3748; border-bottom-left-radius: 4px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); }
+    
+    .msg-info { font-size: 0.7rem; margin-bottom: 4px; display: block; font-weight: 600; text-transform: uppercase; }
+    .msg-time { font-size: 0.65rem; margin-top: 4px; display: block; opacity: 0.7; text-align: right; }
+    
+    @@keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+</style>
+
+@section Scripts {
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/7.0.0/signalr.min.js"></script>
+    <script>
+        const sessionId = "@Model.SessionId";
+        const currentUserId = "@currentUserId";
+        const chatMessages = document.getElementById("chatMessages");
+        const chatForm = document.getElementById("chatForm");
+        const userInput = document.getElementById("userInput");
+
+        // --- 1. SignalR Connection ---
+        const connection = new signalR.HubConnectionBuilder()
+            .withUrl("/chatHub")
+            .withAutomaticReconnect()
+            .build();
+
+        connection.on("ReceiveMessage", function (senderId, message, role, time, name) {
+            appendMessage(senderId, message, role, time, name);
+        });
+
+        connection.start().then(() => {
+            console.log("SignalR Connected.");
+            connection.invoke("JoinChat", sessionId);
+            loadHistory();
+        }).catch(err => console.error(err));
+
+        // --- 2. Load History ---
+        async function loadHistory() {
+            const resp = await fetch(`/GroupChat/GetHistory/${sessionId}`);
+            const messages = await resp.json();
+            chatMessages.innerHTML = "";
+            messages.forEach(m => {
+                appendMessage(m.senderId, m.message, m.senderRole, m.createdAt, m.senderName);
+            });
+            scrollToBottom();
+        }
+
+        // --- 3. Append Message ---
+        function appendMessage(senderId, message, role, time, name) {
+            const div = document.createElement("div");
+            div.className = "msg-bubble";
+
+            if (role === "bot") {
+                div.className += " msg-bot";
+                div.innerHTML = `<i class="bi bi-robot me-2"></i><b>Trợ Gió:</b> ${message}`;
+            } else {
+                const isSelf = senderId.toString() === currentUserId;
+                div.className += isSelf ? " msg-self" : " msg-other";
+                
+                div.innerHTML = `
+                    <span class="msg-info">${isSelf ? "Bạn" : name} (${role})</span>
+                    <div class="msg-text">${message}</div>
+                    <span class="msg-time">${time}</span>
+                `;
+            }
+
+            chatMessages.appendChild(div);
+            scrollToBottom();
+        }
+
+        function scrollToBottom() {
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
+
+        // --- 4. Form Submit ---
+        chatForm.onsubmit = async (e) => {
+            e.preventDefault();
+            const msg = userInput.value.trim();
+            if (!msg) return;
+
+            userInput.value = "";
+            const response = await fetch("/GroupChat/SendMessage", {
+                method: "POST",
+                headers: { "Content-Type": "application/x-www-form-urlencoded" },
+                body: `sessionId=${sessionId}&message=${encodeURIComponent(msg)}`
+            });
+        };
+    </script>
+}

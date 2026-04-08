@@ -134,7 +134,8 @@ namespace TimChuyenDi.Controllers
                 Status = 0,
                 Note = Note,
                 PickupTimeFrom = DateTime.Now,
-                PickupTimeTo = ExpectedDeliveryDate ?? trip.ArrivalTime
+                PickupTimeTo = ExpectedDeliveryDate ?? trip.ArrivalTime,
+                CreatedAt = DateTime.Now
             };
 
             _context.Shiprequests.Add(request);
@@ -233,7 +234,8 @@ namespace TimChuyenDi.Controllers
                 Status = 0,
                 Note = Note,
                 PickupTimeFrom = DateTime.Now,
-                PickupTimeTo = ExpectedDeliveryDate
+                PickupTimeTo = ExpectedDeliveryDate,
+                CreatedAt = DateTime.Now
             };
 
             _context.Shiprequests.Add(request);
@@ -574,56 +576,90 @@ namespace TimChuyenDi.Controllers
 
         [HttpGet]
         public IActionResult GetStations(int provinceId)
-
         {
             var stations = _context.Stations
                 .Where(s => s.ProvinceId == provinceId)
                 .Select(s => new { 
                     s.StationId, 
-                    s.StationName,
-                    s.Address,
-                    s.Latitude,
-                    s.Longitude
-                })
-                .ToList();
+                    s.StationName
+                }).ToList();
             return Json(stations);
         }
 
-        // ==========================================
-        // 11. XÁC NHẬN TẠO ĐƠN TỪ CHATBOT (AI)
-        // ==========================================
         [HttpGet]
         public async Task<IActionResult> ConfirmChatOrder(int fromId, int toId, decimal weight, string desc, string phone, 
-            int pType = 2, int dType = 2, string pAddr = "", string dAddr = "", int cType = 0)
+            int pType = 2, int dType = 2, string pAddr = "", string dAddr = "", int cType = 0, int? tripId = null,
+            decimal l = 10, decimal w = 10, decimal h = 10)
         {
             var userIdStr = User.FindFirstValue("UserId") ?? User.FindFirstValue(ClaimTypes.NameIdentifier);
             if (string.IsNullOrEmpty(userIdStr)) return RedirectToAction("Login", "Auth");
             int customerId = int.Parse(userIdStr);
 
-            // 1. Tạo ShipRequest
+            // 1. Tìm chuyến xe (nếu có)
+            Trip trip = null;
+            if (tripId.HasValue && tripId.Value > 0)
+            {
+                trip = _context.Trips
+                    .Include(t => t.Vehicle)
+                    .Include(t => t.RouteTypeNavigation)
+                    .Include(t => t.FromStationNavigation)
+                    .Include(t => t.ToStationNavigation)
+                    .FirstOrDefault(t => t.TripId == tripId.Value);
+            }
+
+            // 2. Tính toán giá (nếu có chuyến)
+            decimal totalPrice = 0;
+            if (trip != null)
+            {
+                var vwFactorConfig = _context.SystemConfigs.FirstOrDefault(c => c.KeyName == "VolumeToWeightFactor");
+                decimal vwFactor = vwFactorConfig?.Value ?? 250;
+
+                var minPriceConfig = _context.SystemConfigs.FirstOrDefault(c => c.KeyName == "MinPrice");
+                decimal minPrice = minPriceConfig?.Value ?? 0;
+
+                // Sử dụng kích thước được truyền từ Chat
+                decimal volume = (l * w * h) / 1000000m;
+                decimal chargeableWeight = Math.Max(weight, volume * vwFactor);
+                decimal capacityKg = trip.Vehicle?.CapacityKg ?? 1;
+
+                decimal basePrice = trip.BasePrice * (chargeableWeight / capacityKg);
+                decimal tripTypeMultiplier = trip.RouteTypeNavigation?.Multiplier ?? 1;
+                
+                decimal priceAfterCargo = basePrice * tripTypeMultiplier;
+                totalPrice = Math.Max(priceAfterCargo, minPrice);
+            }
+
+            // 3. Tạo ShipRequest
             var request = new Shiprequest
             {
                 UserId = customerId,
-                Status = 0, // Chờ xe
-                Note = "Đã tạo qua Trợ lý AI",
+                TripId = trip?.TripId,
+                Status = 0, // Chờ xác nhận
+                Note = "Đơn hàng tạo từ Trợ lý AI Gió Việt",
                 PickupTimeFrom = DateTime.Now,
-                PickupTimeTo = DateTime.Now.AddDays(3), // Mặc định 3 ngày
-                TotalPrice = 0 // Sẽ tính sau khi tài xế báo giá hoặc ghép chuyến
+                PickupTimeTo = trip?.ArrivalTime ?? DateTime.Now.AddDays(3),
+                TotalPrice = totalPrice,
+                OrderCode = "TC" + DateTime.Now.Ticks.ToString().Substring(10), 
+                CreatedAt = DateTime.Now
             };
+
             _context.Shiprequests.Add(request);
             await _context.SaveChangesAsync();
+            request.OrderCode = "TC" + request.Id; // Cập nhật mã chuẩn
 
-            // 2. Tạo Cargo Detail
+            // 4. Lưu Hàng hóa (Cargodetail)
             var cargo = new Cargodetail
             {
                 RequestId = request.Id,
-                Description = desc ?? "Hàng hóa từ Chatbot",
-                Weight = weight > 0 ? weight : 1,
-                Length = 10, Width = 10, Height = 10 // Mặc định nhỏ
+                Weight = weight,
+                Length = l,
+                Width = w,
+                Height = h,
+                Description = desc ?? "Hàng hóa từ Chatbot"
             };
             _context.Cargodetails.Add(cargo);
 
-            // 3. Tạo Shipping Route
+            // 5. Tạo Shipping Route
             var route = new Shippingroute
             {
                 RequestId = request.Id,
@@ -638,28 +674,41 @@ namespace TimChuyenDi.Controllers
                 ReceiverPhone = phone ?? ""
             };
 
-            // Tự động tìm trạm đầu tiên của tỉnh nếu đi tại bến
-            if (pType == 2 && fromId > 0)
+            // Ưu tiên Trạm của Chuyến đi nếu có
+            if (trip != null)
             {
-                var st = _context.Stations.FirstOrDefault(s => s.ProvinceId == fromId);
-                if (st != null) {
-                    route.FromStationId = st.StationId;
-                    if (string.IsNullOrEmpty(pAddr)) route.PickupAddress = st.StationName;
-                }
+                route.FromStationId = trip.FromStation;
+                route.ToStationId = trip.ToStation;
+                if (string.IsNullOrEmpty(pAddr)) route.PickupAddress = trip.FromStationNavigation?.StationName;
+                if (string.IsNullOrEmpty(dAddr)) route.DeliveryAddress = trip.ToStationNavigation?.StationName;
             }
-            if (dType == 2 && toId > 0)
+            else
             {
-                var st = _context.Stations.FirstOrDefault(s => s.ProvinceId == toId);
-                if (st != null) {
-                    route.ToStationId = st.StationId;
-                    if (string.IsNullOrEmpty(dAddr)) route.DeliveryAddress = st.StationName;
+                if (pType == 2 && fromId > 0)
+                {
+                    var st = _context.Stations.FirstOrDefault(s => s.ProvinceId == fromId);
+                    if (st != null) {
+                        route.FromStationId = st.StationId;
+                        if (string.IsNullOrEmpty(pAddr)) route.PickupAddress = st.StationName;
+                    }
+                }
+                if (dType == 2 && toId > 0)
+                {
+                    var st = _context.Stations.FirstOrDefault(s => s.ProvinceId == toId);
+                    if (st != null) {
+                        route.ToStationId = st.StationId;
+                        if (string.IsNullOrEmpty(dAddr)) route.DeliveryAddress = st.StationName;
+                    }
                 }
             }
 
             _context.Shippingroutes.Add(route);
             await _context.SaveChangesAsync();
 
-            TempData["SuccessMessage"] = "Đơn hàng của bạn đã được tạo thành công qua Trợ lý Gió Việt!";
+            TempData["SuccessMessage"] = trip != null 
+                ? $"Đơn hàng của bạn đã được ghép vào chuyến #{trip.TripId} thành công!" 
+                : "Đơn hàng của bạn đã được tạo và đang chờ tài xế phù hợp xác nhận!";
+            
             return RedirectToAction("RequestHistory");
         }
     }

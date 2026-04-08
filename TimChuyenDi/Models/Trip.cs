@@ -10,6 +10,7 @@ public partial class Trip
     public int DriverId { get; set; }
 
     public int VehicleId { get; set; }
+    public int Status { get; set; }
 
     /// <summary>
     /// 1: Direct, 2: Multi-stop
@@ -21,7 +22,7 @@ public partial class Trip
     public int ToStation { get; set; }
 
     public DateTime StartTime { get; set; }
-
+    public DateTime? EstArrivalTime { get; set; }
     public DateTime? ArrivalTime { get; set; }
 
     public int AvaiCapacityKg { get; set; }

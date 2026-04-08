@@ -25,6 +25,8 @@ public partial class Shiprequest
     public DateTime PickupTimeFrom { get; set; }
     public DateTime? PickupTimeTo { get; set; }
 
+    public DateTime CreatedAt { get; set; }
+
     public virtual Chatsession? Chatsession { get; set; }
 
 

@@ -13,18 +13,17 @@ namespace TimChuyenDi.Controllers
 {
     public class ChatController : Controller
     {
-        private readonly GeminiService _geminiService;
+        private readonly OpenAIService _openAIService;
         private readonly TimchuyendiContext _context;
+        private readonly BehaviorService _behaviorService;
+        private readonly RoutingService _routingService;
 
-        public ChatController(GeminiService geminiService, TimchuyendiContext context)
+        public ChatController(OpenAIService openAIService, TimchuyendiContext context, BehaviorService behaviorService, RoutingService routingService)
         {
-            _geminiService = geminiService;
+            _openAIService = openAIService;
             _context = context;
-        }
-
-        public IActionResult Index()
-        {
-            return View();
+            _behaviorService = behaviorService;
+            _routingService = routingService;
         }
 
         [HttpPost]
@@ -42,16 +41,25 @@ namespace TimChuyenDi.Controllers
                 string contextInfo = "";
                 string aiInstruction = "";
                 string currentTime = DateTime.Now.ToString("dd/MM/yyyy HH:mm");
+                var userDisplayName = User.FindFirstValue("FullName") ?? User.Identity.Name ?? "Quý khách";
+                string roleName = roleClaim switch { "1" => "Quản trị viên", "3" => "Tài xế", _ => "Khách hàng" };
+                
                 bool isFirstMessage = string.IsNullOrWhiteSpace(history);
+                
+                // --- 1. Lấy dữ liệu danh mục & Cấu hình ---
+                var minPriceConfig = await _context.SystemConfigs.FirstOrDefaultAsync(c => c.KeyName == "MinPrice");
+                decimal minPrice = minPriceConfig?.Value ?? 0;
+                var vwfConfig = await _context.SystemConfigs.FirstOrDefaultAsync(c => c.KeyName == "VolumeToWeightFactor");
+                decimal vwf = vwfConfig?.Value ?? 250;
 
-                // --- 1. Lấy dữ liệu danh mục để AI map ID (Dùng cho tạo đơn) ---
                 var allProvinces = _context.Provinces.Select(p => new { p.ProvinceId, p.ProvinceName }).ToList();
-                var allCargoTypes = _context.Cargotypes.Select(c => new { c.CargoTypeId, c.TypeName }).ToList();
+                var allCargoTypes = _context.Cargotypes.Select(c => new { c.CargoTypeId, c.TypeName, c.PriceMultiplier }).ToList();
+                
                 string provinceListText = string.Join(", ", allProvinces.Select(p => $"{p.ProvinceName}(ID:{p.ProvinceId})"));
-                string cargoTypeListText = string.Join(", ", allCargoTypes.Select(c => $"{c.TypeName}(ID:{c.CargoTypeId})"));
+                string cargoTypeListText = string.Join(", ", allCargoTypes.Select(c => $"{c.TypeName}(ID:{c.CargoTypeId}, Hệ số x{c.PriceMultiplier})"));
 
-                // --- 1. Tận dụng Normalization (Của cả Guest & User) ---
-                var uMsg = userMessage.ToLower();
+                var searchMsg = (history + " " + userMessage).ToLower();
+                var uMsg = searchMsg; 
                 uMsg = Regex.Replace(uMsg, @"\bhn\b", "hà nội");
                 uMsg = Regex.Replace(uMsg, @"\bhcm\b", "hồ chí minh");
                 uMsg = Regex.Replace(uMsg, @"\bsg\b", "hồ chí minh");
@@ -64,35 +72,62 @@ namespace TimChuyenDi.Controllers
 
                 if (int.TryParse(userIdClaim, out int userId))
                 {
-                    // ================= ADMIN =================
-                    if (roleClaim == "1")
+                    if (roleClaim == "1") // Admin
                     {
+                        var sysConfigs = _context.SystemConfigs.ToList();
                         int pendingVehicles = _context.Vehicles.Count(v => v.Status == 0);
-                        int totalUsers = _context.Users.Count();
-                        int adminCount = _context.Users.Count(u => u.Role == 1);
-                        int customerCount = _context.Users.Count(u => u.Role == 2);
-                        int driverCount = _context.Users.Count(u => u.Role == 3);
                         int activeTrips = _context.Trips.Count(t => t.StartTime > DateTime.Now);
                         int totalOrders = _context.Shiprequests.Count();
 
+                        var allVehicleTypes = _context.VehicleTypes.Select(v => new { v.VehicleTypeId, v.TypeName, v.Description }).ToList();
+                        var allTripTypes = _context.TripTypes.Select(t => new { t.IdType, t.Type, t.Multiplier }).ToList();
+
                         contextInfo = $@"
 THỐNG KÊ HỆ THỐNG (Báo cáo lúc {currentTime}):
-- Tổng người dùng: {totalUsers} (Admin: {adminCount}, Khách: {customerCount}, Tài xế: {driverCount})
 - Tổng đơn hàng: {totalOrders}
 - Chuyến đang chạy: {activeTrips}
 - Xe chờ duyệt: {pendingVehicles}
-";
 
-                        aiInstruction = @"
-Bạn là TRỢ LÝ QUẢN TRỊ VIÊN Gió Việt. 
-- Bạn có quyền truy cập vào các con số thống kê vận hành. 
-- Hãy báo cáo ngắn gọn, chuyên nghiệp. 
-- Luôn nhắc nhở Admin xử lý các phương tiện đang chờ duyệt (nếu có).
+DANH SÁCH CẤU HÌNH HỆ THỐNG HIỆN TẠI:
+";
+                        foreach(var c in sysConfigs) {
+                            contextInfo += $"- {c.KeyName}: {c.Value}\n";
+                        }
+
+                        contextInfo += "\nDANH SÁCH LOẠI HÀNG (CargoTypes):\n";
+                        foreach(var ct in allCargoTypes) {
+                            contextInfo += $"- {ct.TypeName} (ID: {ct.CargoTypeId}): Hệ số {ct.PriceMultiplier}\n";
+                        }
+
+                        contextInfo += "\nDANH SÁCH LOẠI XE (VehicleTypes):\n";
+                        foreach(var vt in allVehicleTypes) {
+                            contextInfo += $"- {vt.TypeName} (ID: {vt.VehicleTypeId}): {vt.Description}\n";
+                        }
+
+                        contextInfo += "\nDANH SÁCH LOẠI HÌNH VẬN CHUYỂN (TripTypes):\n";
+                        foreach(var tt in allTripTypes) {
+                            contextInfo += $"- {tt.Type} (ID: {tt.IdType}): Hệ số {tt.Multiplier}\n";
+                        }
+
+                        aiInstruction = $@"
+Bạn là TRỢ LÝ QUẢN TRỊ VIÊN Gió Việt.
+Nhiệm vụ 1: Báo cáo vận hành: Sử dụng các con số thống kê ở trên để nhấc nhở Admin (ví dụ: duyệt xe).
+Nhiệm vụ 2: Quản lý cấu hình & Danh mục: 
+- Bạn được phép hỗ trợ Admin sửa đổi các thông số hệ thống.
+- Nếu Admin muốn thay đổi một cấu hình hệ thống (ví dụ: 'Đổi giá tối thiểu thành 400k'), hãy dùng:
+  CONFIRM_CONFIG_LINK[key=[KEY]&val=[VALUE]]
+- Nếu Admin muốn thêm/sửa Loại hàng (ví dụ: 'Thêm loại hàng hải sản hệ số 1.5'), hãy dùng:
+  CONFIRM_CARGO_LINK[id=[ID_HOẶC_0]&name=[TÊN]&multi=[HỆ_SỐ]]
+- Nếu Admin muốn thêm/sửa Loại xe (ví dụ: 'Sửa loại xe tải nhỏ thành xe tải vừa'), hãy dùng:
+  CONFIRM_VEHICLE_LINK[id=[ID_HOẶC_0]&name=[TÊN]&desc=[MÔ_TẢ]]
+- Nếu Admin muốn thêm/sửa Loại hình vận chuyển (ví dụ: 'Chỉnh hệ số ghép hàng lên 0.9'), hãy dùng:
+  CONFIRM_TRIPTYPE_LINK[id=[ID_HOẶC_0]&type=[TÊN]&multi=[HỆ_SỐ]]
+- Nếu là THÊM MỚI, đặt id=0. Nếu là SỬA, hãy dùng đúng ID từ danh sách được cung cấp.
+
+Lưu ý: Bạn là trợ lý cấp cao, KHÔNG bảo Admin gọi hotline. Nếu không rõ yêu cầu, hãy hỏi lại chi tiết từ Admin.
 ";
                     }
-
-                    // ================= DRIVER =================
-                    else if (roleClaim == "3")
+                    else if (roleClaim == "3") // Driver
                     {
                         var driverTrips = _context.Trips
                             .Include(t => t.FromStationNavigation).ThenInclude(s => s.Province)
@@ -107,29 +142,106 @@ Bạn là TRỢ LÝ QUẢN TRỊ VIÊN Gió Việt.
                              .Where(v => v.DriverId == userId)
                              .ToList();
 
-                        contextInfo = $"THÔNG TIN TÀI XẾ (Thời gian: {currentTime}):\n";
-                        contextInfo += "PHƯƠNG TIỆN CỦA BẠN:\n";
-                        foreach(var v in myVehicles) {
-                            contextInfo += $"- {v.VehicleType.TypeName} | Biển: {v.PlateNumber} | Trạng thái: {(v.Status == 1 ? "Đã duyệt" : "Chờ duyệt")}\n";
+                        var tripTypes = _context.TripTypes.ToList();
+                        string tripTypesText = string.Join(", ", tripTypes.Select(tt => $"{tt.Type}(ID:{tt.IdType})"));
+
+                        // 🔍 SMART STATION DETECTION & GEOCODING
+                        Station? nearestStation = null;
+                        List<Station> suggestedStations = new List<Station>();
+                        
+                        // 1. Trộn lat/lng từ tham số (GPS) hoặc thử Geocode địa chỉ trong tin nhắn
+                        double? targetLat = (double?)lat;
+                        double? targetLng = (double?)lng;
+                        string? geocodedName = null;
+
+                        if (!targetLat.HasValue && userMessage.Length > 5)
+                        {
+                            // Thử geocode nếu tin nhắn dài và có từ khóa địa điểm hoặc tên tỉnh/thành phố
+                            bool looksLikeAddress = userMessage.ToLower().Contains("tại") || 
+                                                  userMessage.ToLower().Contains("ở") || 
+                                                  userMessage.ToLower().Contains("địa chỉ") ||
+                                                  allProvinces.Any(p => userMessage.ToLower().Contains(p.ProvinceName.ToLower()));
+
+                            if (looksLikeAddress)
+                            {
+                                var geoTask = await _routingService.GeocodeAsync(userMessage);
+                                targetLat = geoTask.lat;
+                                targetLng = geoTask.lng;
+                                geocodedName = geoTask.displayName;
+                            }
                         }
 
-                        contextInfo += "\nCÁC CHUYẾN XE GẦN ĐÂY/SẮP TỚI:\n";
+                        // 2. Nếu có tọa độ, tìm trạm gần nhất
+                        if (targetLat.HasValue && targetLng.HasValue)
+                        {
+                            var allStations = _context.Stations.Include(s => s.Province).ToList();
+                            nearestStation = allStations
+                                .Where(s => s.Latitude.HasValue && s.Longitude.HasValue)
+                                .OrderBy(s => Math.Pow((double)s.Latitude!.Value - targetLat.Value, 2) + 
+                                              Math.Pow((double)s.Longitude!.Value - targetLng.Value, 2))
+                                .FirstOrDefault();
+                            
+                            if (nearestStation != null) suggestedStations.Add(nearestStation);
+                        }
+
+                        // 3. Fallback: Tìm trạm theo tên/tỉnh/địa chỉ văn bản
+                        var textDetected = _context.Stations
+                            .Include(s => s.Province)
+                            .AsEnumerable()
+                            .Where(s => uMsg.Contains(s.StationName.ToLower()) || 
+                                       uMsg.Contains(s.Province.ProvinceName.ToLower().Replace("tỉnh ", "").Replace("thành phố ", "").Replace("tp ", "").Trim()) ||
+                                       (s.Address != null && uMsg.Contains(s.Address.ToLower())))
+                            .Take(10)
+                            .ToList();
+                        
+                        foreach(var s in textDetected) {
+                            if (!suggestedStations.Any(ex => ex.StationId == s.StationId))
+                                suggestedStations.Add(s);
+                        }
+
+                        contextInfo = $"THÔNG TIN TÀI XẾ (Thời gian: {currentTime}):\n";
+                        contextInfo += "PHƯƠNG TIỆN CỦA BẠN (Đã duyệt mới có thể dùng):\n";
+                        foreach(var v in myVehicles) {
+                            contextInfo += $"- ID:{v.VehicleId} | {v.VehicleType.TypeName} | Biển: {v.PlateNumber} (5 số cuối: {v.PlateNumber.Substring(Math.Max(0, v.PlateNumber.Length - 5))}) | Trạng thái: {(v.Status == 1 ? "Đã duyệt" : "Chờ duyệt")}\n";
+                        }
+
+                        contextInfo += $"\nLOẠI HÌNH VẬN TẢI: {tripTypesText}\n";
+                        
+                        if (suggestedStations.Any()) {
+                            contextInfo += "\nGỢI Ý TRẠM XE PHÙ HỢP:\n";
+                            if (nearestStation != null) {
+                                contextInfo += $"[HỆ THỐNG PHÁT HIỆN]: Trạm gần vị trí của bác tại '{geocodedName ?? "tọa độ này"}' nhất là: {nearestStation.StationName} (Địa chỉ: {nearestStation.Address}). HÃY ƯU TIÊN GỢI Ý TRẠM NÀY.\n";
+                            }
+                            foreach(var s in suggestedStations.Take(15)) {
+                                contextInfo += $"- {s.StationName} | Đ/C: {s.Address} | {s.Province.ProvinceName} | ID:{s.StationId}\n";
+                            }
+                        }
+
+                        contextInfo += "\nCÁC CHUYẾN XE CỦA BẠN GẦN ĐÂY:\n";
                         foreach (var t in driverTrips)
                         {
                             contextInfo += $"- Mã #{t.TripId}: {t.FromStationNavigation.Province.ProvinceName} → {t.ToStationNavigation.Province.ProvinceName} | {t.StartTime:dd/MM HH:mm} | Trống {t.AvaiCapacityKg}kg\n";
                         }
 
+                        aiInstruction = $@"
+Bạn là TRỢ LÝ ĐIỀU PHỐI Gió Việt (Dành cho Tài xế).
 
-                        aiInstruction = @"
-Bạn là TRỢ LÝ ĐIỀU PHỐI (Dành cho Tài xế). 
-- Hãy giúp tài xế quản lý phương tiện và theo dõi chuyến đi.
-- Nếu tài xế hỏi về xe chưa được duyệt, hãy bảo họ kiên nhẫn chờ Admin.
-- Bạn có thể gợi ý họ kiểm tra danh sách 'Tìm đơn hàng' để tìm thêm hàng ghép.
+Nhiệm vụ 1: QUẢN LÝ XE & CHUYẾN ĐI:
+- Giúp tài xế theo dõi các chuyến xe sắp tới.
+
+Nhiệm vụ 2: HỖ TRỢ ĐĂNG CHUYẾN XE MỚI:
+- Bước 1: CHỌN XE: Mặc định chọn xe đã duyệt nếu chỉ có 1 xe.
+- Bước 2: THU THẬP LỘ TRÌNH:
+  + Dựa trên địa chỉ tài xế cung cấp hoặc GPS, hãy tìm trạm gần nhất trong danh sách 'GỢI Ý TRẠM XE PHÙ HỢP'.
+  + TỰ ĐỘNG CHỌN: Nếu hệ thống báo có '[HỆ THỐNG PHÁT HIỆN]' trạm gần nhất, hãy đề xuất trạm đó ngay: 'Theo em thấy trạm [Tên Trạm] ở [Địa chỉ] là gần chỗ bác nhất, bác chọn trạm này luôn nhé?'.
+- Bước 3: LOẠI HÌNH & TRẠM DỪNG: Hỏi 'Chuyến riêng' hay 'Chuyến ghép'. Nếu ghép phải hỏi trạm dừng.
+- Bước 4: THỜI GIAN & GIÁ: Hỏi Giờ khởi hành và Giá.
+- Bước 5: XÁC NHẬN: Hiển thị link CONFIRM_TRIP_LINK đầy đủ.
+
+QUY TẮC: Thân thiện, Ngắn gọn, TỰ ĐỘNG gợi ý trạm dựa trên địa chỉ/vị trí.
 ";
                     }
-
-                    // ================= CUSTOMER =================
-                    else
+                    else // Customer
                     {
                         var myOrders = _context.Shiprequests
                             .Include(r => r.Cargodetails)
@@ -151,7 +263,6 @@ Bạn là TRỢ LÝ ĐIỀU PHỐI (Dành cho Tài xế).
                 }
                 else 
                 {
-                    // Guest user
                     contextInfo = "Hệ thống vận tải Gió Việt chuyên cung cấp dịch vụ gửi hàng liên tỉnh giá rẻ thông qua việc ghép xe.\n";
                     if (isFirstMessage)
                     {
@@ -159,28 +270,56 @@ Bạn là TRỢ LÝ ĐIỀU PHỐI (Dành cho Tài xế).
                     }
                 }
 
+                string gpsHint = (lat.HasValue && lng.HasValue) 
+                    ? "[HỆ THỐNG: Đã có tọa độ GPS của khách, KHÔNG CẦN nhắc khách bấm nút Vị trí nữa.]" 
+                    : "- NHẮC NHỞ GPS: 'Để tìm chuyến chính xác nhất xung quanh bạn, hãy bấm nút **Vị trí [[GEO_ICON]]** (màu xanh ở góc trái khung chat)'.";
+
                 aiInstruction = $@"
 Bạn là Trợ Gió - Trợ lý AI thông minh của Gió Việt.
-Nhiệm vụ 1: TƯ VẤN LỘ TRÌNH: Sử dụng 'CÁC CHUYẾN XE PHÙ HỢP' để trả lời ngay.
-Nhiệm vụ 2: HỖ TRỢ ĐẶT ĐƠN (Gửi hàng):
-- Nếu khách muốn gửi hàng, hãy kiểm tra các thông tin sau trong lịch sử chat:
-  1. Tỉnh đi & Tỉnh đến (Khớp với danh sách Tỉnh: {provinceListText})
-  2. Khối lượng (kg)
-  3. Loại hàng (Khớp với danh sách: {cargoTypeListText})
-  4. SĐT người nhận
-  5. Hình thức: Tại nhà hay Tại bến? (Nếu tại nhà, hãy hỏi ĐỊA CHỈ cụ thể: Số nhà, Tên đường).
-- QUY TẮC: Nếu thiếu thông tin nào, hãy đặt câu hỏi khéo léo để lấy thông tin đó. KHÔNG hỏi tất cả cùng lúc.
-- KẾT THÚC: Khi đã đủ 5 thông tin trên, hãy hiển thị bảng tóm tắt và link: 
-  <a href='/Customer/ConfirmChatOrder?fromId=[ID_TINH_DI]&toId=[ID_TINH_DEN]&weight=[KG]&desc=[TEN_HANG]&phone=[SDT_NHAN]&pType=[1_NHA_2_BEN]&dType=[1_NHA_2_BEN]&pAddr=[DIA_CHI_DI]&dAddr=[DIA_CHI_DEN]' class='btn btn-primary fw-bold mt-2'>[Xác nhận Tạo Đơn]</a>
-  (Thay thế các giá trị trong [] bằng dữ liệu thật thu thập được).
+Người đang trò chuyện với bạn là {roleName} tên: {userDisplayName}. Hãy xưng hô và hỗ trợ cho đúng tư cách của họ.
+{aiInstruction}
 
-LƯU Ý CHUNG:
-- Tuyệt đối không tự chế ra chuyến xe.
-- Link 'Lưu' giúp khách lưu tuyến, link 'Xem' mở chi tiết.
-- Không IN HOA TOÀN BỘ. Dùng in đậm (**) cho thông tin quan trọng.
+QUY TẮC PHONG CÁCH (STYLE GUIDELINES):
+- NGẮN GỌN & TRỰC TIẾP: Tránh lặp lại lời chào hỏi hay câu nệ rườm rà ở mỗi lượt chat.
+- THIẾU GÌ HỎI NẤY: Nếu chỉ thiếu 1-2 thông tin, hãy vào thẳng vấn đề (Ví dụ: 'Chuyến khởi hành vào mấy giờ bác nhỉ?' thay vì chào lại bác tài).
+- TÓM TẮT CHI TIẾT CHỈ KHI XÁC NHẬN: Chỉ liệt kê đầy đủ thông tin khi bạn đã thu thập đủ và chuẩn bị hiển thị link CONFIRM. Còn lại hãy trả lời ngắn gọn nhất có thể.
+
+Nhiệm vụ 1: TƯ VẤN LỘ TRÌNH & HÀNG HÓA:
+- Sử dụng 'HỆ THỐNG TRIP DATA' bên dưới để trả lời khách.
+- ÁNH XẠ HÀNG HÓA TỰ ĐỘNG: Nếu khách nói 'cá', 'thịt', 'hải sản', 'tôm', 'cua', 'tươi sống', 'thực phẩm sống'... hãy tự hiểu là 'Thực phẩm tươi'. Đừng hỏi lại khách nếu đã rõ.
+- ƯU TIÊN & THAY THẾ: 
+  + Nếu là 'Thực phẩm tươi', ƯU TIÊN gợi ý chuyến có 'Xe đông lạnh'.
+  + Nếu KHÔNG có xe đông lạnh, hãy VẪN gợi ý các chuyến xe thường cùng tuyến (nếu có) kèm theo CẢNH BÁO BẢO QUẢN.
+- CẢNH BÁO BẢO QUẢN: 'Lưu ý: Chuyến này không có xe đông lạnh, bạn cần tự chuẩn bị cách bảo quản (đá khô, thùng xốp) kỹ càng nhé. Tài xế chỉ nhận hàng và chở đi thôi ạ'.
+- CẤM GỢI Ý RA TRẠM: Tuyệt đối KHÔNG bảo khách 'mang hàng ra trạm để tìm chuyến' hoặc 'mang ra trạm chờ'. Chỉ tư vấn chuyến có sẵn hoặc tạo đơn chờ.
+- CẤU TRÚC PHẢN HỒI: Liệt kê các chuyến bằng gạch đầu dòng, in đậm Mã chuyến, Lộ trình, Thời gian. 
+
+Nhiệm vụ 2: LUÔN HỎI CÂN NẶNG & KÍCH THƯỚC:
+- Bạn CẦN BIẾT cân nặng (kg) và kích thước (Dài x Rộng x Cao cm) để tính giá chính xác theo khối lượng quy đổi (Max Weight vs Volume).
+- Nếu khách chưa cung cấp, hãy hỏi: 'Bạn cho mình xin **cân nặng (kg)** và **kích thước (Dài x Rộng x Cao cm)** của gói hàng để mình tính giá chính xác nhất nhé!'.
+- Nếu khách đã cung cấp, dùng các giá trị đó để tính giá và chèn vào link.
+
+Nhiệm vụ 3: TÍNH GIÁ CƯỚC ƯỚC TÍNH:
+- Công thức (NỘI BỘ): 
+  + Thể tích (m3) = (Dài * Rộng * Cao) / 1,000,000
+  + Khối lượng quy đổi = Thể tích * {vwf}
+  + Chargeable Weight = Max(Khối lượng thực, Khối lượng quy đổi)
+  + Giá ước tính = Max({minPrice}, (BasePrice * Chargeable Weight / Sức chứa xe) * Hệ số Tuyến * Hệ số Loại hàng).
+- QUY TẮC HIỂN THỊ GIÁ: 
+  + TUYỆT ĐỐI KHÔNG HIỂN THỊ CÔNG THỨC. CHỈ TRẢ VỀ KẾT QUẢ CUỐI CÙNG.
+  + NẾU THIẾU THÔNG TIN (Khối lượng, Lộ trình, Kích thước...) hoặc KHÔNG CÓ CHUYẾN: KHÔNG tính giá, không ghi 'Giá ước tính = ...'.
+
+Nhiệm vụ 4: HỖ TRỢ ĐẶT ĐƠN & DỊCH VỤ:
+- ĐƠN HÀNG CHỜ: Nếu KHÔNG tìm thấy bất kỳ chuyến xe nào phù hợp, hãy nói: 'Hiện chưa có chuyến xe nào chạy tuyến này vào thời gian bạn yêu cầu. Tuy nhiên, mình có thể giúp bạn đăng một **đơn hàng chờ** lên hệ thống nhé!'. 
+- LƯU Ý ĐĂNG NHẬP: Nếu khách chưa đăng nhập (không thấy lịch sử đơn hàng), hãy nhắc: 'Bạn vui lòng đăng nhập tài khoản để mình có thể hỗ trợ tạo đơn hàng này nhé!'. TUYỆT ĐỐI không cung cấp link CONFIRM_LINK cho ĐƠN HÀNG CHỜ nếu khách chưa đăng nhập.
+- PHÍ LẤY HÀNG TẬN NƠI: Nếu khách chọn 'Tại nhà', nhắc: 'Việc lấy hàng tận nơi có thể phát sinh thêm chi phí nhỏ do tài xế báo trực tiếp cho bạn nhé'.
+{gpsHint}
+- QUY TẮC GIAO TIẾP: KHÔNG hiển thị ID hệ thống. Tuyệt đối KHÔNG DÙNG VIẾT HOA TOÀN BỘ (CAPSLOCK) khi trả lời khách (trừ các từ viết tắt hợp lệ).
+- KẾT THÚC: Nếu đã đủ thông tin (bao gồm kích thước) và khách ĐÃ ĐĂNG NHẬP, hiển thị link: 
+  CONFIRM_LINK[fromId=[ID_TÌNH_ĐI]&toId=[ID_TỈNH_ĐẾN]&weight=[KG]&l=[DÀI]&w=[RỘNG]&h=[CAO]&desc=[LOẠI_HÀNG]&phone=[SDT_NHẬN]&pType=[2_BẾN_1_NHÀ]&dType=[2_BẾN_1_NHÀ]&pAddr=[ĐC_ĐI]&dAddr=[ĐC_ĐẾN]&tripId=[MÃ_CHUYẾN]]
+  *(Nếu là đơn ghép vào chuyến cụ thể thì mới cho phép guest nhấn để nhảy sang trang đăng nhập)*
 ";
 
-                // ================= SHARED TRIP SEARCH (For Guests & Customers) =================
                 if (roleClaim != "1" && roleClaim != "3")
                 {
                     var provinces = _context.Provinces.ToList();
@@ -231,6 +370,8 @@ LƯU Ý CHUNG:
                         .Include(t => t.FromStationNavigation).ThenInclude(s => s.Province)
                         .Include(t => t.ToStationNavigation).ThenInclude(s => s.Province)
                         .Include(t => t.TripStations).ThenInclude(ts => ts.Station).ThenInclude(s => s.Province)
+                        .Include(t => t.Vehicle).ThenInclude(v => v.VehicleType)
+                        .Include(t => t.RouteTypeNavigation)
                         .Include(t => t.Driver)
                         .Where(t => t.StartTime > DateTime.Now)
                         .AsQueryable();
@@ -256,27 +397,19 @@ LƯU Ý CHUNG:
 
                     var trips = tripQuery.OrderBy(t => t.StartTime).Take(15).ToList();
 
-                    contextInfo += "\nDANH SÁCH CÁC CHUYẾN XE PHÙ HỢP CÓ TRONG HỆ THỐNG:\n";
+                    contextInfo += "\nHỆ THỐNG TRIP DATA:\n";
+
                     if (trips.Any()) {
                         foreach (var t in trips) {
                             var intermediateStops = string.Join(" -> ", t.TripStations.OrderBy(ts => ts.StopOrder).Select(ts => $"{ts.Station.StationName}({ts.Station.Province.ProvinceName})").Distinct());
                             var stopsText = string.IsNullOrEmpty(intermediateStops) ? "" : $" (Đi qua: {intermediateStops})";
                             
-                            // Link HTML cho chức năng Xem và Lưu
-                            string actions = $" <a href='/Home/TripDetails/{t.TripId}' style='color:#0d6efd;font-weight:bold;text-decoration:none;'>[Xem]</a>";
-                            actions += $" <a href='/Customer/SaveRoute/{t.TripId}' style='color:#198754;font-weight:bold;text-decoration:none;margin-left:8px;'>[Lưu]</a>";
-
-                            contextInfo += $"- Mã {t.TripId}: {t.FromStationNavigation.StationName} ({t.FromStationNavigation.Province.ProvinceName}) → {t.ToStationNavigation.StationName} ({t.ToStationNavigation.Province.ProvinceName}){stopsText} | Giá: {t.BasePrice:N0}đ | Khởi hành: {t.StartTime:dd/MM HH:mm}{actions}\n";
+                            contextInfo += $"- Mã {t.TripId}: {t.FromStationNavigation.StationName} ({t.FromStationNavigation.Province.ProvinceName}) đi {t.ToStationNavigation.StationName} ({t.ToStationNavigation.Province.ProvinceName}){stopsText} | Khởi hành lúc {t.StartTime:HH:mm} ngày {t.StartTime:dd/MM} | Loại xe: {t.Vehicle?.VehicleType?.TypeName ?? "N/A"} | Sức chứa: {t.Vehicle?.CapacityKg ?? 1000}kg | BasePrice: {t.BasePrice} | Hệ số Tuyến: {t.RouteTypeNavigation?.Multiplier ?? 1}\n";
                         }
                     } else {
                         contextInfo += "[Hệ thống báo cáo: Không tìm thấy chuyến xe nào phù hợp với yêu cầu này trên CSDL]\n";
                     }
                 }
-
-                    if (!lat.HasValue || !lng.HasValue) 
-                    {
-                        aiInstruction += "\n- LƯU Ý MỞ RỘNG: Hiện tại khách hàng BỊ TẮT ĐỊNH VỊ. Nếu khách đang muốn tìm chuyến xe, hãy khéo léo chèn thêm 1 câu nhắc nhở nhẹ nhàng ở cuối: 'Để tìm chuyến chính xác nhất, bạn có thể bấm nút Vị trí 📍 màu xanh góc trái để mình ưu tiên tìm các trạm gửi hàng gần bạn nhất nhé!'";
-                    }
 
                 string finalPrompt = $@"
 Hệ thống: Gió Việt (Dịch vụ vận tải/ghép hàng liên tỉnh).
@@ -287,7 +420,11 @@ Dữ liệu hiện hành tại hệ thống:
 Lưu ý quan trọng:
 1. Trả lời bằng tiếng Việt, lịch sự, thân thiện.
 2. Nếu có mã đơn hàng (#MD...), hãy dùng nó để trả lời khách.
-3. Nếu người dùng hỏi về thông tin không có trong 'DỮ LIỆU' hoặc 'LỊCH SỬ', hãy trả lời rằng bạn chưa có thông tin đó và khuyên họ liên hệ hotline 1900 xxxx.
+3. Nếu người dùng hỏi về thông tin không có trong 'DỮ LIỆU' hoặc 'LỊCH SỬ': 
+   - Với Khách hàng/Tài xế: Khuyên họ liên hệ hotline 1900 xxxx.
+   - Với Quản trị viên: KHÔNG gợi ý hotline, hãy đề nghị họ kiểm tra lại thông tin hoặc yêu cầu thêm chi tiết.
+4. TUYỆT ĐỐI KHÔNG dùng mã HTML (như <a>). Hãy chỉ dùng các placeholder: [[ACTION_BUTTONS_ID]] hoặc CONFIRM_LINK[...] như đã hướng dẫn trong phần Vai trò.
+5. PHẢI TRẢ LỜI Ở ĐỊNH DẠNG VĂN BẢN PHẲNG (PLAIN TEXT). Không dùng Markdown cho link.
 
 Lịch sử trò chuyện:
 {history}
@@ -295,74 +432,19 @@ Lịch sử trò chuyện:
 Người dùng hỏi: {userMessage}
 ";
 
-                var chatTask = _geminiService.SendMessageAsync(finalPrompt);
-                Task<string> extractTask = null;
+                string aiReply = await _openAIService.SendMessageAsync(finalPrompt);
 
+                // Ghi nhận hành vi khách hàng (Background)
                 if (int.TryParse(userIdClaim, out int loggedInUserId))
                 {
-                    string extractPrompt = $@"
-Phân tích tin nhắn sau của người dùng (chỉ trọng tâm vào bối cảnh GỬI HÀNG HOÁ / GHÉP HÀNG LIÊN TỈNH): '{userMessage}'. 
-Trích xuất sở thích gửi hàng (Like), nỗi lo/điều không thích (Dislike), đặc thù/thói quen gửi hàng (Habit) của khách.
-Nếu không có thông tin nào đặc trưng, CHỈ trả lời đúng chữ: NONE.
-Nếu có, hãy trả về MỘT mảng JSON duy nhất (không bọc markdown, không giải thích). Mảng chứa các đối tượng có cấu trúc chính xác như sau:
-[
-  {{ ""Action"": ""Habit"", ""Object"": ""Loại hàng hóa"", ""Value"": ""Hải sản đông lạnh"" }},
-  {{ ""Action"": ""Like"", ""Object"": ""Thời gian"", ""Value"": ""Giao buổi tối"" }},
-  {{ ""Action"": ""Dislike"", ""Object"": ""Bảo quản"", ""Value"": ""Hàng bị móp méo"" }}
-]
-";
-                    extractTask = _geminiService.SendMessageAsync(extractPrompt);
-                }
-
-                string aiReply = await chatTask;
-
-                if (extractTask != null)
-                {
-                    try
-                    {
-                        string rawExtract = await extractTask;
-                        if (!string.IsNullOrWhiteSpace(rawExtract) && !rawExtract.Contains("NONE"))
-                        {
-                            string cleanJson = rawExtract.Replace("```json", "").Replace("```", "").Trim();
-                            var behaviors = System.Text.Json.JsonSerializer.Deserialize<List<Dictionary<string, string>>>(cleanJson);
-                            
-                            if (behaviors != null)
-                            {
-                                foreach (var b in behaviors)
-                                {
-                                    if (b.TryGetValue("Action", out string action) && 
-                                        b.TryGetValue("Object", out string obj) && 
-                                        b.TryGetValue("Value", out string val))
-                                    {
-                                        bool exists = await _context.Behaviorlogs.AnyAsync(x => x.UserId == loggedInUserId && x.Action == action && x.Object == obj && x.Value == val);
-                                        if (!exists)
-                                        {
-                                            _context.Behaviorlogs.Add(new Behaviorlog
-                                            {
-                                                UserId = loggedInUserId,
-                                                Action = action.Length > 50 ? action.Substring(0, 50) : action,
-                                                Object = obj.Length > 100 ? obj.Substring(0, 100) : obj,
-                                                Value = val.Length > 200 ? val.Substring(0, 200) : val,
-                                                CreatedAt = DateTime.Now
-                                            });
-                                        }
-                                    }
-                                }
-                                await _context.SaveChangesAsync();
-                            }
-                        }
-                    }
-                    catch
-                    {
-                        // Bỏ qua lỗi trong quá trình phân tích hoặc lưu log (không ảnh hưởng trải nghiệm chat)
-                    }
+                    _ = Task.Run(() => _behaviorService.ExtractAndLogBehaviorAsync(loggedInUserId, userMessage));
                 }
 
                 return Json(new { success = true, reply = aiReply });
             }
             catch (Exception ex)
             {
-                return Json(new { success = false, reply = "SYSTEM_ERROR: " + ex.Message + " | Inner: " + ex.InnerException?.Message });
+                return Json(new { success = false, reply = "SYSTEM_ERROR: " + ex.Message });
             }
         }
         private double GetDistance(double lat1, double lon1, double lat2, double lon2)
