@@ -135,11 +135,14 @@ namespace TimChuyenDi.Controllers
                 Note = Note,
                 PickupTimeFrom = DateTime.Now,
                 PickupTimeTo = ExpectedDeliveryDate ?? trip.ArrivalTime,
+                OrderCode = "TC" + DateTime.Now.Ticks.ToString().Substring(10),
                 CreatedAt = DateTime.Now
             };
 
             _context.Shiprequests.Add(request);
             await _context.SaveChangesAsync();
+            
+            request.OrderCode = "TC" + request.Id;
 
 
 
@@ -235,11 +238,14 @@ namespace TimChuyenDi.Controllers
                 Note = Note,
                 PickupTimeFrom = DateTime.Now,
                 PickupTimeTo = ExpectedDeliveryDate,
+                OrderCode = "TC" + DateTime.Now.Ticks.ToString().Substring(10),
                 CreatedAt = DateTime.Now
             };
 
             _context.Shiprequests.Add(request);
             await _context.SaveChangesAsync();
+            
+            request.OrderCode = "TC" + request.Id;
 
 
 
@@ -307,17 +313,29 @@ namespace TimChuyenDi.Controllers
             var route = shipRequest.Shippingroutes.FirstOrDefault();
             var cargo = shipRequest.Cargodetails.FirstOrDefault();
 
-            // Tìm xe chạy cùng tuyến Tỉnh -> Tỉnh và còn đủ chỗ
-            var matchingTrips = _context.Trips
+            // Tìm xe chạy cùng tuyến và còn đủ chỗ (bao gồm cả các trạm trung chuyển TripStations)
+            var query = _context.Trips
                 .Include(t => t.FromStationNavigation).ThenInclude(s => s.Province)
                 .Include(t => t.ToStationNavigation).ThenInclude(s => s.Province)
+                .Include(t => t.TripStations).ThenInclude(ts => ts.Station)
                 .Include(t => t.Driver)
                 .Include(t => t.Vehicle).ThenInclude(v => v.VehicleType)
-                .Where(t => t.AvaiCapacityKg >= (cargo != null ? cargo.Weight : 0)
-                       && (route == null || (t.FromStationNavigation.ProvinceId == route.FromProvinceId && t.ToStationNavigation.ProvinceId == route.ToProvinceId))
-                       && t.StartTime > DateTime.Now)
-                .OrderBy(t => t.StartTime)
-                .ToList();
+                .Where(t => t.AvaiCapacityKg >= (cargo != null ? cargo.Weight : 0) && t.StartTime > DateTime.Now)
+                .AsQueryable();
+
+            if (route != null)
+            {
+                query = query.Where(t =>
+                    (t.FromStationNavigation.ProvinceId == route.FromProvinceId && t.ToStationNavigation.ProvinceId == route.ToProvinceId) ||
+                    (t.FromStationNavigation.ProvinceId == route.FromProvinceId && t.TripStations.Any(ts => ts.Station.ProvinceId == route.ToProvinceId)) ||
+                    (t.TripStations.Any(ts => ts.Station.ProvinceId == route.FromProvinceId) && t.ToStationNavigation.ProvinceId == route.ToProvinceId) ||
+                    (t.TripStations.Any(ts1 => ts1.Station.ProvinceId == route.FromProvinceId && 
+                                               t.TripStations.Any(ts2 => ts2.Station.ProvinceId == route.ToProvinceId && ts2.StopOrder > ts1.StopOrder)))
+                );
+            }
+
+            var matchingTrips = query.OrderBy(t => t.StartTime).ToList();
+
 
 
             ViewBag.RequestId = id;

@@ -343,8 +343,7 @@ public partial class TimchuyendiContext : DbContext
             entity.Property(e => e.TripId).HasColumnType("int(11)");
             entity.Property(e => e.UserId).HasColumnType("int(11)");
             entity.Property(e => e.OrderCode)
-                .HasMaxLength(10)
-                .ValueGeneratedOnAddOrUpdate();
+                .HasMaxLength(10);
             entity.Property(e => e.PickupTimeTo).HasColumnType("datetime");
             entity.Property(e => e.CreatedAt)
                 .HasDefaultValueSql("current_timestamp()")
