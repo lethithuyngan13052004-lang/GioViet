@@ -80,11 +80,21 @@
         }
         else
         {
-            <div class="text-center py-5 bg-light rounded-4 border-2 border-dashed border-muted">
-                <i class="bi bi-emoji-smile-upside-down fs-1 text-muted"></i>
-                <h5 class="mt-3 fw-bold text-muted">Hết chuyến xe phù hợp hôm nay</h5>
-                <p class="text-muted mb-4 px-4">Đừng lo, đơn hàng của bạn đã được đăng công khai.<br/>Các tài xế khác sẽ chủ động liên hệ với bạn trong thời gian sớm nhất!</p>
-                <a asp-action="RequestHistory" class="btn btn-outline-primary rounded-pill px-5">QUẢN LÝ ĐƠN HÀNG</a>
+            <div class="text-center py-5 bg-light rounded-4 border border-2 border-dashed">
+                <i class="bi bi-truck fs-1 text-secondary mb-3"></i>
+    
+                <h5 class="fw-bold text-dark">
+                    Hiện tại chưa có chuyến xe phù hợp
+                </h5>
+    
+                <p class="text-muted mb-4 px-4">
+                    Đơn hàng chờ của bạn đã được cập nhật lên hệ thống.<br />
+                    Khi có tài xế nhận đơn, họ sẽ liên hệ với bạn sớm nhất có thể.
+                </p>
+    
+                <a asp-action="RequestHistory" class="btn btn-outline-primary rounded-pill px-5">
+                    Xem trạng thái đơn hàng
+                </a>
             </div>
         }
     </div>
