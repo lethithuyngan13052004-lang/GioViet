@@ -49,6 +49,10 @@
 
 <div class="container-fluid py-4">
     <form asp-action="CreateTrip" method="post" id="tripForm">
+        @if(TempData["PreFillReqId"] != null)
+        {
+            <input type="hidden" name="LinkedReqId" value="@TempData["PreFillReqId"]" />
+        }
         <div class="row g-4">
             <!-- Left Panel: Form Data -->
             <div class="col-lg-4">
@@ -359,6 +363,54 @@
             let pId = $('#provinceEnd').val();
             if (pId) syncMapWithProvince(pId, 'end');
         });
+
+        // ==========================================
+        // AUTO PREFILL FROM TEMPDATA (Merge/NewTrip Flow)
+        // ==========================================
+        @if(TempData["PreFillReqId"] != null)
+        {
+            <text>
+            setTimeout(async function() {
+                var preFromProvId = '@TempData["PreFillFromProvinceId"]';
+                var preFromStId = '@TempData["PreFillFromStationId"]';
+                var preToProvId = '@TempData["PreFillToProvinceId"]';
+                var preToStId = '@TempData["PreFillToStationId"]';
+                var preStartTime = '@TempData["PreFillStartTime"]';
+                var preMsg = '@Html.Raw(TempData["PreFillMessage"])';
+
+                if(preMsg) showToast(preMsg);
+
+                // Set StartTime and disable
+                if(preStartTime) {
+                    $('#startTime').val(preStartTime).prop('readonly', true);
+                }
+
+                // Auto Select Start
+                if(preFromProvId) {
+                    $('#provinceStart').val(preFromProvId).trigger('change');
+                    // Wait for stations to load
+                    await filterStations('start');
+                    setTimeout(() => {
+                        $('#fromStation').val(preFromStId).trigger('change');
+                        // Make them disabled to lock the route but attach hidden inputs so they submit
+                        $('#provinceStart, #fromStation').prop('disabled', true);
+                        $('<input>').attr({type: 'hidden', name: 'FromStation', value: preFromStId}).appendTo('form');
+                    }, 500);
+                }
+
+                // Auto Select End
+                if(preToProvId) {
+                    $('#provinceEnd').val(preToProvId).trigger('change');
+                    await filterStations('end');
+                    setTimeout(() => {
+                        $('#toStation').val(preToStId).trigger('change');
+                        $('#provinceEnd, #toStation').prop('disabled', true);
+                        $('<input>').attr({type: 'hidden', name: 'ToStation', value: preToStId}).appendTo('form');
+                    }, 500);
+                }
+            }, 800);
+            </text>
+        }
     });
 
     async function syncMapWithProvince(pId, type) {

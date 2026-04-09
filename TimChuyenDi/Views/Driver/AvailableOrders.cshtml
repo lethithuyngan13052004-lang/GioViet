@@ -116,30 +116,69 @@
                         </div>
 
                         <div class="card-footer bg-white border-0 p-4 pt-0">
-                            <div class="dropdown w-100">
-                                <button class="btn btn-primary w-100 rounded-pill py-2 fw-bold" type="button" id="dropdownMenuButton@item.Id" data-bs-toggle="dropdown" aria-expanded="false">
-                                    <i class="bi bi-check2-circle me-2"></i>Nhận đơn ngay
-                                </button>
-                                <ul class="dropdown-menu dropdown-menu-end shadow border-0 rounded-3 w-100 p-2" aria-labelledby="dropdownMenuButton@item.Id">
-                                    <li class="dropdown-header border-bottom mb-2 pb-2">Chọn chuyến xe của bạn để ghép:</li>
-                                    @foreach (var trip in activeTrips)
-                                    {
-                                        var tripRoute = item.Shippingroutes.FirstOrDefault();
-                                        if (tripRoute != null && trip.FromStationNavigation.ProvinceId == tripRoute.FromProvinceId && trip.ToStationNavigation.ProvinceId == tripRoute.ToProvinceId)
-                                        {
-                                            <li>
-                                                <a class="dropdown-item rounded-2 py-2 d-flex justify-content-between align-items-center" 
-                                                   asp-action="AcceptGenericOrder" asp-route-requestId="@item.Id" asp-route-tripId="@trip.TripId">
-                                                    <div>
-                                                        <div class="fw-bold">@trip.FromStationNavigation.Province.ProvinceName → @trip.ToStationNavigation.Province.ProvinceName</div>
-                                                        <div class="small text-muted">Khởi hành: @trip.StartTime.ToString("dd/MM HH:mm")</div>
-                                                    </div>
-                                                    <i class="bi bi-plus-circle text-primary"></i>
+                            <!-- Button trigger modal -->
+                            <button type="button" class="btn btn-primary w-100 rounded-pill py-2 fw-bold" data-bs-toggle="modal" data-bs-target="#orderModal-@item.Id">
+                                <i class="bi bi-check2-circle me-2"></i>Nhận đơn ngay
+                            </button>
+                            
+                            <!-- Modal -->
+                            <div class="modal fade" id="orderModal-@item.Id" tabindex="-1" aria-hidden="true">
+                                <div class="modal-dialog modal-dialog-centered">
+                                    <div class="modal-content border-0 shadow-lg rounded-4">
+                                        <div class="modal-header border-bottom-0 pb-0">
+                                            <h5 class="modal-title fw-bold text-primary"><i class="bi bi-question-circle me-2"></i>Tùy chọn nhận đơn</h5>
+                                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                                        </div>
+                                        <div class="modal-body">
+                                            <p class="text-muted mb-4">Bạn muốn xử lý đơn hàng #@(item.OrderCode ?? ("MD" + item.Id)) như thế nào?</p>
+                                            
+                                            <!-- Option 1: Create New Trip -->
+                                            <div class="mb-4">
+                                                <h6 class="fw-bold mb-2">Tạo chuyến đi mới</h6>
+                                                <p class="small text-muted mb-2">Hệ thống sẽ tự động tìm kiếm khoảng thời gian trống theo hạn nhận hàng để chuẩn bị chuyên đi mới cho bạn.</p>
+                                                <a asp-action="PreCreateNewTrip" asp-route-reqId="@item.Id" class="btn btn-outline-primary w-100 rounded-pill fw-bold">
+                                                    <i class="bi bi-plus-circle me-2"></i>Tạo chuyến mới
                                                 </a>
-                                            </li>
-                                        }
-                                    }
-                                </ul>
+                                            </div>
+                                            
+                                            <hr class="text-muted opacity-25">
+                                            
+                                            <!-- Option 2: Merge -> Dropdown -->
+                                            <div class="mt-4">
+                                                <h6 class="fw-bold mb-2">Ghép vào chuyến xe có sẵn</h6>
+                                                <p class="small text-muted mb-2">Thiết lập tự động chèn trạm lấy hàng và giao hàng vào lịch trình của chuyến bạn chọn.</p>
+                                                @if(activeTrips.Any())
+                                                {
+                                                    <div class="dropdown">
+                                                        <button class="btn btn-outline-success w-100 rounded-pill fw-bold dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                                                            <i class="bi bi-diagram-3 me-2"></i>Chọn chuyến xe...
+                                                        </button>
+                                                        <ul class="dropdown-menu shadow-lg border-0 rounded-3 w-100 p-2" style="max-height: 300px; overflow-y: auto;">
+                                                            @foreach (var trip in activeTrips)
+                                                            {
+                                                                <li>
+                                                                    <a class="dropdown-item rounded-2 py-2 mb-1" asp-action="MergeToExistingTrip" asp-route-reqId="@item.Id" asp-route-tripId="@trip.TripId">
+                                                                        <div class="d-flex justify-content-between align-items-center mb-1">
+                                                                            <span class="fw-bold">@trip.FromStationNavigation.Province.ProvinceName <i class="bi bi-arrow-right mx-1"></i> @trip.ToStationNavigation.Province.ProvinceName</span>
+                                                                            <span class="badge @(trip.Status == 0 ? "bg-warning text-dark" : "bg-primary")">@(trip.Status == 0 ? "Chờ" : "Đang chạy")</span>
+                                                                        </div>
+                                                                        <div class="small text-muted">
+                                                                            <i class="bi bi-clock me-1"></i> Bắt đầu: @trip.StartTime.ToString("dd/MM HH:mm")
+                                                                        </div>
+                                                                    </a>
+                                                                </li>
+                                                            }
+                                                        </ul>
+                                                    </div>
+                                                }
+                                                else
+                                                {
+                                                    <div class="alert alert-warning p-2 small mb-0">Bạn hiện không có chuyến xe nào đang hoạt động.</div>
+                                                }
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </div>

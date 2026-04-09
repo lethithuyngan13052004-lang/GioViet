@@ -44,7 +44,7 @@ namespace TimChuyenDi.Controllers
 
             // Thống kê trạng thái (Toàn thời gian để quản lý chung)
             var tripStatusCounts = _context.Trips.GroupBy(t => t.Status).Select(g => new { Status = g.Key, Count = g.Count() }).ToDictionary(x => x.Status, x => x.Count);
-            var orderStatusCounts = _context.Shiprequests.GroupBy(s => s.Status).Select(g => new { Status = g.Key, Count = g.Count() }).ToDictionary(x => x.Status ?? 0, x => x.Count);
+            var orderStatusCounts = _context.Shiprequests.GroupBy(s => s.Status ?? 0).Select(g => new { Status = g.Key, Count = g.Count() }).ToDictionary(x => x.Status, x => x.Count);
 
             ViewBag.TotalCustomers = totalCustomers;
             ViewBag.TotalDrivers = totalDrivers;

@@ -273,7 +273,7 @@ namespace TimChuyenDi.Controllers
 
         // POST: Xử lý lưu chuyến xe mới vào Database
         [HttpPost]
-        public async Task<IActionResult> CreateTrip(Trip model, string intermediateStations)
+        public async Task<IActionResult> CreateTrip(Trip model, string intermediateStations, int? LinkedReqId)
         {
             var userIdStr = User.FindFirstValue("UserId");
             if (string.IsNullOrEmpty(userIdStr)) return RedirectToAction("Login", "Auth");
@@ -328,6 +328,18 @@ namespace TimChuyenDi.Controllers
                     catch (Exception ex)
                     {
                         System.Diagnostics.Debug.WriteLine("JSON Parse Error: " + ex.Message);
+                    }
+                }
+
+                // Liên kết với đơn hàng nếu có
+                if (LinkedReqId.HasValue)
+                {
+                    var req = await _context.Shiprequests.FirstOrDefaultAsync(r => r.Id == LinkedReqId.Value);
+                    if (req != null)
+                    {
+                        req.TripId = model.TripId;
+                        req.Status = 1; // Đã nhận đơn
+                        await _context.SaveChangesAsync();
                     }
                 }
 
@@ -739,7 +751,7 @@ namespace TimChuyenDi.Controllers
             return RedirectToAction("ManageVehicles");
         }
 
-        // GET: Hiển thị các đơn hàng chờ ghép (chưa có chuyến) có lộ trình phù hợp với tài xế
+        // GET: Hiển thị các đơn hàng chờ ghép (chưa có chuyến)
         [HttpGet]
         public async Task<IActionResult> AvailableOrders()
         {
@@ -747,44 +759,203 @@ namespace TimChuyenDi.Controllers
             if (string.IsNullOrEmpty(userIdStr)) return RedirectToAction("Login", "Auth");
             int driverId = int.Parse(userIdStr);
 
-            // BƯỚC 1: Lấy danh sách các chuyến xe sắp chạy của tài xế này
+            // BƯỚC 1: Lấy danh sách các chuyến xe chưa hoàn thành của tài xế này (để phục vụ chức năng Ghép)
+            // Lấy cả chuyến chưa xuất phát và chuyến đang chạy, sắp xếp theo thời gian StartTime so với hiện tại
             var activeTrips = await _context.Trips
                 .Include(t => t.FromStationNavigation).ThenInclude(s => s.Province)
                 .Include(t => t.ToStationNavigation).ThenInclude(s => s.Province)
-                .Where(t => t.DriverId == driverId && t.StartTime > DateTime.Now)
+                .Where(t => t.DriverId == driverId && t.Status != 2) // Không lấy chuyến đã hoàn thành
                 .ToListAsync();
+            
+            var sortedActiveTrips = activeTrips.OrderBy(t => Math.Abs((t.StartTime - DateTime.Now).TotalSeconds)).ToList();
 
-
-            if (!activeTrips.Any())
-            {
-                ViewBag.Message = "Bạn chưa có chuyến xe nào sắp khởi hành. Vui lòng đăng chuyến xe trước để tìm đơn ghép!";
-                return View(new List<Shiprequest>());
-            }
-
-            // Lấy danh sách các cặp Tỉnh đi - Tỉnh đến mà tài xế đang chạy
-            var activeRoutes = activeTrips.Select(t => new { From = t.FromStationNavigation.ProvinceId, To = t.ToStationNavigation.ProvinceId }).Distinct().ToList();
-
-            // BƯỚC 2: Tìm các đơn hàng chưa có chuyến (TripId == null) và khớp lộ trình
+            // BƯỚC 2: Tìm TẤT CẢ các đơn hàng chưa có chuyến (TripId == null) và thời gian PickupTimeTo >= thời gian hiện tại
             var availableRequests = await _context.Shiprequests
                 .Include(r => r.User)
                 .Include(r => r.Cargodetails)
                 .Include(r => r.Shippingroutes)
                     .ThenInclude(sr => sr.FromStation)
+                        .ThenInclude(s => s.Province)
                 .Include(r => r.Shippingroutes)
                     .ThenInclude(sr => sr.ToStation)
-                .Where(r => r.TripId == null && (r.Status == 0 || r.Status == null))
-                .ToListAsync(); // Thực hiện lọc nốt phía Client nếu logic route phức tạp
+                        .ThenInclude(s => s.Province)
+                .Where(r => r.TripId == null && (r.Status == 0 || r.Status == null) && r.PickupTimeTo >= DateTime.Now)
+                .OrderBy(r => r.PickupTimeTo)
+                .ToListAsync();
+
+            ViewBag.ActiveTrips = sortedActiveTrips;
+            return View(availableRequests);
+        }
+
+        // GET: Tính toán lộ trình rảnh và chuyển sang form đăng chuyến
+        [HttpGet]
+        public async Task<IActionResult> PreCreateNewTrip(int reqId)
+        {
+            var userIdStr = User.FindFirstValue("UserId");
+            if (string.IsNullOrEmpty(userIdStr)) return RedirectToAction("Login", "Auth");
+            int driverId = int.Parse(userIdStr);
+
+            var req = await _context.Shiprequests
+                .Include(r => r.Shippingroutes)
+                    .ThenInclude(sr => sr.FromStation)
+                .Include(r => r.Shippingroutes)
+                    .ThenInclude(sr => sr.ToStation)
+                .FirstOrDefaultAsync(r => r.Id == reqId);
+
+            if (req == null)
+            {
+                TempData["Error"] = "Đơn hàng không tồn tại.";
+                return RedirectToAction("AvailableOrders");
+            }
+
+            var route = req.Shippingroutes.FirstOrDefault();
+            if (route == null)
+            {
+                TempData["Error"] = "Đơn hàng thiếu thông tin lộ trình.";
+                return RedirectToAction("AvailableOrders");
+            }
+
+            var coords = new List<(double lat, double lng)> {
+                ((double)route.FromStation.Latitude, (double)route.FromStation.Longitude),
+                ((double)route.ToStation.Latitude, (double)route.ToStation.Longitude)
+            };
+            var (ds, durationSec) = await _routingService.GetRouteAsync(coords);
+            if (durationSec <= 0) durationSec = 10800; // default 3h
+
+            DateTime searchStart = DateTime.Now > req.PickupTimeFrom ? DateTime.Now : req.PickupTimeFrom;
+            DateTime searchEnd = req.PickupTimeTo ?? searchStart.AddDays(7);
+
+            var activeTrips = await _context.Trips
+                .Where(t => t.DriverId == driverId && t.Status != 2)
+                .ToListAsync();
+
+            DateTime? proposedStartTime = null;
+            DateTime currentTry = searchStart;
+
+            while (currentTry.AddSeconds(durationSec) <= searchEnd)
+            {
+                DateTime tryEnd = currentTry.AddSeconds(durationSec);
                 
-            var filteredRequests = availableRequests.Where(r => {
-                    var route = r.Shippingroutes.FirstOrDefault();
-                    return route != null && activeRoutes.Any(ar => ar.From == route.FromProvinceId && ar.To == route.ToProvinceId);
-                })
-                .OrderBy(r => r.PickupTimeTo ?? DateTime.MaxValue) // Ưu tiên hạn giao dự kiến
-                .ToList();
+                bool overlap = activeTrips.Any(t => 
+                    (currentTry >= t.StartTime && currentTry <= t.EstArrivalTime) ||
+                    (tryEnd >= t.StartTime && tryEnd <= t.EstArrivalTime) ||
+                    (currentTry <= t.StartTime && tryEnd >= t.EstArrivalTime)
+                );
 
+                if (!overlap)
+                {
+                    proposedStartTime = currentTry;
+                    break;
+                }
+                
+                currentTry = currentTry.AddMinutes(30);
+            }
 
-            ViewBag.ActiveTrips = activeTrips;
-            return View(filteredRequests);
+            if (proposedStartTime == null)
+            {
+                TempData["Error"] = "Lịch trình của bạn đã kín, không thể tìm thấy khoảng thời gian trống theo hạn nhận hàng!";
+                return RedirectToAction("AvailableOrders");
+            }
+
+            TempData["PreFillReqId"] = reqId.ToString();
+            TempData["PreFillFromStationId"] = route.FromStationId.ToString();
+            TempData["PreFillFromProvinceId"] = route.FromStation.ProvinceId.ToString();
+            TempData["PreFillToStationId"] = route.ToStationId.ToString();
+            TempData["PreFillToProvinceId"] = route.ToStation.ProvinceId.ToString();
+            TempData["PreFillStartTime"] = proposedStartTime.Value.ToString("yyyy-MM-ddTHH:mm");
+            TempData["PreFillMessage"] = $"Đã tính toán thời gian chạy tự động ({proposedStartTime.Value:dd/MM/yyyy HH:mm}) để không trùng lịch. Vui lòng xác định Xe và Tải trọng.";
+
+            return RedirectToAction("CreateTrip");
+        }
+
+        [HttpGet]
+        public async Task<IActionResult> MergeToExistingTrip(int reqId, int tripId)
+        {
+            var userIdStr = User.FindFirstValue("UserId");
+            if (string.IsNullOrEmpty(userIdStr)) return RedirectToAction("Login", "Auth");
+            int driverId = int.Parse(userIdStr);
+
+            var trip = await _context.Trips
+                .Include(t => t.FromStationNavigation)
+                .Include(t => t.ToStationNavigation)
+                .Include(t => t.TripStations).ThenInclude(ts => ts.Station)
+                .FirstOrDefaultAsync(t => t.TripId == tripId && t.DriverId == driverId);
+
+            var req = await _context.Shiprequests
+                .Include(r => r.Shippingroutes).ThenInclude(sr => sr.FromStation)
+                .Include(r => r.Shippingroutes).ThenInclude(sr => sr.ToStation)
+                .Include(r => r.Cargodetails)
+                .FirstOrDefaultAsync(r => r.Id == reqId);
+
+            if (trip == null || req == null) return NotFound();
+
+            var reqRoute = req.Shippingroutes.FirstOrDefault();
+            if (reqRoute == null) return BadRequest("Lỗi đơn hàng không có tuyến");
+
+            double totalWeight = (double)(req.Cargodetails.Sum(c => c.Weight) ?? 0m);
+            if (trip.AvaiCapacityKg < totalWeight)
+            {
+                TempData["Error"] = "Sức chứa xe không đủ để nhận đơn này!";
+                return RedirectToAction("AvailableOrders");
+            }
+
+            var existingStationIds = trip.TripStations.Select(ts => ts.StationId).ToHashSet();
+            existingStationIds.Add(trip.FromStation);
+            existingStationIds.Add(trip.ToStation);
+
+            var stationsToInsert = new List<Station>();
+            if (reqRoute.FromStationId.HasValue && !existingStationIds.Contains(reqRoute.FromStationId.Value)) stationsToInsert.Add(reqRoute.FromStation);
+            if (reqRoute.ToStationId.HasValue && !existingStationIds.Contains(reqRoute.ToStationId.Value)) stationsToInsert.Add(reqRoute.ToStation);
+
+            if (stationsToInsert.Any())
+            {
+                var allIntermediates = trip.TripStations.Select(ts => ts.Station).ToList();
+                allIntermediates.AddRange(stationsToInsert);
+
+                double startLat = (double)(trip.FromStationNavigation.Latitude ?? 0);
+                double startLng = (double)(trip.FromStationNavigation.Longitude ?? 0);
+                double vecLat = (double)(trip.ToStationNavigation.Latitude ?? 0) - startLat;
+                double vecLng = (double)(trip.ToStationNavigation.Longitude ?? 0) - startLng;
+
+                allIntermediates.Sort((a, b) => {
+                    double projA = ((double)(a.Latitude ?? 0) - startLat) * vecLat + ((double)(a.Longitude ?? 0) - startLng) * vecLng;
+                    double projB = ((double)(b.Latitude ?? 0) - startLat) * vecLat + ((double)(b.Longitude ?? 0) - startLng) * vecLng;
+                    return projA.CompareTo(projB);
+                });
+
+                var coordsList = new List<(double lat, double lng)>();
+                coordsList.Add(((double)(trip.FromStationNavigation.Latitude ?? 0), (double)(trip.FromStationNavigation.Longitude ?? 0)));
+                coordsList.AddRange(allIntermediates.Select(s => ((double)(s.Latitude ?? 0), (double)(s.Longitude ?? 0))));
+                coordsList.Add(((double)(trip.ToStationNavigation.Latitude ?? 0), (double)(trip.ToStationNavigation.Longitude ?? 0)));
+
+                var (newDistance, newDuration) = await _routingService.GetRouteAsync(coordsList);
+
+                if (newDuration > 0)
+                {
+                    trip.Distance = (decimal)newDistance;
+                    trip.EstArrivalTime = trip.StartTime.AddSeconds(newDuration);
+                }
+
+                _context.TripStations.RemoveRange(trip.TripStations);
+                for (int i = 0; i < allIntermediates.Count; i++)
+                {
+                    var segTime = newDuration > 0 ? (newDuration / (allIntermediates.Count + 1)) * (i + 1) : 3600;
+                    _context.TripStations.Add(new TripStation {
+                        TripId = trip.TripId,
+                        StationId = allIntermediates[i].StationId,
+                        StopOrder = i + 1,
+                        EstArrivalTime = trip.StartTime.AddSeconds(segTime)
+                    });
+                }
+            }
+
+            trip.AvaiCapacityKg -= (int)totalWeight;
+            req.TripId = trip.TripId;
+            req.Status = 1;
+
+            await _context.SaveChangesAsync();
+            TempData["Success"] = "Đã ghép nối đơn hàng thành công, lộ trình đã được cập nhật!";
+            return RedirectToAction("MyTrips");
         }
 
         // POST: Xóa xe

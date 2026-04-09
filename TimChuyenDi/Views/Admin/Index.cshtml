@@ -93,16 +93,24 @@
                             </thead>
                             <tbody>
                                 <tr>
-                                    <td class="ps-4"><span class="badge bg-warning text-dark"><i class="bi bi-clock-fill me-1"></i>Đã tạo / Chờ ghép</span></td>
+                                    <td class="ps-4"><span class="badge bg-secondary"><i class="bi bi-hourglass-top me-1"></i>Chưa khởi hành</span></td>
+                                    <td class="text-end pe-4 fw-bold">@(tripCounts.ContainsKey(0) ? tripCounts[0] : 0)</td>
+                                </tr>
+                                <tr>
+                                    <td class="ps-4"><span class="badge bg-primary"><i class="bi bi-truck me-1"></i>Đang chạy</span></td>
                                     <td class="text-end pe-4 fw-bold">@(tripCounts.ContainsKey(1) ? tripCounts[1] : 0)</td>
                                 </tr>
                                 <tr>
-                                    <td class="ps-4"><span class="badge bg-primary"><i class="bi bi-truck me-1"></i>Đang chạy / Khoá ghép</span></td>
+                                    <td class="ps-4"><span class="badge bg-success"><i class="bi bi-check-circle-fill me-1"></i>Hoàn thành</span></td>
                                     <td class="text-end pe-4 fw-bold">@(tripCounts.ContainsKey(2) ? tripCounts[2] : 0)</td>
                                 </tr>
                                 <tr>
-                                    <td class="ps-4"><span class="badge bg-success"><i class="bi bi-check-circle-fill me-1"></i>Hoàn thành</span></td>
+                                    <td class="ps-4"><span class="badge bg-danger"><i class="bi bi-x-circle-fill me-1"></i>Đã hủy</span></td>
                                     <td class="text-end pe-4 fw-bold">@(tripCounts.ContainsKey(3) ? tripCounts[3] : 0)</td>
+                                </tr>
+                                <tr>
+                                    <td class="ps-4"><span class="badge bg-warning text-dark"><i class="bi bi-exclamation-triangle-fill me-1"></i>Trễ hạn</span></td>
+                                    <td class="text-end pe-4 fw-bold">@(tripCounts.ContainsKey(4) ? tripCounts[4] : 0)</td>
                                 </tr>
                             </tbody>
                         </table>
