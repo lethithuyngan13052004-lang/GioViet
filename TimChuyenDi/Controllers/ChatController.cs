@@ -8,6 +8,9 @@ using System;
 using System.Security.Claims;
 using System.Text.RegularExpressions;
 using System.Collections.Generic;
+using System.Text;
+using System.Globalization;
+using System.Text.Json;
 
 namespace TimChuyenDi.Controllers
 {
@@ -26,6 +29,64 @@ namespace TimChuyenDi.Controllers
             _routingService = routingService;
         }
 
+        private ChatOrderSession GetSessionOrder()
+        {
+            var json = HttpContext.Session.GetString("ChatOrder");
+            return string.IsNullOrEmpty(json) ? new ChatOrderSession() : JsonSerializer.Deserialize<ChatOrderSession>(json);
+        }
+
+        private void SaveSessionOrder(ChatOrderSession order)
+        {
+            HttpContext.Session.SetString("ChatOrder", JsonSerializer.Serialize(order));
+        }
+
+        private Station FindNearestStation(double lat, double lng, int? provinceId = null)
+        {
+            var query = _context.Stations.AsQueryable();
+            if (provinceId.HasValue) query = query.Where(s => s.ProvinceId == provinceId.Value);
+
+            var stations = query.ToList();
+            return stations
+                .Select(s => new { Station = s, Distance = CalculateDistance(lat, lng, (double)s.Latitude, (double)s.Longitude) })
+                .OrderBy(x => x.Distance)
+                .FirstOrDefault()?.Station;
+        }
+
+        private double CalculateDistance(double lat1, double lng1, double lat2, double lng2)
+        {
+            var d1 = lat1 * (Math.PI / 180.0);
+            var num1 = lng1 * (Math.PI / 180.0);
+            var d2 = lat2 * (Math.PI / 180.0);
+            var num2 = lng2 * (Math.PI / 180.0) - num1;
+            var d3 = Math.Pow(Math.Sin((d2 - d1) / 2.0), 2.0) + Math.Cos(d1) * Math.Cos(d2) * Math.Pow(Math.Sin(num2 / 2.0), 2.0);
+            return 6371000.0 * (2.0 * Math.Atan2(Math.Sqrt(d3), Math.Sqrt(1.0 - d3))) / 1000.0;
+        }
+
+        private bool IsPositiveConfirm(string msg)
+        {
+            string norm = RemoveDiacritics(msg.ToLower());
+            // Hỗ trợ viết tắt, sai chính tả, tiếng lóng
+            string[] keys = { "ok", "dung", "chuan", "dr", "chuaanw", "u", "uh", "ya", "oi", "dong y", "dc", "duoc", "chot", "chinh xac" };
+            return keys.Any(k => Regex.IsMatch(norm, @"\b" + k + @"\b") || norm.Contains(k));
+        }
+
+        private void UpdateCurrentStep(ChatOrderSession order)
+        {
+            if (order.CurrentStep == OrderStep.None) order.CurrentStep = OrderStep.AskRoute;
+
+            if (order.CurrentStep == OrderStep.AskRoute && order.FromProvinceId.HasValue && order.ToProvinceId.HasValue)
+                order.CurrentStep = OrderStep.AskCargo;
+
+            if (order.CurrentStep == OrderStep.AskCargo && order.Weight > 0 && !string.IsNullOrEmpty(order.Description))
+                order.CurrentStep = OrderStep.AskReceiver;
+
+            if (order.CurrentStep == OrderStep.AskReceiver && !string.IsNullOrEmpty(order.ReceiverName) && !string.IsNullOrEmpty(order.ReceiverPhone))
+                order.CurrentStep = OrderStep.AskTime;
+
+            if (order.CurrentStep == OrderStep.AskTime && order.PickupTimeFrom.HasValue)
+                order.CurrentStep = OrderStep.Confirm;
+        }
+
         [HttpPost]
         public async Task<IActionResult> SendMessage(string userMessage, string history, double? lat, double? lng)
         {
@@ -38,193 +99,445 @@ namespace TimChuyenDi.Controllers
 
                 var userIdClaim = User.FindFirstValue("UserId");
                 var roleClaim = User.FindFirstValue(ClaimTypes.Role);
+                bool isFirstMessage = string.IsNullOrWhiteSpace(history);
                 string contextInfo = "";
-                string aiInstruction = "";
                 string currentTime = DateTime.Now.ToString("dd/MM/yyyy HH:mm");
                 var userDisplayName = User.FindFirstValue("FullName") ?? User.Identity.Name ?? "Quý khách";
                 string roleName = roleClaim switch { "1" => "Quản trị viên", "3" => "Tài xế", _ => "Khách hàng" };
+
+                // Get All Reference Data
+                var allProvinces = await _context.Provinces.ToListAsync();
+                var provincesWithNorm = allProvinces.Select(p => new { 
+                    Province = p, 
+                    NameNorm = RemoveDiacritics(NormalizeName(p.ProvinceName)) 
+                }).ToList();
+
+                // Normalize inputs
+                string normUserMsg = RemoveDiacritics(NormalizeQuery(userMessage ?? ""));
+                string normHistory = RemoveDiacritics(NormalizeQuery(history ?? ""));
+                string normFullText = normHistory + " " + normUserMsg;
+
+                // --- 📦 QUẢN LÝ ĐƠN HÀNG (SESSION) ---
+                var order = GetSessionOrder();
+                bool isOrderIntent = order.IsActive || Regex.IsMatch(normFullText, @"dat|tao|gui|ship|don|hang|muon gui");
                 
-                bool isFirstMessage = string.IsNullOrWhiteSpace(history);
+                if (isOrderIntent && !order.IsActive) {
+                    order.IsActive = true;
+                    order.CurrentStep = OrderStep.AskRoute;
+                    // Lấy SĐT mặc định từ Profile nếu đã đăng nhập
+                    if (User.Identity.IsAuthenticated) {
+                        var currentUser = await _context.Users.FirstOrDefaultAsync(u => u.UserId.ToString() == userIdClaim);
+                        order.SenderPhone = currentUser?.Phone;
+                    }
+                }
+
+                // ⚖️ XỬ LÝ XÁC NHẬN CÂN NẶNG GỢI Ý
+                if (order.WeightSuggest.HasValue && order.Weight == 0 && IsPositiveConfirm(userMessage)) {
+                    order.Weight = order.WeightSuggest.Value;
+                    order.WeightSuggest = null;
+                }
                 
-                // --- 1. Lấy dữ liệu danh mục & Cấu hình ---
-                var minPriceConfig = await _context.SystemConfigs.FirstOrDefaultAsync(c => c.KeyName == "MinPrice");
-                decimal minPrice = minPriceConfig?.Value ?? 0;
-                var vwfConfig = await _context.SystemConfigs.FirstOrDefaultAsync(c => c.KeyName == "VolumeToWeightFactor");
-                decimal vwf = vwfConfig?.Value ?? 250;
+                // 🛑 Kiểm tra auth trước khi tiếp tục
+                if (isOrderIntent && !User.Identity.IsAuthenticated) {
+                    string loginPrompt = "Khách hàng muốn đặt đơn nhưng CHƯA ĐĂNG NHẬP. Hãy lịch sự chào hỏi và hướng dẫn khách Đăng nhập hoặc Đăng ký tài khoản Gió Việt trước khi có thể tạo đơn hàng. Bạn có thể giải thích ngắn gọn lợi ích của việc đăng nhập để quản lý đơn hàng tốt hơn.";
+                    string loginReply = await _openAIService.SendMessageAsync($"USER: {userMessage}\n\nINSTRUCTION: {loginPrompt}");
+                    return Json(new { success = true, reply = loginReply });
+                }
 
-                var allProvinces = _context.Provinces.Select(p => new { p.ProvinceId, p.ProvinceName }).ToList();
-                var allCargoTypes = _context.Cargotypes.Select(c => new { c.CargoTypeId, c.TypeName, c.PriceMultiplier }).ToList();
-                
-                string provinceListText = string.Join(", ", allProvinces.Select(p => $"{p.ProvinceName}(ID:{p.ProvinceId})"));
-                string cargoTypeListText = string.Join(", ", allCargoTypes.Select(c => $"{c.TypeName}(ID:{c.CargoTypeId}, Hệ số x{c.PriceMultiplier})"));
+                // 1. Identify Provinces in CURRENT message (Priority for Direction)
+                var matchedInMsg = provincesWithNorm
+                    .Where(p => normUserMsg.Contains(p.NameNorm))
+                    .Select(p => new { p.Province, Index = normUserMsg.IndexOf(p.NameNorm) })
+                    .OrderBy(p => p.Index)
+                    .ToList();
 
-                var searchMsg = (history + " " + userMessage).ToLower();
-                var uMsg = searchMsg; 
-                uMsg = Regex.Replace(uMsg, @"\bhn\b", "hà nội");
-                uMsg = Regex.Replace(uMsg, @"\bhcm\b", "hồ chí minh");
-                uMsg = Regex.Replace(uMsg, @"\bsg\b", "hồ chí minh");
-                uMsg = Regex.Replace(uMsg, @"\bnd\b", "nam định");
-                uMsg = Regex.Replace(uMsg, @"\bhp\b", "hải phòng");
-                uMsg = Regex.Replace(uMsg, @"\bđn\b|dn\b", "đà nẵng");
-                uMsg = Regex.Replace(uMsg, @"\blc\b", "lào cai");
-                uMsg = Regex.Replace(uMsg, @"\bth\b", "thanh hóa");
+                Province fromProvince = null;
+                Province toProvince = null;
+                string toKeywords = @"(den|toi|di|ve|tram|ra|vao|len|xuong|sang)";
+                string fromKeywords = @"(tu|o|tai|xuat phat)";
 
-                // --- 2. PHÂN LOẠI Ý ĐỊNH (INTENT DETECTION) & TYPO TOLERANCE ---
-                string uMsgLower = uMsg.ToLower();
-                bool isShipping = Regex.IsMatch(uMsgLower, @"gui|ship|vận chuyển|chuyển hàng|guiw|shipp|gửi");
-                bool isPricing = Regex.IsMatch(uMsgLower, @"giá|gia|cước|tiền|bao nhiêu|gias|cuoc|tien");
-                bool isTripSearch = Regex.IsMatch(uMsgLower, @"chuyến|xe|lịch|tim|tìm|chuyen");
-                bool isStats = Regex.IsMatch(uMsgLower, @"thống kê|trạng thái|tình hình|báo cáo|thong ke|bao cao");
-                bool isConfig = Regex.IsMatch(uMsgLower, @"đổi|sửa|chỉnh|thay đổi|set|config|cấu hình|doi|sua|chinh");
-                bool isTracking = Regex.IsMatch(uMsgLower, @"lịch sử|đơn hàng|don hang|lich su|theo dõi|kiem tra");
+                if (matchedInMsg.Count >= 2) {
+                    // Two or more provinces: usually From then To
+                    var first = matchedInMsg[0];
+                    var second = matchedInMsg[1];
 
-                // --- 3. ĐỊNH NGHĨA CÁC MODULE PROMPT ---
-                string basePersonaPrompt = $@"
-Bạn là Trợ Gió - Trợ lý AI thông minh của Gió Việt.
-Bạn đang hỗ trợ {roleName} tên: {userDisplayName}. Lần chat này là lúc {currentTime}.
-{(isFirstMessage ? "[Đây là tin nhắn đầu tiên, hãy giới thiệu ngắn gọn về Trợ Gió và chào mừng khách.]" : "")}";
+                    // Check if second has a "to" keyword before it
+                    var segmentBeforeSecond = normUserMsg.Substring(Math.Max(0, second.Index - 12), Math.Min(12, second.Index));
+                    if (Regex.IsMatch(segmentBeforeSecond, toKeywords)) {
+                        fromProvince = first.Province;
+                        toProvince = second.Province;
+                    } else {
+                        // Check if first has a "from" keyword
+                        var segmentBeforeFirst = normUserMsg.Substring(Math.Max(0, first.Index - 12), Math.Min(12, first.Index));
+                        if (Regex.IsMatch(segmentBeforeFirst, fromKeywords)) {
+                            fromProvince = first.Province;
+                            toProvince = second.Province;
+                        } else {
+                            // Default: First is From, Second is To
+                            fromProvince = first.Province;
+                            toProvince = second.Province;
+                        }
+                    }
+                } else if (matchedInMsg.Count == 1) {
+                    // Only one province in current message: check direction
+                    var m = matchedInMsg[0];
+                    var segmentBefore = normUserMsg.Substring(Math.Max(0, m.Index - 12), Math.Min(12, m.Index));
+                    if (Regex.IsMatch(segmentBefore, toKeywords)) toProvince = m.Province;
+                    else fromProvince = m.Province;
+                }
 
-                string styleGuidelinePrompt = @"
-QUY TẮC PHONG CÁCH:
-- NGẮN GỌN & TRỰC TIẾP. Không lặp lại lời chào rườm rà.
-- THIẾU GÌ HỎI NẤY. Đi thẳng vào vấn đề.
-- TÓM TẮT CHI TIẾT CHỈ KHI XÁC NHẬN qua link CONFIRM.
-- KHÔNG hiển thị mã ID hệ thống cho khách. Không dùng CAPSLOCK.
-- Hiển thị kết quả dạng VĂN BẢN PHẲNG (PLAIN TEXT). Không dùng Markdown cho link.";
+                // Cập nhật Province từ message NGAY LẬP TỨC để AI có context mới nhất
+                if (fromProvince != null) order.FromProvinceId = fromProvince.ProvinceId;
+                if (toProvince != null) order.ToProvinceId = toProvince.ProvinceId;
 
-                string sharedPricingLogic = $@"
-LOGIC TÍNH GIÁ (Nội bộ):
-- Quy đổi: Max(Khối lượng thực, (Dài*Rộng*Cao)/1,000,000 * {vwf}).
-- Giá = Max({minPrice}, (BasePrice * ChargeableWeight / Sức chứa) * Hệ số Tuyến * Hệ số Loại hàng).
-- QUY TẮC: TUYỆT ĐỐI KHÔNG HIỂN THỊ CÔNG THỨC. Chỉ trả về giá cuối cùng.";
+                // 2. Fallback to History (If missing From or To)
+                if (order.FromProvinceId == null || order.ToProvinceId == null) {
+                    var matchedInFull = provincesWithNorm
+                        .Where(p => normFullText.Contains(p.NameNorm))
+                        .Select(p => p.Province)
+                        .ToList();
 
-                string adminStatsModule = "NHIỆM VỤ THỐNG KÊ: Báo cáo vận hành dựa trên số liệu thực tế (Tổng đơn, Chuyến đang chạy, Xe chờ duyệt) để nhắc Admin xử lý.";
-                string adminConfigModule = @"NHIỆM VỤ CẤU HÌNH: Hỗ trợ Admin sửa đổi hệ thống. Dùng các link: 
-- CONFIRM_CONFIG_LINK[key=[KEY]&val=[VALUE]]
-- CONFIRM_CARGO_LINK[id=[ID_HOẶC_0]&name=[TÊN]&multi=[HỆ_SỐ]]
-- CONFIRM_VEHICLE_LINK[id=[ID_HOẶC_0]&name=[TÊN]&desc=[MÔ_TẢ]]
-- CONFIRM_TRIPTYPE_LINK[id=[ID_HOẶC_0]&type=[TÊN]&multi=[HỆ_SỐ]]";
+                    if (order.FromProvinceId == null) order.FromProvinceId = matchedInFull.FirstOrDefault()?.ProvinceId;
+                    if (order.ToProvinceId == null) order.ToProvinceId = matchedInFull.FirstOrDefault(p => p.ProvinceId != (order.FromProvinceId ?? -1))?.ProvinceId;
+                }
 
-                string driverTripCreateModule = @"NHIỆM VỤ ĐĂNG CHUYẾN: Hướng dẫn tài xế qua 5 bước: Chọn xe -> Chọn lộ trình (gợi ý trạm gần nhất qua GPS) -> Loại hình/Trạm dừng -> Thời gian/Giá -> CONFIRM_TRIP_LINK.";
-                string driverVehicleModule = "NHIỆM VỤ XE: Liệt kê danh sách xe của tài xế và trạng thái duyệt (ID xe, Biển số, Loại xe).";
+                // Safety check: From and To MUST be different
+                if (order.FromProvinceId != null && order.ToProvinceId != null && order.FromProvinceId == order.ToProvinceId) order.ToProvinceId = null;
 
-                string customerOrderModule = @"NHIỆM VỤ ĐẶT ĐƠN: 
-- TỰ ĐỘNG ánh xạ hàng hóa (vị dụ: Hải sản -> Thực phẩm tươi).
-- Nếu là thực phẩm tươi mà không có xe đông lạnh, phải CẢNH BÁO BẢO QUẢN.
-- Luôn hỏi Cân nặng và Kích thước nếu chưa rõ.
-- Nhắc phí lấy hàng tận nơi có thể phát sinh.
-- Hiển thị: CONFIRM_LINK[fromId=[ID_TỈNH_ĐI]&toId=[ID_TỈNH_ĐẾN]&weight=[KG]&l=[DÀI]&w=[RỘNG]&h=[CAO]&desc=[LOẠI_HÀNG]&phone=[SDT_NHẬN]&pType=[2_BẾN_1_NHÀ]&dType=[2_BẾN_1_NHÀ]&pAddr=[ĐC_ĐI]&dAddr=[ĐC_ĐẾN]&tripId=[MÃ_CHUYẾN]]";
-                
-                string customerTrackingModule = "NHIỆM VỤ THEO DÕI: Liệt kê trạng thái các đơn hàng gần nhất của khách (Chờ xác nhận, Đang giao, Đã hủy...).";
+                // 3. Time Range
+                DateTime? rangeStart = null;
+                DateTime? rangeEnd = null;
+                if (Regex.IsMatch(normFullText, @"hom nay")) { rangeStart = DateTime.Now; rangeEnd = DateTime.Now.Date.AddDays(1).AddSeconds(-1); }
+                else if (Regex.IsMatch(normFullText, @"toi nay")) { rangeStart = DateTime.Now.Date.AddHours(18); if (rangeStart < DateTime.Now) rangeStart = DateTime.Now; rangeEnd = DateTime.Now.Date.AddDays(1).AddSeconds(-1); }
+                else if (Regex.IsMatch(normFullText, @"ngay mai")) { rangeStart = DateTime.Now.Date.AddDays(1); rangeEnd = rangeStart.Value.AddDays(1).AddSeconds(-1); }
+                else if (Regex.IsMatch(normFullText, @"ngay kia")) { rangeStart = DateTime.Now.Date.AddDays(2); rangeEnd = rangeStart.Value.AddDays(1).AddSeconds(-1); }
+                else if (Regex.IsMatch(normFullText, @"tuan nay")) { rangeStart = DateTime.Now; int diff = (7 - (int)DateTime.Now.DayOfWeek) % 7; rangeEnd = DateTime.Now.Date.AddDays(diff + 1).AddSeconds(-1); }
+                else if (Regex.IsMatch(normFullText, @"tuan sau")) { 
+                    int daysUntilMonday = ((int)DayOfWeek.Monday - (int)DateTime.Now.DayOfWeek + 7) % 7;
+                    if (daysUntilMonday == 0) daysUntilMonday = 7;
+                    rangeStart = DateTime.Now.Date.AddDays(daysUntilMonday); 
+                    rangeEnd = rangeStart.Value.AddDays(7).AddSeconds(-1); 
+                }
+                else if (Regex.IsMatch(normFullText, @"thang nay")) { rangeStart = DateTime.Now; rangeEnd = new DateTime(DateTime.Now.Year, DateTime.Now.Month, 1).AddMonths(1).AddSeconds(-1); }
+                else if (Regex.IsMatch(normFullText, @"thang sau")) { 
+                    rangeStart = new DateTime(DateTime.Now.Year, DateTime.Now.Month, 1).AddMonths(1); 
+                    rangeEnd = rangeStart.Value.AddMonths(1).AddSeconds(-1); 
+                }
+                else {
+                    var dateYearMatch = Regex.Match(normFullText, @"ngay (\d{1,2})[/-](\d{1,2})[/-](\d{4})");
+                    if (dateYearMatch.Success && int.TryParse(dateYearMatch.Groups[1].Value, out int d2) && int.TryParse(dateYearMatch.Groups[2].Value, out int m2) && int.TryParse(dateYearMatch.Groups[3].Value, out int y2)) {
+                        try { rangeStart = new DateTime(y2, m2, d2); rangeEnd = rangeStart.Value.AddDays(1).AddSeconds(-1); } catch {}
+                    } else {
+                        var dateMatch = Regex.Match(normFullText, @"ngay (\d{1,2})[/-](\d{1,2})");
+                        if (dateMatch.Success && int.TryParse(dateMatch.Groups[1].Value, out int d) && int.TryParse(dateMatch.Groups[2].Value, out int m)) {
+                            try { rangeStart = new DateTime(DateTime.Now.Year, m, d); rangeEnd = rangeStart.Value.AddDays(1).AddSeconds(-1); } catch {}
+                        }
+                    }
+                }
 
-                // --- 4. LẤY DỮ LIỆU & XÂY DỰNG AI INSTRUCTION/CONTEXT (CHẠY NỐI TIẾP) ---
-                aiInstruction += basePersonaPrompt + styleGuidelinePrompt;
+                // 4. Search
+                int? fromId = order.FromProvinceId;
+                int? toId = order.ToProvinceId;
+                bool isTripSearch = Regex.IsMatch(normFullText, @"chuyen|xe|lich|tim|di|den|gui|ship") || fromId.HasValue || toId.HasValue;
 
-                if (int.TryParse(userIdClaim, out int userId))
-                {
-                    if (roleClaim == "1") // Admin
-                    {
-                        var sysConfigs = await _context.SystemConfigs.ToListAsync();
-                        int pendingVehicles = await _context.Vehicles.CountAsync(v => v.Status == 0);
-                        int activeTrips = await _context.Trips.CountAsync(t => t.StartTime > DateTime.Now);
-                        int totalOrders = await _context.Shiprequests.CountAsync();
+                if (isTripSearch || isFirstMessage) {
+                    var query = _context.Trips
+                        .Include(t => t.FromStationNavigation).ThenInclude(s => s.Province)
+                        .Include(t => t.ToStationNavigation).ThenInclude(s => s.Province)
+                        .Include(t => t.TripStations).ThenInclude(ts => ts.Station).ThenInclude(s => s.Province)
+                        .Where(t => t.Status == 0);
+
+                    if (rangeStart.HasValue && rangeEnd.HasValue) query = query.Where(t => t.StartTime >= rangeStart.Value && t.StartTime <= rangeEnd.Value);
+                    else query = query.Where(t => t.StartTime > DateTime.Now.AddHours(-1));
+
+                    var allTrips = await query.OrderBy(t => t.StartTime).ToListAsync();
+                    var filteredTrips = allTrips;
+
+                    if (fromId.HasValue && toId.HasValue) {
+                        filteredTrips = allTrips.Where(t => {
+                            var route = new List<int> { t.FromStationNavigation.ProvinceId };
+                            route.AddRange(t.TripStations.OrderBy(ts => ts.StopOrder).Select(ts => ts.Station.ProvinceId));
+                            route.Add(t.ToStationNavigation.ProvinceId);
+                            int fIdx = route.IndexOf(fromId.Value);
+                            int tIdx = route.LastIndexOf(toId.Value);
+                            return fIdx != -1 && tIdx != -1 && fIdx < tIdx;
+                        }).ToList();
+                    } else if (fromId.HasValue) {
+                        filteredTrips = allTrips.Where(t => t.FromStationNavigation.ProvinceId == fromId || t.TripStations.Any(ts => ts.Station.ProvinceId == fromId)).ToList();
+                    } else if (toId.HasValue) {
+                        filteredTrips = allTrips.Where(t => t.ToStationNavigation.ProvinceId == toId || t.TripStations.Any(ts => ts.Station.ProvinceId == toId)).ToList();
+                    }
+
+                    if (filteredTrips.Any()) {
+                        order.TripSuggestions = filteredTrips.Select(t => t.TripId).Take(5).ToList();
                         
-                        contextInfo += $"\nSTATS: {totalOrders} đơn, {activeTrips} chuyến, {pendingVehicles} xe chờ duyệt.";
-                        contextInfo += "\nCONFIGS: " + string.Join(", ", sysConfigs.Select(c => $"{c.KeyName}={c.Value}"));
-
-                        if (isStats || isFirstMessage) aiInstruction += "\n" + adminStatsModule;
-                        if (isConfig) aiInstruction += "\n" + adminConfigModule;
+                        contextInfo += "\nDANH SÁCH CHUYẾN XE TÌM ĐƯỢC:\n" + string.Join("\n", filteredTrips.Take(10).Select(t =>
+                            $"- Mã {t.TripId}: {t.FromStationNavigation.StationName} ({t.FromStationNavigation.Province.ProvinceName}) -> {t.ToStationNavigation.StationName} ({t.ToStationNavigation.Province.ProvinceName}) lúc {t.StartTime:HH:mm dd/MM}. Ghé qua: " + 
+                            string.Join(", ", t.TripStations.OrderBy(ts => ts.StopOrder).Select(ts => ts.Station.Province.ProvinceName))));
+                        
+                        // Nếu khách đã chọn 1 mã chuyến xe cụ thể trong tin nhắn
+                        var tripMatch = Regex.Match(userMessage, @"(?i)ma\s*(\d+)");
+                        if (tripMatch.Success && int.TryParse(tripMatch.Groups[1].Value, out int selectedTripId))
+                        {
+                            var selTrip = filteredTrips.FirstOrDefault(t => t.TripId == selectedTripId);
+                            if (selTrip != null) {
+                                order.TripId = selTrip.TripId;
+                                order.FromProvinceId = selTrip.FromStationNavigation.ProvinceId;
+                                order.ToProvinceId = selTrip.ToStationNavigation.ProvinceId;
+                                order.FromStationId = selTrip.FromStation;
+                                order.ToStationId = selTrip.ToStation;
+                                if (!order.PickupTimeFrom.HasValue) order.PickupTimeFrom = selTrip.StartTime;
+                                if (!order.PickupTimeTo.HasValue) order.PickupTimeTo = selTrip.StartTime.AddDays(3);
+                                order.PickupAddress = selTrip.FromStationNavigation.StationName;
+                                order.DeliveryAddress = selTrip.ToStationNavigation.StationName;
+                            }
+                        }
+                    } else if (fromId.HasValue || toId.HasValue) {
+                        contextInfo += $"\nKHÔNG TÌM THẤY CHUYẾN phù hợp từ {fromProvince?.ProvinceName ?? "..."} đi {toProvince?.ProvinceName ?? "..."}. Hãy gợi ý khách TẠO ĐƠN CHỜ.";
                     }
-                    else if (roleClaim == "3") // Driver
+                }
+
+                // Cập nhật tọa độ từ Client (nếu có) vào Session
+                if (lat.HasValue && lng.HasValue) {
+                    var nearSt = FindNearestStation(lat.Value, lng.Value, fromId);
+                    if (nearSt != null && !order.FromStationId.HasValue) {
+                        order.FromStationId = nearSt.StationId;
+                        order.PickupAddress = nearSt.StationName;
+                    }
+                }
+
+                // AI Instruction (Very Explicit)
+                string aiInstruction = $"Bạn là Trợ Gió - Trợ lý vận chuyển Gió Việt. Mục tiêu: Hỗ trợ tìm chuyến xe và gửi hàng. " +
+                                       "Lưu ý: Hệ thống chỉ cung cấp dịch vụ gửi hàng, KHÔNG nhận chở người - Không bảo khách trừ khi khách hỏi hoặc nhầm lẫn, nếu có thì hãy nhẹ nhàng đính chính. " +
+                                       "KHI LIỆT KÊ CHUYẾN XE: Sau mỗi chuyến xe tìm được, bạn BẮT BUỘC phải chèn thẻ [[ACTION_BUTTONS_Id]] ngay sau mã chuyến. " +
+                                       "Hãy giữ câu trả lời của bạn ngắn gọn tránh dài dòng";
+
+                if (order.IsActive) {
+                    UpdateCurrentStep(order);
+                    
+                    aiInstruction += "\n--- 📦 QUY TRÌNH TẠO ĐƠN (STATE MACHINE) ---" +
+                                     $"\nBƯỚC HIỆN TẠI: {order.CurrentStep}" +
+                                     "\nTRẠNG THÁI ĐƠN HIỆN TẠI (JSON): " + JsonSerializer.Serialize(order) +
+                                     "\nHƯỚNG DẪN CỤ THỂ:" +
+                                     "\n1. Ưu tiên điền thông tin từ Lộ trình -> Hàng hóa -> Người nhận -> Thời gian." +
+                                     "\n2. Nếu Weight trống nhưng bạn đoán được cân nặng (VD: 'thùng trái cây' -> 10kg), hãy điền vào [[UPDATE_ORDER:{\"WeightSuggest\":10}]] và hỏi: 'Mình ước lượng [mô tả] khoảng [WeightSuggest]kg. Bạn xác nhận giúp mình nhé?'. CẤM điền thẳng vào Weight." +
+                                     "\n3. Nếu khách nói 'Không/Chưa đúng/Hà Nội chứ không phải HCM' (Phủ định), hãy lịch sự xin lỗi và hỏi lại thông tin đó." +
+                                     "\n4. Nếu đến bước Confirm nhưng TripId vẫn trống, bạn PHẢI hỏi khách: 'Hiện bạn chưa chọn chuyến xe cụ thể. Mình sẽ tạo đơn chờ để hệ thống tìm chuyến phù hợp cho bạn nhé? Bạn xác nhận giúp mình nha!'." +
+                                     "\n5. Nếu khách bảo 'Không' với đơn chờ (muốn chọn chuyến cũ), hãy dùng danh sách TripSuggestions trong JSON để liệt kê lại các mã chuyến cũ cho khách chọn." +
+                                     "\n6. Giữ câu trả lời ngắn gọn, trọng tâm. Nhắc bật vị trí tối đa 1 lần.";
+                    
+                    if (order.PickupType == 2 && order.FromStationId.HasValue) {
+                        aiInstruction += "\n7. Nếu khách muốn đổi trạm: Liệt kê danh sách trạm từ JSON context nếu có.";
+                    }
+                    
+                    aiInstruction += "\nQUAN TRỌNG: Phản hồi luôn bao gồm trích xuất dữ liệu mới: [[UPDATE_ORDER:{\"Description\":\"...\"}]]";
+                }
+
+                // Gợi ý định vị nếu chưa bật
+                if (!lat.HasValue && roleClaim != "1")
+                {
+                    bool isActionIntent = isTripSearch || Regex.IsMatch(normFullText, @"tao|dang|ky|them|chuyen|don|hang");
+                    if (isActionIntent)
                     {
-                        var driverTrips = await _context.Trips.Include(t=>t.FromStationNavigation).Include(t=>t.ToStationNavigation).Where(t=>t.DriverId == userId).OrderByDescending(t=>t.StartTime).Take(5).ToListAsync();
-                        var myVehicles = await _context.Vehicles.Include(v=>v.VehicleType).Where(v=>v.DriverId == userId).ToListAsync();
-
-                        contextInfo += "\nXE CỦA BẠN: " + string.Join(", ", myVehicles.Select(v => $"{v.VehicleType.TypeName} ({v.PlateNumber}) - ID:{v.VehicleId}"));
-                        contextInfo += "\nCHUYẾN CỦA BẠN: " + string.Join(", ", driverTrips.Select(t => $"#{t.TripId}"));
-
-                        aiInstruction += "\n" + driverTripCreateModule;
-                        if (isTripSearch || isFirstMessage) aiInstruction += "\n" + driverVehicleModule;
-                    }
-                    else // Customer
-                    {
-                        var myOrders = await _context.Shiprequests.Include(r => r.Shippingroutes).Where(r => r.UserId == userId).OrderByDescending(r => r.Id).Take(5).ToListAsync();
-                        contextInfo += "\nĐƠN HÀNG CỦA BẠN: " + string.Join(", ", myOrders.Select(r => $"#MD{r.Id} ({r.Status})"));
-
-                        aiInstruction += "\n" + sharedPricingLogic;
-                        if (isShipping || isFirstMessage) aiInstruction += "\n" + customerOrderModule;
-                        if (isTracking) aiInstruction += "\n" + customerTrackingModule;
-                        if (isPricing) aiInstruction += "\n" + "Hãy tính giá ước tính cho khách dựa trên thông tin hàng hóa cung cấp.";
+                        aiInstruction += " QUAN TRỌNG: Hãy gợi ý người dùng bấm nút 'Bật định vị' (biểu tượng [[GEO_ICON]]) để chatbot lấy tọa độ và tìm kiếm trạm xe/chuyến xe chính xác nhất xung quanh họ.";
                     }
                 }
-                else 
+
+                string aiReply = await _openAIService.SendMessageAsync($"CONTEXT:\n{contextInfo}\n\nUSER MESSAGE: {userMessage}\n\nINSTRUCTION: {aiInstruction}");
+
+                // --- 🔄 XỬ LÝ CẬP NHẬT ĐƠN HÀNG TỪ AI ---
+                var updateMatch = Regex.Match(aiReply, @"\[\[UPDATE_ORDER:\s*(\{.*?\})\]\]", RegexOptions.Singleline);
+                if (updateMatch.Success)
                 {
-                    contextInfo += "\nKHÁCH VÃNG LAI: Chỉ xem được các chuyến công khai.";
-                    aiInstruction += "\n" + sharedPricingLogic + "\n" + customerOrderModule;
+                    try {
+                        var jsonUpdate = updateMatch.Groups[1].Value;
+                        using var doc = JsonDocument.Parse(jsonUpdate);
+                        var root = doc.RootElement;
+                        
+                        // Cập nhật các trường có trong JSON
+                        if (root.TryGetProperty("Weight", out var w)) order.Weight = w.GetDecimal();
+                        if (root.TryGetProperty("WeightSuggest", out var ws)) order.WeightSuggest = ws.GetDecimal();
+                        if (root.TryGetProperty("Length", out var l)) order.Length = l.GetDecimal();
+                        if (root.TryGetProperty("Width", out var wd)) order.Width = wd.GetDecimal();
+                        if (root.TryGetProperty("Height", out var h)) order.Height = h.GetDecimal();
+                        if (root.TryGetProperty("Description", out var desc)) order.Description = desc.GetString();
+                        if (root.TryGetProperty("ReceiverName", out var rn)) order.ReceiverName = rn.GetString();
+                        if (root.TryGetProperty("ReceiverPhone", out var rp)) order.ReceiverPhone = rp.GetString();
+                        if (root.TryGetProperty("Note", out var n)) order.Note = n.GetString();
+                        if (root.TryGetProperty("PickupAddress", out var pa)) order.PickupAddress = pa.GetString();
+                        if (root.TryGetProperty("DeliveryAddress", out var da)) order.DeliveryAddress = da.GetString();
+                        if (root.TryGetProperty("PickupType", out var pt)) order.PickupType = pt.GetInt32();
+                        if (root.TryGetProperty("DeliveryType", out var dt)) order.DeliveryType = dt.GetInt32();
+                        
+                        // Nếu AI báo đã xong và đúng thông tin
+                        if (Regex.IsMatch(aiReply, @"(?i)(dung roi|chinh xac|dong y|xac nhan)")) {
+                            // Logic xác nhận sẽ được xử lý qua nút bấm ở Frontend để an toàn
+                            aiReply += "\n\n[[CONFIRM_ORDER_ACTION]]";
+                        }
+                    } catch {}
                 }
 
-                // Tích hợp dữ liệu Search nếu cần
-                if (isTripSearch || isShipping)
-                {
-                    var trips = await _context.Trips.Include(t => t.FromStationNavigation).Include(t => t.ToStationNavigation).Where(t => t.StartTime > DateTime.Now).OrderBy(t => t.StartTime).Take(10).ToListAsync();
-                    contextInfo += "\nTRIP DATA: " + string.Join("\n", trips.Select(t => $"Mã {t.TripId}: {t.FromStationNavigation.StationName}->{t.ToStationNavigation.StationName} ({t.StartTime:dd/MM HH:mm})"));
-                }
+                // Lưu lại Session
+                SaveSessionOrder(order);
 
-                // Tích hợp GPS logic
-                if (lat.HasValue && lng.HasValue)
-                {
-                    contextInfo += $"\nGPS: Đã có tọa độ ({lat}, {lng}). Ưu tiên tìm trạm gần vị trí này.";
-                }
-                else
-                {
-                    aiInstruction += "\nNHẮC GPS: Nếu khách cần tìm chuyến quanh họ, hãy nhắc bấm nút **Vị trí [[GEO_ICON]]**.";
-                }
+                if (fromId.HasValue) order.FromProvinceId = fromId;
+                if (toId.HasValue) order.ToProvinceId = toId;
+                SaveSessionOrder(order);
 
-                // --- 5. TỔNG HỢP PROMPT CUỐI CÙNG ---
-                string finalPrompt = $@"
-VAI TRÒ & HẬU ĐÀI:
-{aiInstruction}
-
-DỮ LIỆU HỆ THỐNG HIỆN TẠI (CONTEXT):
-{contextInfo}
-
-LƯU Ý QUAN TRỌNG:
-- Trả lời bằng tiếng Việt, thân thiện.
-- Intent phát hiện: {(isShipping?"Gửi hàng, " : "")}{(isPricing?"Tính giá, " : "")}{(isTripSearch?"Tìm chuyến, " : "")}{(isConfig?"Sửa cấu hình, " : "")}{(isStats?"Báo cáo" : "")}
-- Tuyệt đối không Markdown cho link.
-
-LỊCH SỬ CHAT:
-{history}
-
-CÂU HỎI MỚI NHẤT: {userMessage}
-";
-
-                string aiReply = await _openAIService.SendMessageAsync(finalPrompt);
-
-                // Ghi nhận hành vi khách hàng (Background)
-                if (int.TryParse(userIdClaim, out int loggedInUserId))
-                {
-                    _ = Task.Run(() => _behaviorService.ExtractAndLogBehaviorAsync(loggedInUserId, userMessage));
-                }
+                if (int.TryParse(userIdClaim, out int lUid)) _ = Task.Run(() => _behaviorService.ExtractAndLogBehaviorAsync(lUid, userMessage));
 
                 return Json(new { success = true, reply = aiReply });
             }
-            catch (Exception ex)
-            {
-                return Json(new { success = false, reply = "SYSTEM_ERROR: " + ex.Message });
+            catch (Exception ex) {
+                return Json(new { success = false, reply = "Err: " + ex.Message });
             }
         }
 
-        private double GetDistance(double lat1, double lon1, double lat2, double lon2)
+        [HttpPost]
+        public async Task<IActionResult> ConfirmOrder()
         {
-            var R = 6371; // Bán kính trái đất bằng KM
-            var dLat = (lat2 - lat1) * Math.PI / 180;
-            var dLon = (lon2 - lon1) * Math.PI / 180;
-            var a = Math.Sin(dLat / 2) * Math.Sin(dLat / 2) +
-                    Math.Cos(lat1 * Math.PI / 180) * Math.Cos(lat2 * Math.PI / 180) *
-                    Math.Sin(dLon / 2) * Math.Sin(dLon / 2);
-            var c = 2 * Math.Atan2(Math.Sqrt(a), Math.Sqrt(1 - a));
-            return R * c; 
+            var userIdStr = User.FindFirstValue("UserId");
+            if (string.IsNullOrEmpty(userIdStr)) return Json(new { success = false, message = "Vui lòng đăng nhập." });
+            int customerId = int.Parse(userIdStr);
+
+            var order = GetSessionOrder();
+            if (!order.IsActive) return Json(new { success = false, message = "Không tìm thấy đơn hàng tạm." });
+
+            try
+            {
+                // 1. Tìm chuyến xe (nếu có)
+                Trip trip = null;
+                if (order.TripId.HasValue)
+                {
+                    trip = await _context.Trips
+                        .Include(t => t.Vehicle)
+                        .Include(t => t.RouteTypeNavigation)
+                        .Include(t => t.FromStationNavigation)
+                        .Include(t => t.ToStationNavigation)
+                        .FirstOrDefaultAsync(t => t.TripId == order.TripId.Value);
+                }
+
+                // 2. Tính toán giá
+                decimal totalPrice = 0;
+                var vwFactorConfig = await _context.SystemConfigs.FirstOrDefaultAsync(c => c.KeyName == "VolumeToWeightFactor");
+                decimal vwFactor = vwFactorConfig?.Value ?? 250;
+                var minPriceConfig = await _context.SystemConfigs.FirstOrDefaultAsync(c => c.KeyName == "MinPrice");
+                decimal minPrice = minPriceConfig?.Value ?? 0;
+
+                decimal volume = (order.Length * order.Width * order.Height) / 1000000m;
+                decimal chargeableWeight = Math.Max(order.Weight, volume * vwFactor);
+
+                if (trip != null)
+                {
+                    decimal capacityKg = trip.Vehicle?.CapacityKg ?? 1;
+                    decimal basePrice = trip.BasePrice * (chargeableWeight / capacityKg);
+                    decimal tripTypeMultiplier = trip.RouteTypeNavigation?.Multiplier ?? 1;
+                    totalPrice = Math.Max(basePrice * tripTypeMultiplier, minPrice);
+                }
+                else
+                {
+                    // Đơn chờ: Tính giá cơ bản dựa trên khoảng cách (nếu có From/To Province)
+                    totalPrice = minPrice; // Hoặc một logic tính giá đơn chờ mặc định
+                }
+
+                // 3. Tạo ShipRequest
+                var request = new Shiprequest
+                {
+                    UserId = customerId,
+                    TripId = order.TripId,
+                    Status = 0,
+                    Note = order.Note ?? "Đơn hàng tạo từ Trợ lý Trợ Gió",
+                    PickupTimeFrom = order.PickupTimeFrom ?? DateTime.Now,
+                    PickupTimeTo = order.PickupTimeTo ?? (order.PickupTimeFrom?.AddDays(3) ?? DateTime.Now.AddDays(3)),
+                    TotalPrice = totalPrice,
+                    OrderCode = "TC" + DateTime.Now.Ticks.ToString().Substring(10),
+                    CreatedAt = DateTime.Now
+                };
+
+                _context.Shiprequests.Add(request);
+                await _context.SaveChangesAsync();
+                request.OrderCode = "TC" + request.Id;
+
+                // 4. Lưu Hàng hóa
+                var cargo = new Cargodetail
+                {
+                    RequestId = request.Id,
+                    Weight = order.Weight,
+                    Length = order.Length,
+                    Width = order.Width,
+                    Height = order.Height,
+                    Description = order.Description ?? "Hàng hóa từ Chatbot"
+                };
+                _context.Cargodetails.Add(cargo);
+
+                // 5. Tạo Shipping Route
+                var route = new Shippingroute
+                {
+                    RequestId = request.Id,
+                    FromProvinceId = order.FromProvinceId,
+                    ToProvinceId = order.ToProvinceId,
+                    PickupType = order.PickupType,
+                    DeliveryType = order.DeliveryType,
+                    PickupAddress = order.PickupAddress,
+                    DeliveryAddress = order.DeliveryAddress,
+                    FromStationId = order.FromStationId,
+                    ToStationId = order.ToStationId,
+                    SenderPhone = order.SenderPhone,
+                    ReceiverName = order.ReceiverName,
+                    ReceiverPhone = order.ReceiverPhone
+                };
+                _context.Shippingroutes.Add(route);
+
+                await _context.SaveChangesAsync();
+
+                // Dọn dẹp Session
+                HttpContext.Session.Remove("ChatOrder");
+
+                return Json(new { success = true, requestId = request.Id, message = "Tạo đơn hàng thành công!" });
+            }
+            catch (Exception ex)
+            {
+                return Json(new { success = false, message = "Lỗi khi lưu đơn: " + ex.Message });
+            }
+        }
+
+        [HttpGet]
+        public async Task<IActionResult> GetStationsList(int provinceId)
+        {
+            var stations = await _context.Stations
+                .Where(s => s.ProvinceId == provinceId)
+                .Select(s => new { s.StationName, s.Address })
+                .ToListAsync();
+            return Json(stations);
+        }
+
+        [HttpPost]
+        public IActionResult ResetOrder()
+        {
+            HttpContext.Session.Remove("ChatOrder");
+            return Json(new { success = true });
+        }
+
+        private string RemoveDiacritics(string text) {
+            if (string.IsNullOrWhiteSpace(text)) return text;
+            var normalizedString = text.Normalize(NormalizationForm.FormD);
+            var sb = new StringBuilder();
+            foreach (var c in normalizedString) if (CharUnicodeInfo.GetUnicodeCategory(c) != UnicodeCategory.NonSpacingMark) sb.Append(c);
+            return sb.ToString().Normalize(NormalizationForm.FormC).ToLower().Replace("đ", "d");
+        }
+
+        private string NormalizeName(string name) {
+            if (string.IsNullOrWhiteSpace(name)) return name;
+            return name.ToLower().Replace("thành phố", "").Replace("tỉnh", "").Replace("tp.", "").Replace("t.", "").Replace("trạm", "").Replace("bến xe", "").Trim();
+        }
+
+        private string NormalizeQuery(string text) {
+            if (string.IsNullOrWhiteSpace(text)) return "";
+            var res = text.ToLower();
+            res = Regex.Replace(res, @"\bhn\b", "hà nội");
+            res = Regex.Replace(res, @"\bđn\b|dn\b", "đà nẵng");
+            res = Regex.Replace(res, @"\bhcm\b", "hồ chí minh");
+            return res;
         }
     }
 }

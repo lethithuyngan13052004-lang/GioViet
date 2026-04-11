@@ -205,7 +205,7 @@
         
         <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center py-3">
             <div class="d-flex align-items-center">
-                <span class="fw-bold"><i class="bi bi-robot me-2"></i> Gió Việt AI</span>
+                <span class="fw-bold"><i class="bi bi-robot me-2"></i> Trợ Gió</span>
                 <button type="button" class="btn btn-sm btn-link text-white ms-3 p-0" id="aiVoiceToggle" title="Bật/Tắt giọng nói" onclick="toggleAutoRead()">
                     <i class="bi bi-volume-up-fill fs-5" id="aiVoiceIcon"></i>
                 </button>
@@ -224,15 +224,15 @@
                 <div class="bg-white p-3 rounded-4 shadow-sm border text-dark" style="max-width: 85%;">
                     @if (role == "1")
                     {
-                        <text>Xin chào Quản trị viên! Tôi là trợ lý AI vận hành. Tôi có thể giúp bạn xem báo cáo nhanh, kiểm tra danh sách xe chờ duyệt hoặc hỗ trợ quản lý hệ thống. Hôm nay bạn cần tôi hỗ trợ gì?</text>
+                        <text>Xin chào Quản trị viên! Mình là Trợ Gió - Trợ lý Gió Việt - Mình có thể giúp bạn xem báo cáo nhanh, kiểm tra danh sách xe chờ duyệt hoặc hỗ trợ quản lý hệ thống. Hôm nay bạn cần mình hỗ trợ gì?</text>
                     }
                     else if (role == "3")
                     {
-                        <text>Xin chào Tài xế! Tôi là trợ lý AI điều phối. Tôi có thể giúp bạn tìm đơn hàng phù hợp để ghép chuyến hoặc tối ưu lộ trình. Bạn muốn tôi kiểm tra các đơn hàng đang chờ không?</text>
+                        <text>Xin chào Tài xế! Mình là Trợ Gió - Trợ lý Gió Việt - Mình có thể giúp bạn tìm đơn hàng phù hợp để ghép chuyến hoặc tối ưu lộ trình. Bạn muốn mình kiểm tra các đơn hàng đang chờ không?</text>
                     }
                     else
                     {
-                        <text>Xin chào! Tôi là trợ lý AI của Gió Việt. Tôi có thể giúp bạn tìm chuyến xe hoặc hỗ trợ bạn gửi và theo dõi hàng hóa. Bạn cần tôi giúp gì?</text>
+                        <text>Xin chào, mình là Trợ Gió - Trợ lý Gió Việt - Mình ở đây để giúp bạn kết nối gửi hàng nhanh chóng và tối ưu lộ trình vận chuyển nhất. Bạn cần mình giúp gì hôm nay?</text>
                     }
                 </div>
             </div>
@@ -396,7 +396,7 @@
             
             // 👉 Loại bỏ các mã nút chức năng và HTML trước khi đọc để tự nhiên hơn
             let cleanText = text.replace(/\[\[.*?\]\]/g, ""); 
-            cleanText = cleanText.replace(/CONFIRM_LINK\[.*?\]/g, "");
+            cleanText = cleanText.replace(/[A-Z_]+_LINK\[.*?\]/g, ""); 
             cleanText = cleanText.replace(/<[^>]*>?/gm, ''); 
 
             msg.text = cleanText;
@@ -440,9 +440,9 @@
 
         function getDefaultWelcomeMessage() {
             const role = "@role";
-            if (role === "1") return "Xin chào Quản trị viên! Tôi là trợ lý AI vận hành. Tôi có thể giúp bạn xem báo cáo nhanh, kiểm tra danh sách xe chờ duyệt hoặc hỗ trợ quản lý hệ thống. Hôm nay bạn cần tôi hỗ trợ gì?";
-            if (role === "3") return "Xin chào Tài xế! Tôi là trợ lý AI điều phối. Tôi có thể giúp bạn tìm đơn hàng phù hợp để ghép chuyến hoặc tối ưu lộ trình. Bạn muốn tôi kiểm tra các đơn hàng đang chờ không?";
-            return "Xin chào! Tôi là trợ lý AI của Gió Việt. Tôi có thể giúp bạn tìm chuyến xe hoặc hỗ trợ bạn gửi và theo dõi hàng hóa. Bạn cần tôi giúp gì?";
+            if (role === "1") return "Xin chào Quản trị viên! Mình là Trợ Gió - Trợ lý Gió Việt - Mình có thể giúp bạn xem báo cáo nhanh, kiểm tra danh sách xe chờ duyệt hoặc hỗ trợ quản lý hệ thống. Hôm nay bạn cần mình hỗ trợ gì?";
+            if (role === "3") return "Xin chào Tài xế! Mình là Trợ Gió - Trợ lý Gió Việt - Mình có thể giúp bạn tìm đơn hàng phù hợp để ghép chuyến hoặc tối ưu lộ trình. Bạn muốn mình kiểm tra các đơn hàng đang chờ không?";
+            return "Xin chào, mình là Trợ Gió - Trợ lý Gió Việt - Mình ở đây để giúp bạn kết nối gửi hàng nhanh chóng và tối ưu lộ trình vận chuyển nhất. Bạn cần mình giúp gì hôm nay?";
         }
 
         $(document).ready(function() {
@@ -491,7 +491,7 @@
                             
                             // 1. Phân giải nút Xem/Lưu (Placeholder: [[ACTION_BUTTONS_ID]])
                             reply = reply.replace(/\[\[ACTION_BUTTONS_(\d+)\]\]/g, function(match, tripId) {
-                                return `<br/><a href='/Home/TripDetails/${tripId}' class='btn btn-sm btn-outline-primary fw-bold mt-1' target='_blank'><i class='bi bi-info-circle'></i> Xem chi tiết</a>
+                                return `<br/><a href='/Home/TripDetails/${tripId}' class='btn btn-sm btn-outline-primary fw-bold mt-1'><i class='bi bi-info-circle'></i> Xem chi tiết</a>
                                         <a href='/Customer/SaveRoute/${tripId}' class='btn btn-sm btn-outline-success fw-bold mt-1 ms-1'><i class='bi bi-bookmark-plus'></i> Lưu chuyến</a>`;
                             });
 
@@ -514,6 +514,12 @@
                             // 2.7 Phân giải nút Xác nhận Loại Hàng (Placeholder: CONFIRM_CARGO_LINK[params])
                             reply = reply.replace(/CONFIRM_CARGO_LINK\[([\s\S]*?)\]/g, function(match, params) {
                                 return `<br/><a href='/Admin/ConfirmChatCargoType?${params.trim()}' class='btn btn-warning fw-bold mt-2 px-4 shadow-sm text-dark'><i class='bi bi-box-fill'></i> Xác nhận Cập nhật Loại hàng</a>`;
+                            });
+
+                             // 2.9 Phân giải nút Xác nhận Đơn hàng tự động (New Smart Flow)
+                            reply = reply.replace(/\[\[CONFIRM_ORDER_ACTION\]\]/g, function() {
+                                return `<br/><button onclick='confirmOrder()' class='btn btn-primary fw-bold mt-2 px-4 shadow-sm border-2 border-white animate__animated animate__pulse animate__infinite'><i class='bi bi-check-circle-fill'></i> XÁC NHẬN & TẠO ĐƠN HÀNG</button>
+                                        <button onclick='resetOrder()' class='btn btn-outline-danger btn-sm mt-2 ms-2'><i class='bi bi-trash'></i> Làm lại</button>`;
                             });
 
                             // 2.8 Phân giải nút Xác nhận Loại Xe (Placeholder: CONFIRM_VEHICLE_LINK[params])
@@ -555,6 +561,26 @@
     <script src="~/js/site.js" asp-append-version="true"></script>
 
     @await RenderSectionAsync("Scripts", required: false)
+    <script>
+        function confirmOrder() {
+            if (!confirm("Bạn xác nhận toàn bộ thông tin đơn hàng đã chính xác?")) return;
+            $.post('/Chat/ConfirmOrder', function(res) {
+                if (res.success) {
+                    appendMessage("Trợ Gió", `Chúc mừng! Đơn hàng của bạn đã được tạo thành công.<br/>Mã đơn: <strong>#${res.requestId}</strong>.<br/><br/><a href='/Customer/RequestDetail/${res.requestId}' class='btn btn-sm btn-info text-white fw-bold'><i class='bi bi-eye'></i> Xem chi tiết đơn hàng</a>`, false);
+                } else {
+                    alert("Lỗi: " + res.message);
+                }
+            });
+        }
 
+        function resetOrder() {
+            if (!confirm("Bạn muốn xóa thông tin đơn hàng đang nhập và bắt đầu lại?")) return;
+            $.post('/Chat/ResetOrder', function(res) {
+                if (res.success) {
+                    appendMessage("Trợ Gió", "Đã xóa đơn hàng tạm. Bạn có thể bắt đầu yêu cầu mới.", false);
+                }
+            });
+        }
+    </script>
 </body>
 </html>

@@ -42,12 +42,30 @@ namespace TimChuyenDi.Controllers
             var query = _context.Trips
                 .Include(t => t.FromStationNavigation).ThenInclude(s => s.Province)
                 .Include(t => t.ToStationNavigation).ThenInclude(s => s.Province)
+                .Include(t => t.TripStations).ThenInclude(ts => ts.Station)
                 .Include(t => t.Vehicle).ThenInclude(v => v.VehicleType)
                 .Include(t => t.Driver)
                 .AsQueryable();
 
-            if (FromProvinceId > 0) query = query.Where(t => t.FromStationNavigation.ProvinceId == FromProvinceId);
-            if (ToProvinceId > 0) query = query.Where(t => t.ToStationNavigation.ProvinceId == ToProvinceId);
+            if (FromProvinceId > 0 && ToProvinceId > 0)
+            {
+                query = query.Where(t =>
+                    (t.FromStationNavigation.ProvinceId == FromProvinceId && t.ToStationNavigation.ProvinceId == ToProvinceId) ||
+                    (t.FromStationNavigation.ProvinceId == FromProvinceId && t.TripStations.Any(ts => ts.Station.ProvinceId == ToProvinceId)) ||
+                    (t.TripStations.Any(ts => ts.Station.ProvinceId == FromProvinceId) && t.ToStationNavigation.ProvinceId == ToProvinceId) ||
+                    t.TripStations.Any(ts1 => ts1.Station.ProvinceId == FromProvinceId && 
+                        t.TripStations.Any(ts2 => ts2.Station.ProvinceId == ToProvinceId && ts2.StopOrder > ts1.StopOrder))
+                );
+            }
+            else if (FromProvinceId > 0)
+            {
+                query = query.Where(t => t.FromStationNavigation.ProvinceId == FromProvinceId || t.TripStations.Any(ts => ts.Station.ProvinceId == FromProvinceId));
+            }
+            else if (ToProvinceId > 0)
+            {
+                query = query.Where(t => t.ToStationNavigation.ProvinceId == ToProvinceId || t.TripStations.Any(ts => ts.Station.ProvinceId == ToProvinceId));
+            }
+
             if (StartDate.HasValue) query = query.Where(t => t.StartTime.Date >= StartDate.Value.Date);
 
             var trips = query.Where(t => t.AvaiCapacityKg > 0 && t.StartTime > DateTime.Now).OrderBy(t => t.StartTime).ToList();
@@ -326,11 +344,15 @@ namespace TimChuyenDi.Controllers
             if (route != null)
             {
                 query = query.Where(t =>
+                    // Case 1: Start -> End
                     (t.FromStationNavigation.ProvinceId == route.FromProvinceId && t.ToStationNavigation.ProvinceId == route.ToProvinceId) ||
+                    // Case 2: Start -> Intermediate
                     (t.FromStationNavigation.ProvinceId == route.FromProvinceId && t.TripStations.Any(ts => ts.Station.ProvinceId == route.ToProvinceId)) ||
+                    // Case 3: Intermediate -> End
                     (t.TripStations.Any(ts => ts.Station.ProvinceId == route.FromProvinceId) && t.ToStationNavigation.ProvinceId == route.ToProvinceId) ||
-                    (t.TripStations.Any(ts1 => ts1.Station.ProvinceId == route.FromProvinceId && 
-                                               t.TripStations.Any(ts2 => ts2.Station.ProvinceId == route.ToProvinceId && ts2.StopOrder > ts1.StopOrder)))
+                    // Case 4: Intermediate -> Intermediate (Order check)
+                    t.TripStations.Any(ts1 => ts1.Station.ProvinceId == route.FromProvinceId && 
+                        t.TripStations.Any(ts2 => ts2.Station.ProvinceId == route.ToProvinceId && ts2.StopOrder > ts1.StopOrder))
                 );
             }
 
