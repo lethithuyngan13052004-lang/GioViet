@@ -25,6 +25,7 @@ namespace TimChuyenDi.Models
         public string? Note { get; set; }
         public decimal? TotalPrice { get; set; }
         public List<int> TripSuggestions { get; set; } = new();
+        public List<string> TripSuggestionsInfo { get; set; } = new();
 
         // 2. Thông tin hàng hóa (Cargodetail)
         public decimal Weight { get; set; }
