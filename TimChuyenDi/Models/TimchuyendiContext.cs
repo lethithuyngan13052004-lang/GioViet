@@ -32,8 +32,6 @@ public partial class TimchuyendiContext : DbContext
 
     public virtual DbSet<Report> Reports { get; set; }
 
-    public virtual DbSet<RequestTripMatch> RequestTripMatches { get; set; }
-
     public virtual DbSet<Shiprequest> Shiprequests { get; set; }
 
     public virtual DbSet<Cargodetail> Cargodetails { get; set; }
@@ -282,40 +280,6 @@ public partial class TimchuyendiContext : DbContext
                 .HasForeignKey(d => d.ReqId)
                 .OnDelete(DeleteBehavior.SetNull)
                 .HasConstraintName("fk_report_request");
-        });
-
-        modelBuilder.Entity<RequestTripMatch>(entity =>
-        {
-            entity.HasKey(e => e.MatchId).HasName("PRIMARY");
-
-            entity.ToTable("request_trip_match");
-
-            entity.HasIndex(e => e.RequestId, "RequestId");
-
-            entity.HasIndex(e => e.TripId, "TripId");
-
-            entity.Property(e => e.MatchId).HasColumnType("int(11)");
-            entity.Property(e => e.CreatedAt)
-                .HasDefaultValueSql("current_timestamp()")
-                .HasColumnType("datetime");
-            entity.Property(e => e.Note).HasColumnType("text");
-            entity.Property(e => e.RequestId).HasColumnType("int(11)");
-            entity.Property(e => e.Status)
-                .HasMaxLength(20)
-                .HasDefaultValueSql("'Pending'")
-                .HasComment("Pending / Accepted / Rejected / Cancelled");
-            entity.Property(e => e.TripId).HasColumnType("int(11)");
-            entity.Property(e => e.UpdatedAt)
-                .ValueGeneratedOnAddOrUpdate()
-                .HasColumnType("datetime");
-
-            entity.HasOne(d => d.Request).WithMany(p => p.RequestTripMatches)
-                .HasForeignKey(d => d.RequestId)
-                .HasConstraintName("fk_match_request");
-
-            entity.HasOne(d => d.Trip).WithMany(p => p.RequestTripMatches)
-                .HasForeignKey(d => d.TripId)
-                .HasConstraintName("request_trip_match_ibfk_2");
         });
 
         modelBuilder.Entity<Shiprequest>(entity =>

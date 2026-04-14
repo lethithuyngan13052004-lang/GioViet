@@ -16,8 +16,8 @@ public partial class Shiprequest
     public decimal? TotalPrice { get; set; }
 
     /// <summary>
-    /// 0: Pending, 1: Accepted, 2: Rejected, 3: Shipping, 4: Done
-    /// </summary>
+    /// 0: Pending, 1: Accepted, 2: Rejected, 3: Shipping, 4: Done, 5: Cancel
+    /// </summary>;
     public int? Status { get; set; }
 
     public string? Note { get; set; }
@@ -35,8 +35,6 @@ public partial class Shiprequest
     public virtual ICollection<Rating> Ratings { get; set; } = new List<Rating>();
 
     public virtual ICollection<Report> Reports { get; set; } = new List<Report>();
-
-    public virtual ICollection<RequestTripMatch> RequestTripMatches { get; set; } = new List<RequestTripMatch>();
 
     public virtual Trip? Trip { get; set; }
 

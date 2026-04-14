@@ -42,8 +42,6 @@ public partial class Trip
 
     public virtual Station FromStationNavigation { get; set; } = null!;
 
-    public virtual ICollection<RequestTripMatch> RequestTripMatches { get; set; } = new List<RequestTripMatch>();
-
     public virtual ICollection<Shiprequest> Shiprequests { get; set; } = new List<Shiprequest>();
 
     public virtual Station ToStationNavigation { get; set; } = null!;

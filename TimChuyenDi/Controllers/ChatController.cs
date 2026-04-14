@@ -178,7 +178,7 @@ namespace TimChuyenDi.Controllers
                 }
 
                 // 📦 XỬ LÝ CHỌN CHUYẾN XE (Ưu tiên ID -> Sau đó là xác nhận gợi ý)
-                var tripMatch = Regex.Match(userMessage, @"(?i)(ma|chuyen|id|so|lay|ba|chon)?\s*(\d{2,5})");
+                var tripMatch = Regex.Match(userMessage, @"(?i)(ma|chuyen|id|so|lay|ba|chon)\s*(\d{2,5})");
                 bool isExplicitSelection = false;
 
                 if (tripMatch.Success && int.TryParse(tripMatch.Groups[2].Value, out int selectedTripId))
@@ -344,7 +344,7 @@ namespace TimChuyenDi.Controllers
                         .Include(t => t.FromStationNavigation).ThenInclude(s => s.Province)
                         .Include(t => t.ToStationNavigation).ThenInclude(s => s.Province)
                         .Include(t => t.TripStations).ThenInclude(ts => ts.Station).ThenInclude(s => s.Province)
-                        .Where(t => t.Status == 0);
+                        .Where(t => new[] { 0, 1 }.Contains(t.Status));
 
                     if (rangeStart.HasValue && rangeEnd.HasValue) query = query.Where(t => t.StartTime >= rangeStart.Value && t.StartTime <= rangeEnd.Value);
                     else query = query.Where(t => t.StartTime > DateTime.Now.AddHours(-1));
@@ -620,6 +620,7 @@ namespace TimChuyenDi.Controllers
             {
                 return Json(new { success = false, message = "Lỗi khi lưu đơn: " + ex.Message });
             }
+
         }
 
         [HttpGet]
