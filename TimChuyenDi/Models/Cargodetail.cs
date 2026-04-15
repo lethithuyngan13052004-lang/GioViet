@@ -19,5 +19,9 @@ public partial class Cargodetail
 
     public string? Description { get; set; }
 
+    public int? CargoTypeId { get; set; }
+
+    public virtual Cargotype? CargoType { get; set; }
+
     public virtual Shiprequest Request { get; set; } = null!;
 }

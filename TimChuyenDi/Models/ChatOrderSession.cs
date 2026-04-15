@@ -34,6 +34,9 @@ namespace TimChuyenDi.Models
         public decimal Width { get; set; } = 10;
         public decimal Height { get; set; } = 10;
         public string? Description { get; set; }
+        
+        public int? CargoTypeId { get; set; }
+        public int? CargoTypeIdSuggest { get; set; }
 
         // 3. Thông tin lộ trình (Shippingroute)
         public int? FromProvinceId { get; set; }

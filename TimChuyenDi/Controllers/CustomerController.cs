@@ -167,6 +167,7 @@ namespace TimChuyenDi.Controllers
             var cargo = new Cargodetail
             {
                 RequestId = request.Id,
+                CargoTypeId = CargoTypeId > 0 ? CargoTypeId : 1,
                 Weight = Weight,
                 Length = Length,
                 Width = Width,
@@ -271,6 +272,7 @@ namespace TimChuyenDi.Controllers
             var cargo = new Cargodetail
             {
                 RequestId = request.Id,
+                CargoTypeId = cargoTypeId > 0 ? cargoTypeId : 1,
                 Weight = Weight,
                 Length = Length,
                 Width = Width,
@@ -374,7 +376,7 @@ namespace TimChuyenDi.Controllers
             int customerId = int.Parse(userIdStr);
 
             var request = _context.Shiprequests
-                .Include(r => r.Cargodetails)
+                .Include(r => r.Cargodetails).ThenInclude(c => c.CargoType)
                 .FirstOrDefault(r => r.Id == requestId && r.UserId == customerId);
             
             var trip = _context.Trips
@@ -417,9 +419,7 @@ namespace TimChuyenDi.Controllers
 
                     decimal tripTypeMultiplier = trip.RouteTypeNavigation?.Multiplier ?? 1;
                     
-                    // We don't have cargoType directly here inside Assign, so request needs to include CargoType if exists,
-                    // Actually, let's just make cargoMultiplier = 1 if we don't fetch CargoType. Since it's free form, cargo doesn't link to CargoTypeId directly on model? Wait, Shiprequest might. 
-                    decimal cargoMultiplier = 1;
+                    decimal cargoMultiplier = cargo.CargoType?.PriceMultiplier ?? 1;
 
                     decimal priceAfterCargo = basePrice * tripTypeMultiplier * cargoMultiplier;
                     request.TotalPrice = Math.Max(priceAfterCargo, minPrice);
@@ -691,6 +691,7 @@ namespace TimChuyenDi.Controllers
             var cargo = new Cargodetail
             {
                 RequestId = request.Id,
+                CargoTypeId = cType > 0 ? cType : 1,
                 Weight = weight,
                 Length = l,
                 Width = w,

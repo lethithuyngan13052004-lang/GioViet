@@ -340,11 +340,16 @@ public partial class TimchuyendiContext : DbContext
             entity.Property(e => e.RequestId).HasColumnType("int(11)");
             entity.Property(e => e.Weight).HasPrecision(10, 2);
             entity.Property(e => e.Width).HasPrecision(10, 2);
+            entity.Property(e => e.CargoTypeId).HasColumnType("int(11)");
 
             entity.HasOne(d => d.Request).WithMany(p => p.Cargodetails)
                 .HasForeignKey(d => d.RequestId)
                 .OnDelete(DeleteBehavior.ClientSetNull)
                 .HasConstraintName("fk_cargodetail_request");
+
+            entity.HasOne(d => d.CargoType).WithMany()
+                .HasForeignKey(d => d.CargoTypeId)
+                .HasConstraintName("fk_cargodetail_cargotype");
         });
 
         modelBuilder.Entity<Shippingroute>(entity =>

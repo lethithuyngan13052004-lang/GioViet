@@ -89,24 +89,25 @@ namespace TimChuyenDi.Controllers
             switch (order.CurrentStep)
             {
                 case OrderStep.AskRoute:
-                    if (!order.FromProvinceId.HasValue) missing.Add("Tỉnh đi (FromProvinceId)");
-                    if (!order.ToProvinceId.HasValue) missing.Add("Tỉnh đến (ToProvinceId)");
-                    if (string.IsNullOrEmpty(order.PickupAddress)) missing.Add("Địa chỉ lấy hàng (PickupAddress)");
-                    if (string.IsNullOrEmpty(order.DeliveryAddress)) missing.Add("Địa chỉ giao hàng (DeliveryAddress)");
+                    if (!order.FromProvinceId.HasValue) missing.Add("Tỉnh đi");
+                    if (!order.ToProvinceId.HasValue) missing.Add("Tỉnh đến");
+                    if (string.IsNullOrEmpty(order.PickupAddress)) missing.Add("Địa chỉ lấy hàng");
+                    if (string.IsNullOrEmpty(order.DeliveryAddress)) missing.Add("Địa chỉ giao hàng");
                     break;
                 case OrderStep.AskCargo:
-                    if (order.Weight <= 0) missing.Add("Khối lượng (Weight)");
-                    if (string.IsNullOrEmpty(order.Description)) missing.Add("Mô tả hàng hóa (Description)");
+                    if (order.Weight <= 0) missing.Add("Khối lượng");
+                    if (string.IsNullOrEmpty(order.Description)) missing.Add("Mô tả hàng hóa");
+                    if (!order.CargoTypeId.HasValue) missing.Add("Loại hàng hóa");
                     break;
                 case OrderStep.AskReceiver:
-                    if (string.IsNullOrEmpty(order.ReceiverName)) missing.Add("Tên người nhận (ReceiverName)");
-                    if (string.IsNullOrEmpty(order.ReceiverPhone)) missing.Add("SĐT người nhận (ReceiverPhone)");
+                    if (string.IsNullOrEmpty(order.ReceiverName)) missing.Add("Tên người nhận");
+                    if (string.IsNullOrEmpty(order.ReceiverPhone)) missing.Add("SĐT người nhận");
                     break;
                 case OrderStep.AskTime:
-                    if (!order.PickupTimeFrom.HasValue) missing.Add("Thời gian lấy hàng (PickupTimeFrom)");
+                    if (!order.PickupTimeFrom.HasValue) missing.Add("Thời gian lấy hàng");
                     break;
             }
-            return missing.Any() ? "Các thông tin còn thiếu BẮT BUỘC: " + string.Join(", ", missing) : "Đã đủ thông tin.";
+            return missing.Any() ? "Các thông tin còn thiếu BẮT BUỘC ở bước này: " + string.Join(", ", missing) : "Đã đủ thông tin bước này.";
         }
 
         private void UpdateCurrentStep(ChatOrderSession order)
@@ -114,7 +115,7 @@ namespace TimChuyenDi.Controllers
             if (order.CurrentStep == OrderStep.None) order.CurrentStep = OrderStep.AskRoute;
 
             bool routeDone = (order.FromProvinceId.HasValue && order.ToProvinceId.HasValue && !string.IsNullOrEmpty(order.PickupAddress) && !string.IsNullOrEmpty(order.DeliveryAddress)) || order.TripId.HasValue;
-            bool cargoDone = order.Weight > 0 && !string.IsNullOrEmpty(order.Description);
+            bool cargoDone = order.Weight > 0 && !string.IsNullOrEmpty(order.Description) && order.CargoTypeId.HasValue;
             bool receiverDone = !string.IsNullOrEmpty(order.ReceiverName) && !string.IsNullOrEmpty(order.ReceiverPhone);
             bool timeDone = order.PickupTimeFrom.HasValue;
 
@@ -156,7 +157,9 @@ namespace TimChuyenDi.Controllers
                 string normFullText = normHistory + " " + normUserMsg;
 
                 // --- 📦 QUẢN LÝ ĐƠN HÀNG (SESSION) ---
+                // Khởi tạo hoặc lấy session hiện tại. Đơn hàng "IsActive" khi khách bắt đầu quy trình đặt đơn.
                 var order = GetSessionOrder();
+                bool isRouteChanged = false; // Phờ lờ-ắc (flag) theo dõi thay đổi lộ trình trong tin nhắn hiện tại
                 bool isOrderIntent = order.IsActive || Regex.IsMatch(normFullText, @"dat|tao|gui|ship|don|hang|muon gui");
                 
                 if (isOrderIntent && !order.IsActive) {
@@ -170,11 +173,17 @@ namespace TimChuyenDi.Controllers
                 }
 
 
-                // ⚖️ XỬ LÝ CÂN NẶNG
-                // Nếu khách cung cấp weight trực tiếp thì không cần confirmed weightSuggest
-                if (order.WeightSuggest.HasValue && order.Weight == 0 && IsPositiveConfirm(userMessage)) {
-                    order.Weight = order.WeightSuggest.Value;
-                    order.WeightSuggest = null;
+                // ⚖️ XỬ LÝ CÂN NẶNG & LOẠI HÀNG
+                // Nếu khách báo "đúng", ta chốt cân nặng và loại hàng nếu có suggest
+                if (IsPositiveConfirm(userMessage)) {
+                    if (order.WeightSuggest.HasValue && order.Weight == 0) {
+                        order.Weight = order.WeightSuggest.Value;
+                        order.WeightSuggest = null;
+                    }
+                    if (order.CargoTypeIdSuggest.HasValue && !order.CargoTypeId.HasValue) {
+                        order.CargoTypeId = order.CargoTypeIdSuggest.Value;
+                        order.CargoTypeIdSuggest = null;
+                    }
                 }
 
                 // 📦 XỬ LÝ CHỌN CHUYẾN XE (Ưu tiên ID -> Sau đó là xác nhận gợi ý)
@@ -189,38 +198,36 @@ namespace TimChuyenDi.Controllers
                         .FirstOrDefaultAsync(t => t.TripId == selectedTripId);
                     
                     if (selTrip != null) {
-                        order.TripId = selTrip.TripId;
-                        order.CurrentStep = OrderStep.AskCargo;
-                        order.FromProvinceId = selTrip.FromStationNavigation.ProvinceId;
-                        order.ToProvinceId = selTrip.ToStationNavigation.ProvinceId;
-                        order.FromStationId = selTrip.FromStation;
-                        order.ToStationId = selTrip.ToStation;
-                        if (!order.PickupTimeFrom.HasValue) order.PickupTimeFrom = selTrip.StartTime;
-                        order.PickupAddress = selTrip.FromStationNavigation.StationName;
-                        order.DeliveryAddress = selTrip.ToStationNavigation.StationName;
+                        SyncTripData(order, selTrip);
                         isExplicitSelection = true;
                     } else {
                         contextInfo += $"\nHỆ THỐNG: Khách hàng yêu cầu mã chuyến {selectedTripId} nhưng mã này không hợp lệ hoặc không tìm thấy.";
                     }
                 }
                 
-                // Nếu không có ID cụ thể nhưng khách nói "Ok/Đúng rồi..."
-                if (!isExplicitSelection && !order.TripId.HasValue && order.TripSuggestions?.Any() == true && IsPositiveConfirm(userMessage))
+                // Nếu không có ID cụ thể nhưng khách nói "Ok/Đúng rồi..." (Chỉ kích hoạt nếu KHÔNG có đổi lộ trình trong cùng msg)
+                // Điều này ngăn chặn việc khách nói "Ok" cho một chuyến xe cũ khi họ vừa mới yêu cầu đổi lộ trình.
+                if (!isRouteChanged && !isExplicitSelection && !order.TripId.HasValue && order.TripSuggestions?.Any() == true && IsPositiveConfirm(userMessage))
                 {
-                    // Thay vì tự chọn, ta thêm hint để AI hỏi xác nhận lại cho chắc (theo yêu cầu user)
                     int firstId = order.TripSuggestions.First();
-                    contextInfo += $"\nHệ thống: Khách hàng có vẻ đang muốn chọn chuyến xe đầu tiên (Mã {firstId}). Bạn hãy hỏi xác nhận: 'Bạn muốn chọn luôn chuyến mã {firstId} đúng không?' để chắc chắn.";
+                    // Thay vì bảo AI hỏi lại, ta chủ động CHỐT luôn ở backend để tránh AI đi vào vòng lặp "hỏi lại cho chắc".
+                    var selTrip = await _context.Trips
+                        .Include(t => t.FromStationNavigation).ThenInclude(s => s.Province)
+                        .Include(t => t.ToStationNavigation).ThenInclude(s => s.Province)
+                        .FirstOrDefaultAsync(t => t.TripId == firstId);
+                    
+                    if (selTrip != null) {
+                        SyncTripData(order, selTrip);
+                        isExplicitSelection = true; // Đánh dấu là đã chọn để vô hiệu hóa các logic tìm kiếm khác
+                        contextInfo += $"\nHỆ THỐNG: Khách hàng ĐÃ ĐỒNG Ý chọn chuyến xe gợi ý (Mã {firstId}). Hãy thông báo đã ghi nhận và tiếp tục bước tiếp theo.";
+                    }
                 }
 
                 bool isSelectingTrip = isExplicitSelection || tripMatch.Success;
-                // 🛑 Kiểm tra auth trước khi tiếp tục
-                if (isOrderIntent && !User.Identity.IsAuthenticated) {
-                    string loginPrompt = "Khách hàng muốn đặt đơn nhưng CHƯA ĐĂNG NHẬP. Hãy lịch sự chào hỏi và hướng dẫn khách Đăng nhập hoặc Đăng ký tài khoản Gió Việt trước khi có thể tạo đơn hàng. Bạn có thể giải thích ngắn gọn lợi ích của việc đăng nhập để quản lý đơn hàng tốt hơn.";
-                    string loginReply = await _openAIService.SendMessageAsync($"USER: {userMessage}\n\nINSTRUCTION: {loginPrompt}");
-                    return Json(new { success = true, reply = loginReply });
-                }
+                // 🛑 (Đã bỏ return sớm ở đây để hệ thống luôn cập nhật Session/Tỉnh thành mới nhất)
 
-                // 1. Identify Provinces in CURRENT message (Priority for Direction)
+                // 1. Nhận diện Tỉnh/Thành trong tin nhắn HIỆN TẠI (Ưu tiên xác định hướng đi)
+                // Logic này giúp phân biệt "Từ A đến B" hay "Đi B từ A" dựa trên từ khóa.
                 var matchedInMsg = provincesWithNorm
                     .Where(p => normUserMsg.Contains(p.NameNorm))
                     .Select(p => new { p.Province, Index = normUserMsg.IndexOf(p.NameNorm) })
@@ -262,13 +269,25 @@ namespace TimChuyenDi.Controllers
                     else fromProvince = m.Province;
                 }
 
-                // Cập nhật Province từ message CHỈ KHI chưa chọn Trip (để tránh override trip route)
+                // 2. Cập nhật Tỉnh/Thành & Phát hiện thay đổi (CẤM ghi đè nếu đã chốt TripId cụ thể)
                 if (!order.TripId.HasValue)
                 {
-                    if (fromProvince != null) order.FromProvinceId = fromProvince.ProvinceId;
-                    if (toProvince != null) order.ToProvinceId = toProvince.ProvinceId;
+                    if (fromProvince != null && fromProvince.ProvinceId != order.FromProvinceId) {
+                        isRouteChanged = true;
+                        order.FromProvinceId = fromProvince.ProvinceId;
+                    }
+                    if (toProvince != null && toProvince.ProvinceId != order.ToProvinceId) {
+                        isRouteChanged = true;
+                        order.ToProvinceId = toProvince.ProvinceId;
+                    }
 
-                    // 2. Fallback to History (If missing From or To)
+                    if (isRouteChanged) {
+                        order.TripId = null;
+                        order.TripSuggestions = null;
+                        order.TripSuggestionsInfo = null;
+                    }
+
+                    // Fallback to History (If missing From or To)
                     if (order.FromProvinceId == null || order.ToProvinceId == null)
                     {
                         var matchedInFull = provincesWithNorm
@@ -276,8 +295,14 @@ namespace TimChuyenDi.Controllers
                             .Select(p => p.Province)
                             .ToList();
 
-                        if (order.FromProvinceId == null) order.FromProvinceId = matchedInFull.FirstOrDefault()?.ProvinceId;
-                        if (order.ToProvinceId == null) order.ToProvinceId = matchedInFull.FirstOrDefault(p => p.ProvinceId != (order.FromProvinceId ?? -1))?.ProvinceId;
+                        if (order.FromProvinceId == null && matchedInFull.Any()) {
+                            order.FromProvinceId = matchedInFull.First().ProvinceId;
+                            isRouteChanged = true;
+                        }
+                        if (order.ToProvinceId == null && matchedInFull.Any(p => p.ProvinceId != (order.FromProvinceId ?? -1))) {
+                            order.ToProvinceId = matchedInFull.First(p => p.ProvinceId != (order.FromProvinceId ?? -1)).ProvinceId;
+                            isRouteChanged = true;
+                        }
                     }
                 }
 
@@ -315,7 +340,9 @@ namespace TimChuyenDi.Controllers
                     }
                 }
 
-                // 4. Search & Filter trips (Chỉ thực hiện nếu CHƯA chọn TripId)
+                // 4. Tìm kiếm và Lọc chuyến xe (Chỉ thực hiện nếu CHƯA chốt TripId cụ thể)
+                // Hỗ trợ tìm chuyến đi qua các tỉnh trung gian (ví dụ: tìm chuyến đi từ Đà Nẵng vào HCM 
+                // trên một lộ trình dài chạy tuyến Bắc-Nam).
                 int? fromId = order.FromProvinceId;
                 int? toId = order.ToProvinceId;
                 
@@ -328,10 +355,11 @@ namespace TimChuyenDi.Controllers
                 bool isTripSearch = Regex.IsMatch(normFullText, @"chuyen|xe|lich|tim|di|den|gui|ship") || fromId.HasValue || toId.HasValue;
                 bool showTripList = isFirstMessage || order.CurrentStep == OrderStep.None || order.CurrentStep == OrderStep.AskRoute || order.CurrentStep == OrderStep.Confirm;
 
-                // Khóa tìm kiếm mềm: Chỉ tìm lại khi chưa có gợi ý, hoặc khách đổi ý, hoặc đổi thời gian
-                bool needRefilter = !hasSuggestions || (!isSelectingTrip && (isChangeIntent || isTimeChanged));
+                // Khóa tìm kiếm mềm: Chỉ tìm lại khi chưa có gợi ý, hoặc khách đổi ý, hoặc đổi thời gian/lộ trình
+                bool needRefilter = !hasSuggestions || (!isSelectingTrip && (isChangeIntent || isTimeChanged || isRouteChanged));
 
-                if (isChangeIntent || isTimeChanged) {
+                // Nếu lộ trình hoặc thời gian thay đổi, ta xóa dữ liệu chuyến cũ để tránh "râu ông nọ cắm cằm bà kia"
+                if (isChangeIntent || isTimeChanged || isRouteChanged) {
                     order.TripId = null;
                     order.TripSuggestions = null;
                     order.TripSuggestionsInfo = null;
@@ -353,12 +381,17 @@ namespace TimChuyenDi.Controllers
                     var filteredTrips = allTrips;
 
                     if (fromId.HasValue && toId.HasValue) {
+                        // Logic lọc nâng cao: Kiểm tra xem tỉnh đi và tỉnh đến có nằm trong lộ trình (bao gồm các trạm dừng giữa) 
+                        // và tỉnh đi phải xuất hiện TRƯỚC tỉnh đến.
                         filteredTrips = allTrips.Where(t => {
+                            // Xây dựng danh sách tỉnh thành theo lộ trình: [Tỉnh đầu] -> [Các tỉnh trung gian] -> [Tỉnh cuối]
                             var route = new List<int> { t.FromStationNavigation.ProvinceId };
                             route.AddRange(t.TripStations.OrderBy(ts => ts.StopOrder).Select(ts => ts.Station.ProvinceId));
                             route.Add(t.ToStationNavigation.ProvinceId);
-                            int fIdx = route.IndexOf(fromId.Value);
-                            int tIdx = route.LastIndexOf(toId.Value);
+                            
+                            int fIdx = route.IndexOf(fromId.Value);     // Tìm vị trí tỉnh đi đầu tiên
+                            int tIdx = route.LastIndexOf(toId.Value);  // Tìm vị trí tỉnh đến cuối cùng
+                            
                             return fIdx != -1 && tIdx != -1 && fIdx < tIdx;
                         }).ToList();
                     } else if (fromId.HasValue) {
@@ -369,8 +402,14 @@ namespace TimChuyenDi.Controllers
 
                     if (filteredTrips.Any()) {
                         order.TripSuggestions = filteredTrips.Select(t => t.TripId).Take(5).ToList();
-                        order.TripSuggestionsInfo = filteredTrips.Take(10).Select(t =>
-                            $"- Mã {t.TripId}: {t.FromStationNavigation.StationName} ({t.FromStationNavigation.Province.ProvinceName}) -> {t.ToStationNavigation.StationName} ({t.ToStationNavigation.Province.ProvinceName}) lúc {t.StartTime:HH:mm dd/MM}.").ToList();
+                        order.TripSuggestionsInfo = filteredTrips.Take(10).Select(t => {
+                            var intermediate = t.TripStations.OrderBy(ts => ts.StopOrder)
+                                .Select(ts => $"{ts.Station.StationName} ({ts.Station.Province.ProvinceName})");
+                            string routeStr = string.Join(" -> ", intermediate);
+                            if (!string.IsNullOrEmpty(routeStr)) routeStr = " -> " + routeStr;
+
+                            return $"- Mã {t.TripId}: {t.FromStationNavigation.StationName} ({t.FromStationNavigation.Province.ProvinceName}){routeStr} -> {t.ToStationNavigation.StationName} ({t.ToStationNavigation.Province.ProvinceName}) lúc {t.StartTime:HH:mm dd/MM}.";
+                        }).ToList();
 
                         if (showTripList) {
                             contextInfo += "\nDANH SÁCH CHUYẾN XE TÌM ĐƯỢC:\n" + string.Join("\n", order.TripSuggestionsInfo);
@@ -437,20 +476,36 @@ namespace TimChuyenDi.Controllers
                                        "Nếu khách chọn chuyến mà context không có mã đó, tuyệt đối không tự ý chọn mã khác thay thế, hãy báo lại mã này không tìm thấy.";
 
                 if (order.IsActive) {
-                    UpdateCurrentStep(order);
-                    
-                    aiInstruction += "\n--- 📦 QUY TRÌNH TẠO ĐƠN (STATE MACHINE) ---" +
-                                     $"\nBƯỚC HIỆN TẠI: {order.CurrentStep}" +
-                                     $"\nNHIỆM VỤ CỦA BẠN: {GetStepInstruction(order.CurrentStep)}" +
-                                     $"\nCHI TIẾT: {GetMissingFieldsInfo(order)}" +
-                                     "\nTRẠNG THÁI ĐƠN HIỆN TẠI (JSON): " + JsonSerializer.Serialize(order) +
-                                     "\nHƯỚNG DẪN CŨNG CỐ:" +
-                                     "\n- Ưu tiên hỏi thông tin còn thiếu BẮT BUỘC." +
-                                     "\n- Trích xuất thông tin từ tin nhắn và cập nhật vào JSON ngay. CẤM hỏi lại thông tin khách đã cung cấp." +
-                                     "\n- CẤM nói dài dòng, CẤM chào hỏi lại khi đang trong quá trình đặt đơn." +
-                                     "\n- Ở bước Confirm: Hiển thị tóm tắt ngắn gọn và hỏi chốt đơn.";
-                    
-                    aiInstruction += "\nQUAN TRỌNG: Mọi phản hồi khi đang đặt đơn PHẢI đi kèm thẻ: [[UPDATE_ORDER:{\"...\"}]]";
+                    if (!User.Identity.IsAuthenticated) {
+                        aiInstruction += "\nQUAN TRỌNG: Khách hàng chưa đăng nhập. Bạn PHẢI ưu tiên nhắc khách Đăng nhập/Đăng ký tài khoản Gió Việt để tiếp tục. " +
+                                         "Ghi nhận mọi thông tin họ cung cấp vào JSON [[UPDATE_ORDER]], nhưng KHÔNG hỏi thêm thông tin các bước tiếp theo (Weight, Phone...), hãy chỉ tập trung yêu cầu đăng nhập.";
+                    } else {
+                        UpdateCurrentStep(order);
+                        
+                        string cargoTypeInfo = "";
+                        if (order.CurrentStep == OrderStep.AskCargo || string.IsNullOrEmpty(order.Description)) {
+                            var cargoTypesList = await _context.Cargotypes.ToListAsync();
+                            cargoTypeInfo = "\nDANH SÁCH MÃ LOẠI HÀNG (CargoTypeId):\n" + string.Join("\n", cargoTypesList.Select(c => $"- Mã {c.CargoTypeId}: {c.TypeName}"));
+                            cargoTypeInfo += "\nDỰ ĐOÁN LOẠI HÀNG: Căn cứ vào mô tả của khách, hãy dự đoán Mã Loại Hàng (CargoTypeId) phù hợp. Gán vào biến 'CargoTypeIdSuggest' trong JSON để khách xác nhận (Ví dụ: '... có phải loại hàng [Gia cầm] không?'). Nếu khách KHÔNG đồng ý, hãy liệt kê danh sách cho khách chọn.";
+                        }
+
+                        aiInstruction += "\n--- 📦 QUY TRÌNH TẠO ĐƠN (STATE MACHINE) ---" +
+                                         $"\nBƯỚC HIỆN TẠI: {order.CurrentStep}" +
+                                         $"\nNHIỆM VỤ CỦA BẠN: {GetStepInstruction(order.CurrentStep)}" +
+                                         $"\nCHI TIẾT: {GetMissingFieldsInfo(order)}" +
+                                         cargoTypeInfo +
+                                         "\nTRẠNG THÁI ĐƠN HIỆN TẠI (JSON): " + JsonSerializer.Serialize(order) +
+                                         "\nHƯỚNG DẪN CŨNG CỐ:" +
+                                         "\n- Ưu tiên hỏi thông tin còn thiếu BẮT BUỘC." +
+                                         "\n- TRÍCH XUẤT TỰ ĐỘNG: BẤT KỂ đang ở bước nào, nếu tin nhắn của khách chứa thông tin của các bước khác (hàng hóa, số điện thoại, tên, địa chỉ...), bạn PHẢI trích xuất TẤT CẢ và cập nhật ngay vào JSON." +
+                                         "\n- NẾU thông tin (như địa chỉ, hàng hóa, chuyến xe) ĐÃ CÓ trong USER MESSAGE, hãy cập nhật vào JSON ngay và TẤT NHIÊN KHÔNG ĐƯỢC HỎI LẠI thông tin đó trong phần văn bản. Hãy lập tức chuyển sang bước/câu hỏi tiếp theo." +
+                                         "\n- CẤM nói dài dòng, CẤM chào hỏi lại khi đang trong quá trình đặt đơn." +
+                                         "\n- TUYỆT ĐỐI KHÔNG hiển thị hay in ra các tên biến tiếng Anh (như PickupAddress, TripId, Weight, CargoTypeId) cho khách hàng xem." +
+                                         "\n- Ở bước Confirm: Hiển thị tóm tắt ngắn gọn và hỏi chốt đơn.";
+                        
+                        aiInstruction += "\nQUAN TRỌNG: Mọi phản hồi khi đang đặt đơn PHẢI đi kèm thẻ: [[UPDATE_ORDER:{\"...\"}]]\n" +
+                                         "CHỈ SỬ DỤNG CÁC KHOÁ (KEYS) SAU TRONG JSON: TripId, CargoTypeId, CargoTypeIdSuggest, Weight, WeightSuggest, Length, Width, Height, Description, SenderPhone, ReceiverName, ReceiverPhone, Note, PickupAddress, DeliveryAddress.";
+                    }
                 }
 
                 // Gợi ý định vị nếu chưa bật
@@ -475,12 +530,22 @@ namespace TimChuyenDi.Controllers
                         var root = doc.RootElement;
                         
                         // Cập nhật các trường có trong JSON
+                        if (root.TryGetProperty("TripId", out var tripProp) && tripProp.TryGetInt32(out var tId)) {
+                             var selTripAI = await _context.Trips
+                                .Include(t => t.FromStationNavigation).ThenInclude(s => s.Province)
+                                .Include(t => t.ToStationNavigation).ThenInclude(s => s.Province)
+                                .FirstOrDefaultAsync(t => t.TripId == tId);
+                             if (selTripAI != null) SyncTripData(order, selTripAI);
+                        }
                         if (root.TryGetProperty("Weight", out var w)) order.Weight = w.GetDecimal();
                         if (root.TryGetProperty("WeightSuggest", out var ws)) order.WeightSuggest = ws.GetDecimal();
+                        if (root.TryGetProperty("CargoTypeId", out var cTypeId) && cTypeId.ValueKind != JsonValueKind.Null) order.CargoTypeId = cTypeId.GetInt32();
+                        if (root.TryGetProperty("CargoTypeIdSuggest", out var cTypeIdS) && cTypeIdS.ValueKind != JsonValueKind.Null) order.CargoTypeIdSuggest = cTypeIdS.GetInt32();
                         if (root.TryGetProperty("Length", out var l)) order.Length = l.GetDecimal();
                         if (root.TryGetProperty("Width", out var wd)) order.Width = wd.GetDecimal();
                         if (root.TryGetProperty("Height", out var h)) order.Height = h.GetDecimal();
                         if (root.TryGetProperty("Description", out var desc)) order.Description = desc.GetString();
+                        if (root.TryGetProperty("SenderPhone", out var sp)) order.SenderPhone = sp.GetString();
                         if (root.TryGetProperty("ReceiverName", out var rn)) order.ReceiverName = rn.GetString();
                         if (root.TryGetProperty("ReceiverPhone", out var rp)) order.ReceiverPhone = rp.GetString();
                         if (root.TryGetProperty("Note", out var n)) order.Note = n.GetString();
@@ -550,10 +615,17 @@ namespace TimChuyenDi.Controllers
 
                 if (trip != null)
                 {
+                    decimal cargoMultiplier = 1;
+                    if (order.CargoTypeId.HasValue && order.CargoTypeId.Value > 0)
+                    {
+                        var cargoType = await _context.Cargotypes.FindAsync(order.CargoTypeId.Value);
+                        if (cargoType != null) cargoMultiplier = cargoType.PriceMultiplier;
+                    }
+
                     decimal capacityKg = trip.Vehicle?.CapacityKg ?? 1;
                     decimal basePrice = trip.BasePrice * (chargeableWeight / capacityKg);
                     decimal tripTypeMultiplier = trip.RouteTypeNavigation?.Multiplier ?? 1;
-                    totalPrice = Math.Max(basePrice * tripTypeMultiplier, minPrice);
+                    totalPrice = Math.Max(basePrice * tripTypeMultiplier * cargoMultiplier, minPrice);
                 }
                 else
                 {
@@ -583,6 +655,7 @@ namespace TimChuyenDi.Controllers
                 var cargo = new Cargodetail
                 {
                     RequestId = request.Id,
+                    CargoTypeId = order.CargoTypeId > 0 ? order.CargoTypeId : 1,
                     Weight = order.Weight,
                     Length = order.Length,
                     Width = order.Width,
@@ -640,11 +713,31 @@ namespace TimChuyenDi.Controllers
             return Json(new { success = true });
         }
 
+        /// <summary>
+        /// Đồng bộ dữ liệu lộ trình khi khách hàng hoặc AI chọn cụ thể một chuyến xe.
+        /// </summary>
+        private void SyncTripData(ChatOrderSession order, Trip selTrip)
+        {
+            order.TripId = selTrip.TripId;
+            order.CurrentStep = OrderStep.AskCargo;
+            order.FromProvinceId = selTrip.FromStationNavigation.ProvinceId;
+            order.ToProvinceId = selTrip.ToStationNavigation.ProvinceId;
+            order.FromStationId = selTrip.FromStation;
+            order.ToStationId = selTrip.ToStation;
+            if (!order.PickupTimeFrom.HasValue) order.PickupTimeFrom = selTrip.StartTime;
+            if (string.IsNullOrEmpty(order.PickupAddress)) order.PickupAddress = selTrip.FromStationNavigation.StationName;
+            if (string.IsNullOrEmpty(order.DeliveryAddress)) order.DeliveryAddress = selTrip.ToStationNavigation.StationName;
+        }
+
+        /// <summary>
+        /// Phát hiện ý định thay đổi/sửa lỗi của người dùng (như "đổi", "nhầm", "sửa lại").
+        /// </summary>
         private bool IsChangeIntent(string msg)
         {
             if (string.IsNullOrWhiteSpace(msg)) return false;
             string norm = RemoveDiacritics(msg.ToLower());
-            string[] keywords = { "doi", "nham", "khong", "sua", "lai", "chuyen khac", "tim lai", "thay doi" };
+            // Tập hợp các từ khóa báo hiệu sự thay đổi hoặc phủ định thông tin cũ
+            string[] keywords = { "doi", "nham", "khong phai", "khong dung", "sua", "lai", "chuyen khac", "tim lai", "thay doi" };
             return keywords.Any(k => norm.Contains(k));
         }
 
