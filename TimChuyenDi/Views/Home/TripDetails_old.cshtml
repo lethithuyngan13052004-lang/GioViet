@@ -181,21 +181,42 @@
     </div>
 </div>
 
-<link href='https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css' rel='stylesheet' />
-<script src='https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js'></script>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<link rel="stylesheet" href="https://unpkg.com/leaflet-routing-machine/dist/leaflet-routing-machine.css" />
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://unpkg.com/leaflet-routing-machine/dist/leaflet-routing-machine.js"></script>
 
 <script>
     document.addEventListener("DOMContentLoaded", function () {
         var map;
+        var routingControl;
         var mapModal = document.getElementById('routeMapModal');
         
         mapModal.addEventListener('shown.bs.modal', function () {
             if (!map) {
-                map = new maplibregl.Map({
-                    container: 'routeMap',
-                    style: 'https://basemaps.cartocdn.com/gl/voyager-gl-style/style.json',
-                    center: [108.2022, 16.0544],
-                    zoom: 6
+                map = L.map('routeMap').setView([16.0544, 108.2022], 6);
+                L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                    attribution: '&copy; OpenStreetMap'
+                }).addTo(map);
+
+                routingControl = L.Routing.control({
+                    waypoints: [],
+                    routeWhileDragging: false,
+                    addWaypoints: false,      
+                    draggableWaypoints: false,
+                    show: false,
+                    fitSelectedRoutes: false, 
+                    router: L.Routing.osrmv1({ 
+                        serviceUrl: 'https://router.project-osrm.org/route/v1', 
+                        profile: 'driving' 
+                    }),
+                    lineOptions: { styles: [{ color: '#0d6efd', opacity: 0.8, weight: 6 }] },
+                    createMarker: () => null
+                }).addTo(map);
+
+                routingControl.on('routingerror', function (e) {
+                    console.error("OSRM Routing Error:", e);
+                    alert("Hệ thống bản đồ đang tải hoặc các điểm dừng nằm ngoài mạng lưới. Đang hiển thị đường thẳng nối các trạm.");
                 });
 
                 const VN_CORRIDOR = [
@@ -229,6 +250,15 @@
                     });
                 }
 
+                var markers = L.layerGroup().addTo(map);
+
+                const iconBase = "https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-";
+                const shadowUrl = "https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png";
+                const createIcon = (color) => L.icon({
+                    iconUrl: iconBase + color + ".png", shadowUrl: shadowUrl,
+                    iconSize: [25, 41], iconAnchor: [12, 41], popupAnchor: [1, -34], shadowSize: [41, 41]
+                });
+
                 var startPoint = null, endPoint = null;
                 var intermediateStops = [];
 
@@ -238,7 +268,7 @@
                     var sLat = @((Model.FromStationNavigation.Latitude ?? 0).ToString(System.Globalization.CultureInfo.InvariantCulture));
                     var sLng = @((Model.FromStationNavigation.Longitude ?? 0).ToString(System.Globalization.CultureInfo.InvariantCulture));
                     if (sLat && sLng) {
-                        startPoint = { lat: sLat, lng: sLng, color: '#2A81CB', name: '<b>Bắt đầu:</b> @Html.Raw(Model.FromStationNavigation.StationName)', province: '@Html.Raw(Model.FromStationNavigation.Province?.ProvinceName ?? "")' };
+                        startPoint = { lat: sLat, lng: sLng, icon: createIcon('blue'), name: '<b>Bắt đầu:</b> @Html.Raw(Model.FromStationNavigation.StationName)', province: '@Html.Raw(Model.FromStationNavigation.Province?.ProvinceName ?? "")' };
                     }
                     </text>
                 }
@@ -253,7 +283,7 @@
                             var iLat = @((ts.Station.Latitude ?? 0).ToString(System.Globalization.CultureInfo.InvariantCulture));
                             var iLng = @((ts.Station.Longitude ?? 0).ToString(System.Globalization.CultureInfo.InvariantCulture));
                             if (iLat && iLng) {
-                                intermediateStops.push({ lat: iLat, lng: iLng, color: '#FF8C00', name: '<b>Trạm đi qua:</b> @Html.Raw(ts.Station.StationName)', province: '@Html.Raw(ts.Station.Province?.ProvinceName ?? "")' });
+                                intermediateStops.push({ lat: iLat, lng: iLng, icon: createIcon('orange'), name: '<b>Trạm đi qua:</b> @Html.Raw(ts.Station.StationName)', province: '@Html.Raw(ts.Station.Province?.ProvinceName ?? "")' });
                             }
                             </text>
                         }
@@ -266,7 +296,7 @@
                     var eLat = @((Model.ToStationNavigation.Latitude ?? 0).ToString(System.Globalization.CultureInfo.InvariantCulture));
                     var eLng = @((Model.ToStationNavigation.Longitude ?? 0).ToString(System.Globalization.CultureInfo.InvariantCulture));
                     if (eLat && eLng) {
-                        endPoint = { lat: eLat, lng: eLng, color: '#CB2B3E', name: '<b>Kết thúc:</b> @Html.Raw(Model.ToStationNavigation.StationName)', province: '@Html.Raw(Model.ToStationNavigation.Province?.ProvinceName ?? "")' };
+                        endPoint = { lat: eLat, lng: eLng, icon: createIcon('red'), name: '<b>Kết thúc:</b> @Html.Raw(Model.ToStationNavigation.StationName)', province: '@Html.Raw(Model.ToStationNavigation.Province?.ProvinceName ?? "")' };
                     }
                     </text>
                 }
@@ -295,7 +325,9 @@
                 var finalWaypoints = [];
                 for (var i = 0; i < rawWaypoints.length; i++) {
                     var curr = rawWaypoints[i];
-                    finalWaypoints.push([curr.lng, curr.lat]);
+                    var latLng = L.latLng(curr.lat, curr.lng);
+                    L.marker(latLng, { icon: curr.icon }).addTo(markers).bindPopup(curr.name);
+                    finalWaypoints.push(latLng);
 
                     if (i < rawWaypoints.length - 1 && !sameRegion) {
                         var next = rawWaypoints[i+1];
@@ -317,76 +349,20 @@
                                 else applicablePoints = [applicablePoints[0], applicablePoints[applicablePoints.length - 1]];
                             }
                             applicablePoints.forEach(cp => {
-                                finalWaypoints.push([cp.lng, cp.lat]);
+                                finalWaypoints.push(L.latLng(cp.lat, cp.lng));
                             });
                         }
                     }
                 }
 
-                map.on('load', function () {
-                    // Quần đảo Hoàng Sa và Trường Sa (Việt Nam)
-                    var vnIslands = [
-                        { lng: 112.00, lat: 16.47, name: '<b>Quần đảo Hoàng Sa</b><br/><small>Việt Nam</small>' },
-                        { lng: 113.90, lat:  9.80, name: '<b>Quần đảo Trường Sa</b><br/><small>Việt Nam</small>' }
-                    ];
-                    vnIslands.forEach(function (island) {
-                        var el = document.createElement('div');
-                        el.style.cssText = 'width:12px;height:12px;border-radius:50%;background:#e63946;border:2px solid #fff;box-shadow:0 0 4px rgba(0,0,0,.5);cursor:pointer;';
-                        new maplibregl.Marker({ element: el })
-                            .setLngLat([island.lng, island.lat])
-                            .setPopup(new maplibregl.Popup({ offset: 14 }).setHTML(island.name))
-                            .addTo(map);
-                    });
-
-                    rawWaypoints.forEach(function (wp) {
-                        new maplibregl.Marker({ color: wp.color })
-                            .setLngLat([wp.lng, wp.lat])
-                            .setPopup(new maplibregl.Popup({ offset: 25 }).setHTML(wp.name))
-                            .addTo(map);
-                    });
-
-                    if (finalWaypoints.length >= 2) {
-                        var coords = finalWaypoints.map(function (w) { return w[0] + ',' + w[1]; }).join(';');
-                        fetch('https://router.project-osrm.org/route/v1/driving/' + coords + '?overview=full&geometries=geojson')
-                            .then(function (res) { return res.json(); })
-                            .then(function (data) {
-                                if (data.code === 'Ok' && data.routes.length > 0) {
-                                    map.addSource('route', {
-                                        type: 'geojson',
-                                        data: { type: 'Feature', properties: {}, geometry: data.routes[0].geometry }
-                                    });
-                                    map.addLayer({
-                                        id: 'route',
-                                        type: 'line',
-                                        source: 'route',
-                                        layout: { 'line-join': 'round', 'line-cap': 'round' },
-                                        paint: { 'line-color': '#0d6efd', 'line-width': 6, 'line-opacity': 0.8 }
-                                    });
-                                }
-                                if (rawWaypoints.length > 0) {
-                                    var bounds = new maplibregl.LngLatBounds(
-                                        [rawWaypoints[0].lng, rawWaypoints[0].lat],
-                                        [rawWaypoints[0].lng, rawWaypoints[0].lat]
-                                    );
-                                    rawWaypoints.forEach(function (wp) { bounds.extend([wp.lng, wp.lat]); });
-                                    map.fitBounds(bounds, { padding: 60 });
-                                }
-                            })
-                            .catch(function (err) {
-                                console.error("Routing error:", err);
-                                if (rawWaypoints.length > 0) {
-                                    var bounds = new maplibregl.LngLatBounds(
-                                        [rawWaypoints[0].lng, rawWaypoints[0].lat],
-                                        [rawWaypoints[0].lng, rawWaypoints[0].lat]
-                                    );
-                                    rawWaypoints.forEach(function (wp) { bounds.extend([wp.lng, wp.lat]); });
-                                    map.fitBounds(bounds, { padding: 60 });
-                                }
-                            });
-                    }
-                });
+                if (finalWaypoints.length >= 2) {
+                    routingControl.setWaypoints(finalWaypoints);
+                    setTimeout(() => {
+                        var group = new L.featureGroup(rawWaypoints.map(w => L.marker([w.lat, w.lng])));
+                        map.fitBounds(group.getBounds().pad(0.2));
+                    }, 500);
+                }
             }
-            map.resize();
         });
     });
 </script>            

@@ -436,6 +436,12 @@ namespace TimChuyenDi.Controllers
                 .ToList();
             return Json(stations);
         }
+
+        [HttpGet]
+        public IActionResult Contact()
+        {
+            return View();
+        }
     } // Đóng class HomeController
 
 } // Đóng namespace TimChuyenDi.Controllers

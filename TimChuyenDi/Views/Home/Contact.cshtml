@@ -1,0 +1,277 @@
+@{
+    ViewData["Title"] = "Liên Hệ - Đội Ngũ Gió Việt";
+}
+
+<style>
+    .contact-hero {
+        background: linear-gradient(135deg, #0d6efd 0%, #05295d 100%);
+        color: white;
+        padding: 60px 0;
+        border-radius: 0 0 30px 30px;
+        margin-bottom: 50px;
+        box-shadow: 0 10px 30px rgba(13, 110, 253, 0.2);
+    }
+    
+    .team-card {
+        border: none;
+        border-radius: 20px;
+        transition: transform 0.3s ease, box-shadow 0.3s ease;
+        background-color: #fff;
+        height: 100%;
+        overflow: hidden;
+    }
+    
+    .team-card:hover {
+        transform: translateY(-10px);
+        box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+    }
+
+    .team-card-header {
+        position: relative;
+        height: 160px;
+        background: linear-gradient(45deg, #f8f9fa, #e9ecef);
+        display: flex;
+        align-items: flex-end;
+        justify-content: center;
+        padding-bottom: 20px;
+    }
+
+    .team-card-header-bg {
+        position: absolute;
+        top: 0; left: 0; right: 0; height: 100px;
+        background: url('/images/HHT_banner_png.png') center/contain no-repeat;
+        opacity: 0.3;
+    }
+
+    .member-avatar {
+        width: 140px;
+        height: 140px;
+        border-radius: 50%;
+        border: 5px solid #fff;
+        object-fit: cover;
+        box-shadow: 0 5px 15px rgba(0,0,0,0.15);
+        position: relative;
+        z-index: 2;
+        background-color: #f1f3f5;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 3rem;
+        color: #adb5bd;
+        font-weight: bold;
+    }
+
+    .social-icon {
+        width: 40px;
+        height: 40px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 50%;
+        background-color: #f8f9fa;
+        color: #495057;
+        transition: all 0.3s;
+        margin: 0 5px;
+    }
+
+    .social-icon:hover {
+        background-color: #0d6efd;
+        color: #fff;
+        transform: scale(1.1);
+    }
+
+    .info-list {
+        list-style: none;
+        padding: 0;
+        margin: 0;
+    }
+
+    .info-list li {
+        padding: 10px 0;
+        border-bottom: 1px dashed #e9ecef;
+        display: flex;
+        align-items: center;
+    }
+
+    .info-list li:last-child {
+        border-bottom: none;
+    }
+
+    .info-list i {
+        color: #0d6efd;
+        width: 30px;
+        font-size: 1.1rem;
+    }
+
+    .role-badge {
+        background-color: rgba(13, 110, 253, 0.1);
+        color: #0d6efd;
+        font-weight: 600;
+        padding: 5px 15px;
+        border-radius: 20px;
+        display: inline-block;
+        margin-bottom: 10px;
+    }
+</style>
+
+<!-- Hero Section -->
+<div class="contact-hero text-center mt-n4">
+    <div class="container">
+        <h1 class="display-4 fw-bold mb-3">Đội Ngũ Phát Triển Gió Việt</h1>
+        <p class="lead mb-0 text-white-50">Gặp gỡ những thành viên tâm huyết xây dựng nền tảng ghép xe kết nối tài xế và khách hàng.</p>
+    </div>
+</div>
+
+<div class="container pb-5">
+    
+    <div class="row g-4 justify-content-center">
+        
+        <!-- Member 1 -->
+        <div class="col-md-6 col-lg-3">
+            <div class="card team-card shadow-sm">
+                <div class="team-card-header">
+                    <div class="team-card-header-bg"></div>
+                    <img src="/images/member%201.jpg" alt="Member 1" class="member-avatar">
+                </div>
+                <div class="card-body text-center pt-3">
+                    <div class="role-badge">Chủ trì thực hiện</div>
+                    <h4 class="fw-bold mb-3">Kiều Thành Chung</h4>
+                    
+                    <ul class="info-list text-start mb-4 text-muted small">
+                        <li><i class="bi bi-mortarboard-fill"></i>Tiến sĩ</li>
+                        <li><i class="bi bi-telephone-fill"></i>0987.123.321</li>
+                        <li><i class="bi bi-envelope-fill"></i>ChungKi@hht.edu.com</li>
+                        <li><i class="bi bi-geo-alt-fill"></i>Hà Nội, Việt Nam</li>
+                    </ul>
+
+                    <div>
+                        <a href="#" class="social-icon" title="Facebook"><i class="bi bi-facebook"></i></a>
+                        <a href="#" class="social-icon" title="Instagram"><i class="bi bi-instagram"></i></a>
+                        <a href="#" class="social-icon" title="LinkedIn"><i class="bi bi-linkedin"></i></a>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Member 2 -->
+        <div class="col-md-6 col-lg-3">
+            <div class="card team-card shadow-sm">
+                <div class="team-card-header">
+                    <div class="team-card-header-bg"></div>
+                    <img src="/images/member%202.jpg" alt="Member 2" class="member-avatar">
+                </div>
+                <div class="card-body text-center pt-3">
+                    <div class="role-badge">Chuyên viên cố vấn</div>
+                    <h4 class="fw-bold mb-3">Nguyễn Văn Anh</h4>
+                    
+                    <ul class="info-list text-start mb-4 text-muted small">
+                        <li><i class="bi bi-mortarboard-fill"></i>Kỹ sư công nghệ thông tin</li>
+                        <li><i class="bi bi-telephone-fill"></i>0933.366.789</li>
+                        <li><i class="bi bi-envelope-fill"></i>VanA@gmail.com</li>
+                        <li><i class="bi bi-geo-alt-fill"></i>Hà Nội, Việt Nam</li>
+                    </ul>
+
+                    <div>
+                        <a href="#" class="social-icon" title="Facebook"><i class="bi bi-facebook"></i></a>
+                        <a href="#" class="social-icon" title="Instagram"><i class="bi bi-instagram"></i></a>
+                        <a href="#" class="social-icon" title="LinkedIn"><i class="bi bi-linkedin"></i></a>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Member 3 -->
+        <div class="col-md-6 col-lg-3">
+            <div class="card team-card shadow-sm">
+                <div class="team-card-header">
+                    <div class="team-card-header-bg" style="background-image: url('/images/banner-uneti.png'); opacity: 0.8; background-position: center; background-size: contain; background-repeat: no-repeat;" ></div>
+                    <img src="/images/member%203.jpg" alt="Member 3" class="member-avatar">
+                </div>
+                <div class="card-body text-center pt-3">
+                    <div class="role-badge">Kỹ thuật viên</div>
+                    <h4 class="fw-bold mb-3">Lê Thị Thủy Ngân</h4>
+                    
+                    <ul class="info-list text-start mb-4 text-muted small">
+                        <li><i class="bi bi-mortarboard-fill"></i>Sinh viên</li>
+                        <li><i class="bi bi-telephone-fill"></i>0956.456.335</li>
+                        <li><i class="bi bi-envelope-fill"></i>ltThuyNgan@uneti.edu.com</li>
+                        <li><i class="bi bi-geo-alt-fill"></i>Hà Nội, Việt Nam</li>
+                    </ul>
+
+                    <div>
+                        <a href="#" class="social-icon" title="Facebook"><i class="bi bi-facebook"></i></a>
+                        <a href="#" class="social-icon" title="Instagram"><i class="bi bi-instagram"></i></a>
+                        <a href="#" class="social-icon" title="LinkedIn"><i class="bi bi-linkedin"></i></a>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Member 4 -->
+        <div class="col-md-6 col-lg-3">
+            <div class="card team-card shadow-sm">
+                <div class="team-card-header">
+                    <div class="team-card-header-bg" style="background-image: url('/images/banner-uneti.png'); opacity: 0.8; background-position: center; background-size: contain; background-repeat: no-repeat;" ></div>
+                    <img src="/images/member%204.jpg" alt="Member 4" class="member-avatar">
+                </div>
+                <div class="card-body text-center pt-3">
+                    <div class="role-badge">Kỹ thuật viên</div>
+                    <h4 class="fw-bold mb-3">Nguyễn Linh Chi</h4>
+
+                    <ul class="info-list text-start mb-4 text-muted small">
+                        <li><i class="bi bi-mortarboard-fill"></i>Sinh viên</li>
+                        <li><i class="bi bi-telephone-fill"></i>0978.789.228</li>
+                        <li><i class="bi bi-envelope-fill"></i>nLinhChi@uneti.edu.com</li>
+                        <li><i class="bi bi-geo-alt-fill"></i>Hà Nội, Việt Nam</li>
+                    </ul>
+
+                    <div>
+                        <a href="#" class="social-icon" title="Facebook"><i class="bi bi-facebook"></i></a>
+                        <a href="#" class="social-icon" title="Instagram"><i class="bi bi-instagram"></i></a>
+                        <a href="#" class="social-icon" title="LinkedIn"><i class="bi bi-linkedin"></i></a>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- Company Contact Map / Extra Info Info -->
+    <div class="row mt-5">
+        <div class="col-12">
+            <div class="card border-0 shadow-sm rounded-4 overflow-hidden">
+                <div class="row g-0">
+                    <div class="col-md-6 bg-primary text-white p-5 d-flex flex-column justify-content-center">
+                        <h3 class="fw-bold mb-4">Thông tin liên hệ chung</h3>
+                        <p class="mb-4 text-white-50">Bạn có câu hỏi hoặc cần hỗ trợ? Đừng ngần ngại liên hệ với chúng tôi qua các kênh dưới đây, đội ngũ hỗ trợ luôn sẵn sàng 24/7.</p>
+                        
+                        <div class="d-flex align-items-center mb-3">
+                            <i class="bi bi-geo-alt-fill fs-4 me-3 text-warning"></i>
+                            <div>
+                                <strong class="d-block">Văn phòng chính</strong>
+                                <span>298 Đường Cầu Diễn, Bắc Từ Liêm, Hà Nội</span>
+                            </div>
+                        </div>
+                        <div class="d-flex align-items-center mb-3">
+                            <i class="bi bi-telephone-fill fs-4 me-3 text-warning"></i>
+                            <div>
+                                <strong class="d-block">Hotline hỗ trợ</strong>
+                                <span>1900 1234 56</span>
+                            </div>
+                        </div>
+                        <div class="d-flex align-items-center">
+                            <i class="bi bi-envelope-fill fs-4 me-3 text-warning"></i>
+                            <div>
+                                <strong class="d-block">Email công việc</strong>
+                                <span>contact@gioviet.com</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <iframe src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3723.652199047915!2d105.73691651540242!3d21.046597992682223!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x313454fa6bdac839%3A0xe67f920fbb2616a!2sTr%C6%B0%E1%BB%9Dng%20Cao%20%C4%91%E1%BA%B3ng%20C%C3%B4ng%20ngh%E1%BB%87%20Cao%20H%C3%A0%20N%E1%BB%99i!5e0!3m2!1svi!2s!4v1689255655456!5m2!1svi!2s" width="100%" height="100%" style="border:0; min-height: 400px;" allowfullscreen="" loading="lazy" referrerpolicy="no-referrer-when-downgrade"></iframe>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
