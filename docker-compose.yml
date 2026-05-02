@@ -1,0 +1,11 @@
+services:
+  timchuyendi-web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: timchuyendi-web
+    restart: unless-stopped
+    ports:
+      - "7601:8080"
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development

@@ -1,0 +1,13 @@
+**/.DS_Store
+**/.git
+**/.gitignore
+**/bin
+**/obj
+**/node_modules
+**/.vs
+**/.vscode
+**/*.user
+**/*.suo
+**/*.swp
+**/*.tmp
+**/TestResults
