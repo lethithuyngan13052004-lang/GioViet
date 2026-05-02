@@ -34,6 +34,9 @@
                             <li class="nav-item mx-1">
                                 <a class="nav-link text-white px-3 fw-medium rounded-pill hover-bg-light-alpha transition-all" asp-controller="Home" asp-action="Index"><i class="bi bi-search me-1"></i> Tìm chuyến xe</a>
                             </li>
+                            <li class="nav-item mx-1">
+                                <a class="nav-link text-white px-3 fw-medium rounded-pill hover-bg-light-alpha transition-all" asp-controller="Home" asp-action="Contact"><i class="bi bi-person-lines-fill me-1"></i> Liên hệ</a>
+                            </li>
                         }
 
                         <!-- CUSTOMER (2) -->
@@ -72,7 +75,7 @@
                                 <a class="nav-link text-white px-3 fw-medium rounded-pill hover-bg-light-alpha transition-all" asp-controller="Driver" asp-action="MyReviews"><i class="bi bi-star-half me-1"></i> Đánh giá của khách</a>
                             </li>
                             <li class="nav-item mx-1">
-                                <a class="nav-link text-white px-3 fw-medium rounded-pill hover-bg-light-alpha transition-all" asp-controller="Home" asp-action="Contact"><i class="bi bi-person-lines-fill me-1"></i> Liên hệ</a>
+                                <a class="nav-link text-white px-3 fw-medium rounded-pill hover-bg-light-alpha transition-all" asp-controller="Home" asp-action="Contact"><i class="bi bi-person-lines-fill me-1"></i></a>
                             </li>
                         }
 
@@ -96,6 +99,9 @@
                             </li>
                             <li class="nav-item mx-1">
                                 <a class="nav-link text-white px-3 fw-medium rounded-pill hover-bg-light-alpha transition-all" asp-controller="Admin" asp-action="ManageSettings"><i class="bi bi-gear-fill me-1"></i> Cấu hình</a>
+                            </li>
+                            <li class="nav-item mx-1">
+                                <a class="nav-link text-white px-3 fw-medium rounded-pill hover-bg-light-alpha transition-all" asp-controller="Home" asp-action="Contact"><i class="bi bi-person-lines-fill me-1"></i> Liên hệ</a>
                             </li>
                         }
                     </ul>
@@ -372,6 +378,9 @@
                 const text = event.results[0][0].transcript;
                 $("#aiUserInput").val(text);
                 $("#micIcon").removeClass("mic-recording");
+                
+                // Tự động gửi tin nhắn sau khi nói xong
+                $("#aiChatForm").submit();
             };
             
             recognition.onerror = (event) => {
@@ -465,6 +474,18 @@
                 $("#aiChatBox").removeClass("d-none");
             }
 
+            // Auto-trigger chat after navigating to CreateTrip
+            if (sessionStorage.getItem('autoTriggerChat') === '1') {
+                sessionStorage.removeItem('autoTriggerChat');
+                setTimeout(function() {
+                    if ($("#aiChatBox").hasClass("d-none")) {
+                        toggleAIChat();
+                    }
+                    $("#aiUserInput").val("Mình đã mở trang tạo chuyến, hãy hướng dẫn tiếp nhé.");
+                    $("#aiChatForm").submit();
+                }, 1000);
+            }
+
             $("#aiChatForm").submit(function(e) {
                 e.preventDefault();
                 const msg = $("#aiUserInput").val().trim();
@@ -484,10 +505,13 @@
                 sessionStorage.setItem('aiHistory', aiHistory);
                 sessionStorage.setItem('aiChatContent', $("#aiChatMessages").html());
 
+                const role = "@role";
+                const chatUrl = role === "1" ? '/AdminChat/SendMessage' : '/Chat/SendMessage';
+
                 $.ajax({
-                    url: '/Chat/SendMessage',
+                    url: chatUrl,
                     type: 'POST',
-                    data: { userMessage: msg, history: aiHistory, lat: userLat, lng: userLng },
+                    data: { userMessage: msg, history: aiHistory, lat: userLat, lng: userLng, isFormPage: typeof isCreateTripPage !== 'undefined' ? isCreateTripPage : false },
                     success: function(res) {
                         $(`#${loadingId}`).remove();
                         if(res.success) {
@@ -524,8 +548,107 @@
 
                              // 2.9 Phân giải nút Xác nhận Đơn hàng tự động (New Smart Flow)
                             reply = reply.replace(/\[\[CONFIRM_ORDER_ACTION\]\]/g, function() {
-                                return `<br/><button onclick='confirmOrder()' class='btn btn-primary fw-bold mt-2 px-4 shadow-sm border-2 border-white animate__animated animate__pulse animate__infinite'><i class='bi bi-check-circle-fill'></i> XÁC NHẬN & TẠO ĐƠN HÀNG</button>
+                                return `<br/><button onclick='confirmOrder(this)' class='btn btn-primary fw-bold mt-2 px-4 shadow-sm border-2 border-white animate__animated animate__pulse animate__infinite'><i class='bi bi-check-circle-fill'></i> XÁC NHẬN & TẠO ĐƠN HÀNG</button>
                                         <button onclick='resetOrder()' class='btn btn-outline-danger btn-sm mt-2 ms-2'><i class='bi bi-trash'></i> Làm lại</button>`;
+                            });
+
+                            // 2.10 Phân giải nút Xem chi tiết đơn hàng (Tracking Flow)
+                            reply = reply.replace(/\[\[ORDER_DETAIL_LINK_(\d+)\]\]/g, function(match, orderId) {
+                                return ` <a href='/Customer/RequestDetail/${orderId.trim()}' class='badge bg-info text-dark text-decoration-none shadow-sm px-2 py-1'><i class='bi bi-box-seam'></i> Xem chi tiết</a> `;
+                            });
+
+                            // 2.11 Phân giải nút Xác nhận Cấu hình (AdminChatController)
+                            reply = reply.replace(/\[\[CONFIRM_CONFIG_ACTION:(.*?)\]\]/g, function(match, encodedData) {
+                                return `<br/><button onclick='confirmConfigAction(this, "${encodedData}")' class='btn btn-warning fw-bold mt-2 px-4 shadow-sm text-dark'><i class='bi bi-gear-fill'></i> Xác nhận Cập nhật</button>`;
+                            });
+
+                            // --- CÁC PHÂN GIẢI DÀNH CHO TÀI XẾ (DRIVER) ---
+                            reply = reply.replace(/\[\[DRIVER_AVAILABLE_LIST:(.*?)\]\]/g, function(match, encodedData) {
+                                try {
+                                    const list = JSON.parse(decodeURIComponent(encodedData));
+                                    let html = "<ul class='list-group mt-2 mb-2'>";
+                                    list.forEach(item => {
+                                        html += `<li class='list-group-item list-group-item-light border-primary mb-1 rounded'>
+                                            <div class='fw-bold text-primary'>Mã đơn: ${item.OrderCode}</div>
+                                            <div class='small'>📍 ${item.From} ➡️ ${item.To}</div>
+                                            <div class='small text-danger'><i class='bi bi-clock'></i> ${item.PickupTime}</div>
+                                            <div class='small text-success fw-bold'><i class='bi bi-cash'></i> ${item.Price.toLocaleString()}đ</div>
+                                            <button class='btn btn-sm btn-outline-primary mt-2' onclick='$("#aiUserInput").val("Tôi muốn ghép đơn ${item.Id}"); $("#aiChatForm").submit();'>Nhận ghép đơn này</button>
+                                        </li>`;
+                                    });
+                                    html += "</ul>";
+                                    return html;
+                                } catch(e) { return "Lỗi hiển thị danh sách."; }
+                            });
+
+                            reply = reply.replace(/\[\[DRIVER_PENDING_LIST:(.*?)\]\]/g, function(match, encodedData) {
+                                try {
+                                    const list = JSON.parse(decodeURIComponent(encodedData));
+                                    let html = "<ul class='list-group mt-2 mb-2'>";
+                                    list.forEach(item => {
+                                        html += `<li class='list-group-item list-group-item-warning mb-1 rounded'>
+                                            <div class='fw-bold text-danger'>Mã đơn: ${item.OrderCode}</div>
+                                            <div class='small'>KH: ${item.CustomerName} | ⏰ ${item.PickupTime}</div>
+                                            <div class='small'>📦 ${item.Weight}kg - ${item.CargoDesc}</div>
+                                            <div class='small text-success fw-bold'>💵 ${item.Price.toLocaleString()}đ</div>
+                                            <div class='mt-2'>
+                                                <button class='btn btn-sm btn-success me-2' onclick='$("#aiUserInput").val("Nhận đơn ${item.Id}"); $("#aiChatForm").submit();'>Nhận đơn</button>
+                                                <button class='btn btn-sm btn-danger' onclick='$("#aiUserInput").val("Từ chối đơn ${item.Id}"); $("#aiChatForm").submit();'>Từ chối</button>
+                                            </div>
+                                        </li>`;
+                                    });
+                                    html += "</ul>";
+                                    return html;
+                                } catch(e) { return "Lỗi hiển thị danh sách."; }
+                            });
+
+                            reply = reply.replace(/\[\[DRIVER_CONFIRM_ACTION:(.*?)\]\]/g, function(match, encodedData) {
+                                return `<br/><button onclick='confirmDriverAction(this, "${encodedData}")' class='btn btn-primary fw-bold mt-2 px-4 shadow-sm'><i class='bi bi-check-circle-fill'></i> Xác nhận Thao tác</button>`;
+                            });
+
+                            reply = reply.replace(/\[\[DRIVER_MERGE_OPTIONS:(.*?)\]\]/g, function(match, encodedData) {
+                                try {
+                                    const payload = JSON.parse(decodeURIComponent(encodedData));
+                                    let html = `<div class='mt-3 border border-success-subtle p-3 rounded-4 bg-white shadow-sm'>`;
+                                    html += `<a href='/Driver/PreCreateNewTrip?reqId=${payload.ReqId}' class='btn btn-outline-primary w-100 mb-3 fw-bold rounded-pill text-start'><i class='bi bi-plus-circle me-2'></i> Tạo chuyến xe mới</a>`;
+                                    
+                                    if (payload.ActiveTrips && payload.ActiveTrips.length > 0) {
+                                        html += `<div class='dropdown w-100'>
+                                                    <button class='btn btn-outline-success w-100 fw-bold rounded-pill dropdown-toggle text-start' type='button' data-bs-toggle='dropdown'>
+                                                        <i class='bi bi-diagram-3 me-2'></i> Ghép vào chuyến xe có sẵn
+                                                    </button>
+                                                    <ul class='dropdown-menu w-100 shadow border-0 mt-1 rounded-3'>`;
+                                        payload.ActiveTrips.forEach(t => {
+                                            html += `<li><a class='dropdown-item py-2 border-bottom' href='/Driver/MergeToExistingTrip?reqId=${payload.ReqId}&tripId=${t.Id}'>${t.Name}</a></li>`;
+                                        });
+                                        html += `</ul></div>`;
+                                    } else {
+                                        html += `<div class='alert alert-warning small p-2 mb-0 rounded-3'><i class='bi bi-info-circle me-1'></i> Bạn không có chuyến xe nào đang hoạt động.</div>`;
+                                    }
+                                    html += `</div>`;
+                                    return html;
+                                } catch(e) { return "Lỗi hiển thị tùy chọn."; }
+                            });
+
+                            reply = reply.replace(/\[\[DRIVER_CONFIRM_TRIP:(.*?)\]\]/g, function(match, encodedData) {
+                                return `<br/><button onclick='confirmDriverTrip(this)' class='btn btn-success fw-bold mt-2 px-4 shadow-sm animate__animated animate__pulse animate__infinite'><i class='bi bi-check-circle-fill'></i> XÁC NHẬN ĐĂNG CHUYẾN</button>`;
+                            });
+
+                            reply = reply.replace(/\[\[OPEN_CREATE_TRIP_FORM\]\]/g, function() {
+                                return `<br/><a href="/Driver/CreateTrip" class="btn btn-primary fw-bold mt-2 px-4 shadow-sm" onclick="sessionStorage.setItem('autoTriggerChat', '1');"><i class="bi bi-box-arrow-up-right me-2"></i> Chuẩn bị tạo chuyến</a>`;
+                            });
+
+                            // Phân giải thẻ focus province start
+                            reply = reply.replace(/\[\[FOCUS_PROVINCE_START\]\]/g, function() {
+                                setTimeout(() => {
+                                    if ($('#provinceStart').length) {
+                                        $('html, body').animate({
+                                            scrollTop: $("#provinceStart").offset().top - 150
+                                        }, 500);
+                                        $('#provinceStart').select2('open');
+                                    }
+                                }, 1500);
+                                return "";
                             });
 
                             // 2.8 Phân giải nút Xác nhận Loại Xe (Placeholder: CONFIRM_VEHICLE_LINK[params])
@@ -568,12 +691,27 @@
 
     @await RenderSectionAsync("Scripts", required: false)
     <script>
-        function confirmOrder() {
-            if (!confirm("Bạn xác nhận toàn bộ thông tin đơn hàng đã chính xác?")) return;
+        function confirmOrder(btn) {
+            // Đổi trạng thái loading cho nút
+            const originalText = $(btn).html();
+            $(btn).html("<span class='spinner-border spinner-border-sm'></span> Đang xử lý...").prop("disabled", true);
+            
             $.post('/Chat/ConfirmOrder', function(res) {
                 if (res.success) {
-                    appendMessage("Trợ Gió", `Chúc mừng! Đơn hàng của bạn đã được tạo thành công.<br/>Mã đơn: <strong>#${res.requestId}</strong>.<br/><br/><a href='/Customer/RequestDetail/${res.requestId}' class='btn btn-sm btn-info text-white fw-bold'><i class='bi bi-eye'></i> Xem chi tiết đơn hàng</a>`, false);
+                    // Thay thế nút Xác nhận thành nút Xem thông tin đơn hàng
+                    $(btn).replaceWith(`<a href='/Customer/RequestDetail/${res.requestId}' class='btn btn-success fw-bold mt-2 px-4 shadow-sm animate__animated animate__tada'><i class='bi bi-eye'></i> Xem thông tin đơn hàng</a>`);
+                    // Ẩn nút "Làm lại" kế bên
+                    $(btn).siblings("button").hide();
+                    
+                    // Thêm thông báo thành công vào lịch sử
+                    const successMsg = `Chúc mừng! Đơn hàng của bạn đã được tạo thành công.<br/>Mã đơn: <strong>#${res.requestId}</strong>.`;
+                    $("#aiChatMessages").append(`<div class="ai-message text-success">${successMsg}</div>`);
+                    $("#aiChatMessages").scrollTop($("#aiChatMessages")[0].scrollHeight);
+                    
+                    // Lưu lại thay đổi vào session
+                    sessionStorage.setItem('aiChatContent', $("#aiChatMessages").html());
                 } else {
+                    $(btn).html(originalText).prop("disabled", false);
                     alert("Lỗi: " + res.message);
                 }
             });
@@ -583,8 +721,91 @@
             if (!confirm("Bạn muốn xóa thông tin đơn hàng đang nhập và bắt đầu lại?")) return;
             $.post('/Chat/ResetOrder', function(res) {
                 if (res.success) {
-                    appendMessage("Trợ Gió", "Đã xóa đơn hàng tạm. Bạn có thể bắt đầu yêu cầu mới.", false);
+                    $("#aiChatMessages").append(`<div class="ai-message text-info">Đã xóa đơn hàng tạm. Bạn có thể bắt đầu yêu cầu mới.</div>`);
+                    $("#aiChatMessages").scrollTop($("#aiChatMessages")[0].scrollHeight);
+                    sessionStorage.setItem('aiChatContent', $("#aiChatMessages").html());
                 }
+            });
+        }
+
+        function confirmConfigAction(btn, encodedData) {
+            const originalText = $(btn).html();
+            $(btn).html("<span class='spinner-border spinner-border-sm'></span> Đang xử lý...").prop("disabled", true);
+            
+            try {
+                const jsonStr = decodeURIComponent(encodedData);
+                const payload = JSON.parse(jsonStr);
+
+                $.ajax({
+                    url: '/AdminChat/ExecuteConfigAction',
+                    type: 'POST',
+                    contentType: 'application/json',
+                    data: JSON.stringify(payload),
+                    success: function(res) {
+                        if (res.success) {
+                            $(btn).replaceWith(`<span class='badge bg-success fs-6 p-2 shadow-sm'><i class='bi bi-check-circle-fill'></i> ${res.message}</span>`);
+                            sessionStorage.setItem('aiChatContent', $("#aiChatMessages").html());
+                        } else {
+                            $(btn).html(originalText).prop("disabled", false);
+                            alert("Lỗi: " + res.message);
+                        }
+                    },
+                    error: function() {
+                        $(btn).html(originalText).prop("disabled", false);
+                        alert("Lỗi kết nối máy chủ.");
+                    }
+                });
+            } catch (e) {
+                alert("Lỗi xử lý dữ liệu.");
+                $(btn).html(originalText).prop("disabled", false);
+            }
+        }
+
+        function confirmDriverAction(btn, encodedData) {
+            const originalText = $(btn).html();
+            $(btn).html("<span class='spinner-border spinner-border-sm'></span> Đang xử lý...").prop("disabled", true);
+            
+            try {
+                const payload = JSON.parse(decodeURIComponent(encodedData));
+                $.post('/Chat/ExecuteDriverAction', { reqId: payload.ReqId, actionCode: parseInt(payload.Action) }, function(res) {
+                    if (res.success) {
+                        $(btn).replaceWith(`<span class='badge bg-success fs-6 p-2 shadow-sm'><i class='bi bi-check-circle-fill'></i> ${res.message}</span>`);
+                        sessionStorage.setItem('aiChatContent', $("#aiChatMessages").html());
+                    } else {
+                        $(btn).html(originalText).prop("disabled", false);
+                        alert("Lỗi: " + res.message);
+                    }
+                }).fail(function() {
+                    $(btn).html(originalText).prop("disabled", false);
+                    alert("Lỗi kết nối máy chủ.");
+                });
+            } catch(e) {
+                alert("Lỗi xử lý dữ liệu.");
+                $(btn).html(originalText).prop("disabled", false);
+            }
+        }
+
+        function confirmDriverTrip(btn) {
+            const originalText = $(btn).html();
+            $(btn).html("<span class='spinner-border spinner-border-sm'></span> Đang xử lý...").prop("disabled", true);
+            
+            if ($('#tripForm').length > 0) {
+                // If we are on CreateTrip page, submit the form directly to use existing data flow
+                $('#tripForm').submit();
+                return;
+            }
+
+            $.post('/Chat/ExecuteCreateTrip', function(res) {
+                if (res.success) {
+                    $(btn).replaceWith(`<span class='badge bg-success fs-6 p-2 shadow-sm'><i class='bi bi-check-circle-fill'></i> ${res.message}</span> <br/><a href='/Driver/MyTrips' class='btn btn-outline-success btn-sm mt-2'>Xem danh sách chuyến xe</a>`);
+                    sessionStorage.setItem('aiChatContent', $("#aiChatMessages").html());
+                } else {
+                    $(btn).html(originalText).prop("disabled", false);
+                    alert("Lỗi: " + res.message);
+                }
+            }).fail(function() {
+                $(btn).html(originalText).prop("disabled", false);
+                alert("Lỗi kết nối máy chủ.");
             });
         }
     </script>

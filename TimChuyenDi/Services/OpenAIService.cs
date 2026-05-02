@@ -78,5 +78,24 @@ namespace TimChuyenDi.Services
                 return "Đã xảy ra lỗi hệ thống khi gọi OpenAI: " + ex.Message;
             }
         }
+
+        public async Task<string> SummarizeDriverReviewsAsync(string reviewsData, string driverName)
+        {
+            string prompt = $@"Bạn là trợ lý AI phân tích đánh giá chất lượng tài xế. 
+Tên tài xế: {driverName}
+Đây là danh sách các đánh giá (nội dung bình luận và số sao) của khách hàng về tài xế trong 30 ngày qua:
+{reviewsData}
+
+Yêu cầu nhiệm vụ:
+1. Đọc và TÓM TẮT một cách khách quan, trung thực dựa trên dữ liệu được cung cấp. Tuyệt đối KHÔNG BỊA ĐẶT hay suy diễn thêm thông tin không có trong danh sách.
+2. Nêu bật các điểm mạnh (dựa trên các review tốt).
+3. Đề xuất cải thiện nếu có (dựa trên các review xấu hoặc góp ý).
+4. Tính điểm trung bình (nếu có thể tự ước lượng từ dữ liệu) và tổng số nhận xét.
+5. Nếu số lượng đánh giá quá ít (ví dụ dưới 5 cái) hoặc dữ liệu trống, hãy tóm tắt ngắn gọn và CÓ LỜI ĐỘNG VIÊN, KHUYẾN KHÍCH tài xế chạy nhiều chuyến hơn để nhận thêm phản hồi tích cực từ khách hàng.
+
+Hãy trình bày một cách chuyên nghiệp, thân thiện và động viên tài xế.";
+
+            return await SendMessageAsync(prompt);
+        }
     }
 }

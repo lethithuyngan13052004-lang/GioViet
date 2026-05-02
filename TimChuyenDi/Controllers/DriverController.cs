@@ -544,8 +544,10 @@ namespace TimChuyenDi.Controllers
                 .Include(r => r.Cargodetails)
                 .Include(r => r.Shippingroutes)
                     .ThenInclude(sr => sr.FromStation)
+                        .ThenInclude(s => s.Province)
                 .Include(r => r.Shippingroutes)
                     .ThenInclude(sr => sr.ToStation)
+                        .ThenInclude(s => s.Province)
 
                 .Include(r => r.Trip)
                     .ThenInclude(t => t.FromStationNavigation)
@@ -558,7 +560,7 @@ namespace TimChuyenDi.Controllers
                 .Include(r => r.Trip)
                     .ThenInclude(t => t.TripStations)
                         .ThenInclude(ts => ts.Station)
-                .FirstOrDefault(r => r.Id == id && r.Trip.DriverId == driverId);
+                .FirstOrDefault(r => r.Id == id && (r.Trip.DriverId == driverId || (r.TripId == null && (r.Status == 0 || r.Status == null))));
 
             if (requestDetail == null) return NotFound("Không tìm thấy đơn hàng!");
 
@@ -822,8 +824,14 @@ namespace TimChuyenDi.Controllers
             var (ds, durationSec) = await _routingService.GetRouteAsync(coords);
             if (durationSec <= 0) durationSec = 10800; // default 3h
 
-            DateTime searchStart = DateTime.Now > req.PickupTimeFrom ? DateTime.Now : req.PickupTimeFrom;
+            DateTime searchStart = DateTime.Now > req.PickupTimeFrom ? DateTime.Now.AddMinutes(30) : req.PickupTimeFrom;
             DateTime searchEnd = req.PickupTimeTo ?? searchStart.AddDays(7);
+
+            // Bổ sung: Nếu đơn hàng đã hết hạn hoặc thời gian còn lại quá ngắn, mở rộng giới hạn tìm kiếm
+            if (searchEnd < searchStart.AddSeconds(durationSec))
+            {
+                searchEnd = searchStart.AddDays(2);
+            }
 
             var activeTrips = await _context.Trips
                 .Where(t => t.DriverId == driverId && t.Status != 2)
@@ -864,6 +872,25 @@ namespace TimChuyenDi.Controllers
             TempData["PreFillToProvinceId"] = route.ToStation.ProvinceId.ToString();
             TempData["PreFillStartTime"] = proposedStartTime.Value.ToString("yyyy-MM-ddTHH:mm");
             TempData["PreFillMessage"] = $"Đã tính toán thời gian chạy tự động ({proposedStartTime.Value:dd/MM/yyyy HH:mm}) để không trùng lịch. Vui lòng xác định Xe và Tải trọng.";
+
+            var myVehicles = await _context.Vehicles.Where(v => v.DriverId == driverId && v.Status == 1).ToListAsync();
+            int? autoVehicleId = myVehicles.Count == 1 ? myVehicles[0].VehicleId : (int?)null;
+
+            var session = new ChatTripSession
+            {
+                IsActive = true,
+                LinkedReqId = reqId,
+                CurrentStep = autoVehicleId.HasValue ? TripStep.AskTimeAndPrice : TripStep.AskVehicleAndType,
+                RouteType = 2, // Mặc định ghép chuyến
+                FromStationId = route.FromStationId,
+                ToStationId = route.ToStationId,
+                StartTime = proposedStartTime,
+                EstDistance = ds,
+                EstDurationSec = durationSec,
+                EstArrivalTime = proposedStartTime.Value.AddSeconds(durationSec),
+                VehicleId = autoVehicleId
+            };
+            HttpContext.Session.SetString("ChatTrip", JsonSerializer.Serialize(session));
 
             return RedirectToAction("CreateTrip");
         }

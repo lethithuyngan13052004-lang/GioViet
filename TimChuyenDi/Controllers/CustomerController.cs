@@ -8,6 +8,7 @@ using System;
 using System.Linq;
 using System.Collections.Generic;
 using System.Threading.Tasks;
+using TimChuyenDi.Services;
 
 namespace TimChuyenDi.Controllers
 {
@@ -15,10 +16,22 @@ namespace TimChuyenDi.Controllers
     public class CustomerController : Controller
     {
         private readonly TimchuyendiContext _context;
+        private readonly RoutingService _routingService;
 
-        public CustomerController(TimchuyendiContext context)
+        public CustomerController(TimchuyendiContext context, RoutingService routingService)
         {
             _context = context;
+            _routingService = routingService;
+        }
+
+        private double CalculateDistance(double lat1, double lng1, double lat2, double lng2)
+        {
+            var d1 = lat1 * (Math.PI / 180.0);
+            var num1 = lng1 * (Math.PI / 180.0);
+            var d2 = lat2 * (Math.PI / 180.0);
+            var num2 = lng2 * (Math.PI / 180.0) - num1;
+            var d3 = Math.Pow(Math.Sin((d2 - d1) / 2.0), 2.0) + Math.Cos(d1) * Math.Cos(d2) * Math.Pow(Math.Sin(num2 / 2.0), 2.0);
+            return 6371000.0 * (2.0 * Math.Atan2(Math.Sqrt(d3), Math.Sqrt(1.0 - d3))) / 1000.0;
         }
 
         // ==========================================
@@ -243,7 +256,7 @@ namespace TimChuyenDi.Controllers
             string ReceiverName, string ReceiverPhone, string SenderPhone, int PickupType, int DeliveryType,
             string PickupAddress, string DeliveryAddress, int? FromStationId, int? ToStationId,
             decimal Weight, decimal Length, decimal Width, decimal Height, string Description, string Note,
-            DateTime? ExpectedDeliveryDate)
+            DateTime? ExpectedDeliveryDate, double? PickupLat, double? PickupLng, double? DeliveryLat, double? DeliveryLng)
 
         {
             var userIdStr = User.FindFirstValue("UserId") ?? User.FindFirstValue(ClaimTypes.NameIdentifier);
@@ -280,6 +293,47 @@ namespace TimChuyenDi.Controllers
                 Description = Description
             };
             _context.Cargodetails.Add(cargo);
+
+            // Tự động tìm trạm gần nhất dựa theo tọa độ (nếu có)
+            if (PickupType == 1 && !FromStationId.HasValue && fromProvinceId > 0)
+            {
+                if (!PickupLat.HasValue || !PickupLng.HasValue)
+                {
+                    var geo = await _routingService.GeocodeAsync(PickupAddress);
+                    PickupLat = geo.lat; PickupLng = geo.lng;
+                }
+                var stations = _context.Stations.Where(s => s.ProvinceId == fromProvinceId && s.Latitude != null && s.Longitude != null).ToList();
+                if (PickupLat.HasValue && PickupLng.HasValue && stations.Any())
+                {
+                    var nearest = stations.OrderBy(s => CalculateDistance(PickupLat.Value, PickupLng.Value, (double)s.Latitude, (double)s.Longitude)).First();
+                    FromStationId = nearest.StationId;
+                }
+                else
+                {
+                    var st = _context.Stations.FirstOrDefault(s => s.ProvinceId == fromProvinceId);
+                    if (st != null) FromStationId = st.StationId;
+                }
+            }
+
+            if (DeliveryType == 1 && !ToStationId.HasValue && toProvinceId > 0)
+            {
+                if (!DeliveryLat.HasValue || !DeliveryLng.HasValue)
+                {
+                    var geo = await _routingService.GeocodeAsync(DeliveryAddress);
+                    DeliveryLat = geo.lat; DeliveryLng = geo.lng;
+                }
+                var stations = _context.Stations.Where(s => s.ProvinceId == toProvinceId && s.Latitude != null && s.Longitude != null).ToList();
+                if (DeliveryLat.HasValue && DeliveryLng.HasValue && stations.Any())
+                {
+                    var nearest = stations.OrderBy(s => CalculateDistance(DeliveryLat.Value, DeliveryLng.Value, (double)s.Latitude, (double)s.Longitude)).First();
+                    ToStationId = nearest.StationId;
+                }
+                else
+                {
+                    var st = _context.Stations.FirstOrDefault(s => s.ProvinceId == toProvinceId);
+                    if (st != null) ToStationId = st.StationId;
+                }
+            }
 
             // BƯỚC 3: Lưu lộ trình
             var route = new Shippingroute

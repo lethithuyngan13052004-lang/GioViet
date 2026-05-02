@@ -234,6 +234,10 @@
     </form>
 </div>
 
+<script>
+    const isCreateTripPage = true;
+</script>
+
 <!-- Scripts -->
 <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0/dist/js/select2.min.js"></script>
@@ -903,4 +907,129 @@
     }
 
     function resetMap() { locationMarkers.clearLayers(); routingControl.setWaypoints([]); map.setView([16.0544, 108.2022], 6); }
+
+    // DỒNG BỘ FORM TỪ CHATBOT (REAL-TIME)
+    let lastChatSessionStr = "";
+    setInterval(function() {
+        $.get('/Chat/GetDriverSessionData', function(data) {
+            if (!data || !data.isActive) return;
+            const currentStr = JSON.stringify(data);
+            if (currentStr === lastChatSessionStr) return;
+            lastChatSessionStr = currentStr;
+
+            // Sync Vehicle
+            syncField('#vehicleSelect', data.vehicleId);
+            
+            // Sync RouteType (Radio)
+            if (data.routeType && $('input[name="RouteType"]:checked').val() != data.routeType) {
+                $('#type-' + data.routeType).prop('checked', true).trigger('change');
+                highlightField($('input[name="RouteType"]').parent());
+                showToast('Đã cập nhật thông tin Hình thức chạy từ Trợ Gió', false);
+            }
+
+            // Sync StartTime
+            syncField('#startTime', data.startTime);
+
+            // Sync BasePrice
+            syncField('input[name="BasePrice"]', data.basePrice);
+
+            // Sync Capacity
+            syncField('#capacityKgInput', data.avaiCapacityKg);
+
+            // Sync Location
+            if (data.fromProvinceId) {
+                let pStart = $('#provinceStart');
+                if (pStart.val() != data.fromProvinceId) {
+                    pStart.val(data.fromProvinceId).trigger('change');
+                    setTimeout(() => {
+                        if (data.fromStationId && $('#fromStation').val() != data.fromStationId) {
+                            $('#fromStation').val(data.fromStationId).trigger('change');
+                            highlightField($('#fromStation'));
+                        }
+                    }, 1000);
+                } else if (data.fromStationId) {
+                    syncField('#fromStation', data.fromStationId);
+                }
+            }
+
+            if (data.toProvinceId) {
+                let pEnd = $('#provinceEnd');
+                if (pEnd.val() != data.toProvinceId) {
+                    pEnd.val(data.toProvinceId).trigger('change');
+                    setTimeout(() => {
+                        if (data.toStationId && $('#toStation').val() != data.toStationId) {
+                            $('#toStation').val(data.toStationId).trigger('change');
+                            highlightField($('#toStation'));
+                        }
+                    }, 1000);
+                } else if (data.toStationId) {
+                    syncField('#toStation', data.toStationId);
+                }
+            }
+        });
+    }, 2000);
+
+    function syncField(selector, val) {
+        if (val !== null && val !== undefined) {
+            let el = $(selector);
+            if (el.val() != val) {
+                el.val(val).trigger('change');
+                highlightField(el);
+                
+                // Lấy tên nhãn để hiển thị
+                let label = el.closest('div').find('label').first().text().replace('*', '').trim();
+                if (!label) label = "Trường dữ liệu";
+                showToast('Đã cập nhật ' + label + ' từ Trợ Gió', false);
+            }
+        }
+    }
+
+    function highlightField(el) {
+        el.addClass('bg-warning-subtle transition-all').css('transition', 'all 0.5s');
+        setTimeout(() => el.removeClass('bg-warning-subtle'), 2000);
+    }
+
+    // ĐỒNG BỘ TỪ FORM NGƯỢC LẠI CHATBOT
+    let syncTimeout;
+    $('#tripForm input, #tripForm select').on('change input', function() {
+        if (!lastChatSessionStr) return; // Nếu chatbot chưa load session thì bỏ qua
+        
+        clearTimeout(syncTimeout);
+        syncTimeout = setTimeout(() => {
+            const updateData = {
+                VehicleId: $('#vehicleSelect').val() ? parseInt($('#vehicleSelect').val()) : null,
+                RouteType: parseInt($('input[name="RouteType"]:checked').val()),
+                AvaiCapacityKg: $('#capacityKgInput').val() ? parseInt($('#capacityKgInput').val()) : null,
+                BasePrice: $('input[name="BasePrice"]').val() ? parseFloat($('input[name="BasePrice"]').val()) : null,
+                StartTime: $('#startTime').val() || null,
+                FromStationId: $('#fromStation').val() ? parseInt($('#fromStation').val()) : null,
+                ToStationId: $('#toStation').val() ? parseInt($('#toStation').val()) : null
+            };
+
+            $.ajax({
+                url: '/Chat/SyncFormToChatbot',
+                type: 'POST',
+                contentType: 'application/json',
+                data: JSON.stringify(updateData),
+                success: function() {
+                    console.log("Đã đồng bộ Form lên Chatbot", updateData);
+                }
+            });
+        }, 1000); // Đợi gõ phím xong 1s mới đồng bộ
+    });
+
+    $(document).ready(function() {
+        @if(TempData["PreFillReqId"] != null)
+        {
+            <text>
+            setTimeout(function() {
+                if ($('#aiChatBox').length && $('#aiChatBox').hasClass('d-none')) {
+                    toggleAIChat();
+                }
+                $("#aiUserInput").val("Tiếp tục thông tin tạo chuyến mới");
+                $("#aiChatForm").submit();
+            }, 1000);
+            </text>
+        }
+    });
 </script>

@@ -74,7 +74,7 @@
                             var r1 = Model.Shippingroutes.FirstOrDefault();
                             string pAddr = !string.IsNullOrEmpty(r1?.PickupAddress) ? r1.PickupAddress : (r1?.FromStation?.StationName ?? "Chưa xác định");
                         }
-                        <p class="fs-6 mb-0"><strong>@pAddr</strong>, @(Model.Trip.FromStationNavigation?.Province?.ProvinceName ?? "")</p>
+                        <p class="fs-6 mb-0"><strong>@pAddr</strong>, @(Model.Trip?.FromStationNavigation?.Province?.ProvinceName ?? r1?.FromStation?.Province?.ProvinceName ?? "")</p>
                     </div>
 
 
@@ -84,7 +84,7 @@
                             var r2 = Model.Shippingroutes.FirstOrDefault();
                             string dAddr = !string.IsNullOrEmpty(r2?.DeliveryAddress) ? r2.DeliveryAddress : (r2?.ToStation?.StationName ?? "Chưa xác định");
                         }
-                        <p class="fs-6 mb-0"><strong>@dAddr</strong>, @(Model.Trip.ToStationNavigation?.Province?.ProvinceName ?? "")</p>
+                        <p class="fs-6 mb-0"><strong>@dAddr</strong>, @(Model.Trip?.ToStationNavigation?.Province?.ProvinceName ?? r2?.ToStation?.Province?.ProvinceName ?? "")</p>
                     </div>
                     @if (Model.PickupTimeTo.HasValue)
                     {
@@ -119,11 +119,11 @@
                         </li>
                         <li class="list-group-item bg-transparent px-0 d-flex justify-content-between">
                             <span class="text-muted">Mã chuyến xe:</span>
-                            <span class="fw-bold text-primary">#CX-@Model.TripId</span>
+                            <span class="fw-bold text-primary">@(Model.TripId.HasValue ? $"#CX-{Model.TripId}" : "Chưa có")</span>
                         </li>
                         <li class="list-group-item bg-transparent px-0 d-flex justify-content-between">
                             <span class="text-muted">Biển số phương tiện:</span>
-                            <span class="fw-bold text-dark">@Model.Trip.Vehicle.PlateNumber</span>
+                            <span class="fw-bold text-dark">@(Model.Trip?.Vehicle?.PlateNumber ?? "Chưa có")</span>
                         </li>
                     </ul>
 
@@ -273,6 +273,16 @@
             }
             </text>
         }
+        else if (Model.Shippingroutes.FirstOrDefault()?.FromStation != null)
+        {
+            <text>
+            var sLat = @((Model.Shippingroutes.FirstOrDefault().FromStation.Latitude ?? 0).ToString(System.Globalization.CultureInfo.InvariantCulture));
+            var sLng = @((Model.Shippingroutes.FirstOrDefault().FromStation.Longitude ?? 0).ToString(System.Globalization.CultureInfo.InvariantCulture));
+            if (sLat && sLng) {
+                startPoint = { lat: sLat, lng: sLng, icon: createIcon('blue'), name: '<b>Bắt đầu:</b> @Html.Raw(Model.Shippingroutes.FirstOrDefault().FromStation.StationName)', province: '@Html.Raw(Model.Shippingroutes.FirstOrDefault().FromStation.Province?.ProvinceName ?? "")' };
+            }
+            </text>
+        }
 
         @if (Model.Trip?.TripStations != null)
         {
@@ -298,6 +308,16 @@
             var eLng = @((Model.Trip.ToStationNavigation.Longitude ?? 0).ToString(System.Globalization.CultureInfo.InvariantCulture));
             if (eLat && eLng) {
                 endPoint = { lat: eLat, lng: eLng, icon: createIcon('red'), name: '<b>Kết thúc:</b> @Html.Raw(Model.Trip.ToStationNavigation.StationName)', province: '@Html.Raw(Model.Trip.ToStationNavigation.Province?.ProvinceName ?? "")' };
+            }
+            </text>
+        }
+        else if (Model.Shippingroutes.FirstOrDefault()?.ToStation != null)
+        {
+            <text>
+            var eLat = @((Model.Shippingroutes.FirstOrDefault().ToStation.Latitude ?? 0).ToString(System.Globalization.CultureInfo.InvariantCulture));
+            var eLng = @((Model.Shippingroutes.FirstOrDefault().ToStation.Longitude ?? 0).ToString(System.Globalization.CultureInfo.InvariantCulture));
+            if (eLat && eLng) {
+                endPoint = { lat: eLat, lng: eLng, icon: createIcon('red'), name: '<b>Kết thúc:</b> @Html.Raw(Model.Shippingroutes.FirstOrDefault().ToStation.StationName)', province: '@Html.Raw(Model.Shippingroutes.FirstOrDefault().ToStation.Province?.ProvinceName ?? "")' };
             }
             </text>
         }

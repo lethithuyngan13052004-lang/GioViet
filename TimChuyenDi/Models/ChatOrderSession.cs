@@ -10,7 +10,8 @@ namespace TimChuyenDi.Models
         AskCargo = 2,     // Hàng hóa, cân nặng, kích thước
         AskReceiver = 3,  // Người nhận (Tên, SĐT)
         AskTime = 4,      // Thời gian lấy hàng
-        Confirm = 5       // Tổng hợp và xác nhận lưu
+        Confirm = 5,      // Tổng hợp và xác nhận lưu
+        TrackOrder = 6    // Theo dõi và tra cứu đơn hàng
     }
 
     public class ChatOrderSession
@@ -18,6 +19,12 @@ namespace TimChuyenDi.Models
         public bool IsActive { get; set; } = false;
         public OrderStep CurrentStep { get; set; } = OrderStep.None;
         
+        // --- 0. Trạng thái Ý định AI (Intent) ---
+        public bool IsTrackingIntent { get; set; } = false;
+        public string? SearchKeyword { get; set; }
+        public int? TrackingOrderId { get; set; }
+        public string? TrackingOrderInfo { get; set; }
+
         // 1. Thông tin yêu cầu chung
         public int? TripId { get; set; }
         public DateTime? PickupTimeFrom { get; set; }
@@ -41,8 +48,8 @@ namespace TimChuyenDi.Models
         // 3. Thông tin lộ trình (Shippingroute)
         public int? FromProvinceId { get; set; }
         public int? ToProvinceId { get; set; }
-        public int PickupType { get; set; } = 2; // 1: Tận nơi, 2: Trạm
-        public int DeliveryType { get; set; } = 2; // 1: Tận nơi, 2: Trạm
+        public int? PickupType { get; set; }
+        public int? DeliveryType { get; set; }
         public string? PickupAddress { get; set; }
         public string? DeliveryAddress { get; set; }
         public int? FromStationId { get; set; }
