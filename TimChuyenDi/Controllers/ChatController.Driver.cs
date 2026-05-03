@@ -56,14 +56,14 @@ Danh sách các Intent (Ý định) hợp lệ:
 - SUMMARIZE_REVIEWS: Tổng hợp đánh giá của khách hàng.
 - GENERAL: Trò chuyện bình thường.
 - LƯU Ý QUAN TRỌNG 1: Tuyệt đối KHÔNG trả lời các câu hỏi KHÔNG LIÊN QUAN đến dịch vụ của ứng dụng (ví dụ: thời tiết, tin tức, lịch sử...). Nếu bị hỏi linh tinh, hãy xin lỗi và từ chối, báo rằng bạn chỉ hỗ trợ thông tin vận chuyển trên website.
-- LƯU Ý QUAN TRỌNG 2: TUYỆT ĐỐI KHÔNG dùng tiếng Anh trong câu trả lời (Reply). Web này thuần Việt, không dùng các từ như form, stations, Trip, order... khi giao tiếp với người dùng. Hãy dùng 'trang tạo chuyến', 'trạm', 'chuyến xe', 'đơn hàng'.
-- LƯU Ý QUAN TRỌNG 3: Nếu bạn đang hướng dẫn tài xế chọn Lộ trình (AskRoute) trên 'trang tạo chuyến', hãy nhắc tài xế 'nhấn vào ô Điểm xuất phát / Điểm đến để xác nhận trạm'. Để thu hút sự chú ý của họ vào ô Điểm xuất phát, BẮT BUỘC xuất thêm thẻ [[FOCUS_PROVINCE_START]] ở cuối câu Reply.
+- LƯU Ý QUAN TRỌNG 2: TUYỆT ĐỐI KHÔNG dùng tiếng Anh trong câu trả lời (Reply). Web này thuần Việt, không dùng các từ như form, stations, Trip, order, trạm... khi giao tiếp với người dùng. Hãy dùng 'trang tạo chuyến', 'điểm xuất phát', 'điểm đến', 'điểm dừng trên đường', 'chuyến xe', 'đơn hàng'.
+- LƯU Ý QUAN TRỌNG 3: Nếu bạn đang hướng dẫn tài xế chọn Lộ trình (AskRoute) trên 'trang tạo chuyến', hãy nhắc tài xế 'nhấn vào ô Điểm xuất phát / Điểm đến để xác nhận điểm dừng'. Để thu hút sự chú ý của họ vào ô Điểm xuất phát, BẮT BUỘC xuất thêm thẻ [[FOCUS_PROVINCE_START]] ở cuối câu Reply.
 
 Thông tin hiện tại về tiến trình CREATE_TRIP (nếu có):
 - Bước hiện tại: {session.CurrentStep}
-- Trạm đi (Start): {(session.FromStationId.HasValue ? "Đã có" : "Chưa có")}
-- Trạm đến (End): {(session.ToStationId.HasValue ? "Đã có" : "Chưa có")}
-- Trạm phụ (Intermediates): {session.IntermediateStationIds.Count} trạm
+- Điểm xuất phát (Start): {(session.FromStationId.HasValue ? "Đã có" : "Chưa có")}
+- Điểm đến (End): {(session.ToStationId.HasValue ? "Đã có" : "Chưa có")}
+- Điểm dừng trên đường (Intermediates): {session.IntermediateStationIds.Count} điểm
 - BasePrice: {session.BasePrice}
 - StartTime: {session.StartTime}
 
@@ -71,7 +71,7 @@ Bạn PHẢI trả về ĐÚNG MỘT JSON hợp lệ (KHÔNG BỌC TRONG MARKDOW
 {{
   ""Intent"": ""CREATE_TRIP|SEARCH_AVAILABLE_ORDERS|MANAGE_PENDING_ORDERS|ACCEPT_ORDER|REJECT_ORDER|SUMMARIZE_REVIEWS|GENERAL"",
   ""TargetId"": 0, // Thay thế bằng ID số nguyên nếu người dùng muốn nhận/từ chối 1 đơn cụ thể
-  ""Reply"": ""Câu trả lời tự nhiên của bạn (Nếu CREATE_TRIP, hãy dùng trường này để hướng dẫn tài xế cung cấp các thông tin còn thiếu. Ví dụ: 'Bạn muốn đi từ đâu?', 'Vui lòng cung cấp tải trọng trống', 'Bạn có muốn đi qua trạm trung gian nào không?')"",
+  ""Reply"": ""Câu trả lời tự nhiên của bạn (Nếu CREATE_TRIP, hãy dùng trường này để hướng dẫn tài xế cung cấp các thông tin còn thiếu. Ví dụ: 'Bạn muốn đi từ đâu?', 'Vui lòng cung cấp tải trọng trống', 'Bạn có muốn dừng ở điểm nào trên đường không?')"",
   ""ExtractedTripData"": {{
     ""RouteType"": 0, // 1 (Bao nguyên chuyến), 2 (Ghép chuyến). Mặc định là 0 nếu không nhắc đến.
     ""StartStationQuery"": """", // Tên tỉnh/quận hoặc 'gần đây'
@@ -384,14 +384,14 @@ Tin nhắn của tài xế: {userMessage}";
                         {
                             var s = await FindStationByQuery(session.FromStationQuery, lat, lng);
                             if (s != null) session.FromStationId = s.StationId;
-                            else stepInfo += $"Không tìm thấy trạm xuất phát phù hợp với '{session.FromStationQuery}'.\n";
+                            else stepInfo += $"Không tìm thấy điểm xuất phát phù hợp với '{session.FromStationQuery}'.\n";
                         }
                         
                         if (!session.ToStationId.HasValue && !string.IsNullOrEmpty(session.ToStationQuery))
                         {
                             var s = await FindStationByQuery(session.ToStationQuery, lat, lng);
                             if (s != null) session.ToStationId = s.StationId;
-                            else stepInfo += $"Không tìm thấy trạm đến phù hợp với '{session.ToStationQuery}'.\n";
+                            else stepInfo += $"Không tìm thấy điểm đến phù hợp với '{session.ToStationQuery}'.\n";
                         }
 
                         // Resolve intermediate
@@ -406,19 +406,39 @@ Tin nhắn của tài xế: {userMessage}";
 
                         if (!session.FromStationId.HasValue || !session.ToStationId.HasValue)
                         {
-                            replyText = stepInfo + "Vui lòng cho mình biết **Trạm xuất phát** và **Trạm đến** của bạn.";
+                            replyText = stepInfo + "Vui lòng cho mình biết **Điểm xuất phát** và **Điểm đến** của bạn.";
                             if (isFormPage)
                             {
-                                replyText += " Hệ thống đã tự động điền nếu có thông tin, nhưng bạn hãy nhấn vào ô Điểm xuất phát và Điểm đến để xác nhận trạm gần nhất với bạn nhé! [[FOCUS_PROVINCE_START]]";
+                                replyText += " Hệ thống đã tự động điền nếu có thông tin, nhưng bạn hãy nhấn vào ô Điểm xuất phát và Điểm đến để xác nhận điểm gần nhất với bạn nhé! [[FOCUS_PROVINCE_START]]";
                             }
                             SaveSessionTrip(session);
                             return Json(new { success = true, reply = replyText });
                         }
 
-                        // Hỏi xem có trạm phụ không
+                        // Xác nhận điểm xuất phát và đích đến trước
+                        bool justConfirmedMain = false;
+                        if (!session.IsRouteMainConfirmed)
+                        {
+                            if (Regex.IsMatch(normUserMsg, @"\b(ok|dong y|chinh xac|dung|tiep tuc|roi|xong|chuan|duoc|dc|oke|uk|uh)\b"))
+                            {
+                                session.IsRouteMainConfirmed = true;
+                                justConfirmedMain = true;
+                            }
+                            else
+                            {
+                                var fromS = await _context.Stations.Include(x => x.Province).FirstOrDefaultAsync(x => x.StationId == session.FromStationId);
+                                var toS = await _context.Stations.Include(x => x.Province).FirstOrDefaultAsync(x => x.StationId == session.ToStationId);
+                                
+                                replyText = stepInfo + $"Điểm xuất phát: **{fromS?.StationName}**\nĐiểm đích đến: **{toS?.StationName}**\n\nHệ thống đã tự động chọn các điểm này (gần bạn nhất). Bạn có thể chủ động sửa lại trên trang tạo chuyến cho chính xác. Các điểm này đã ok chưa?";
+                                SaveSessionTrip(session);
+                                return Json(new { success = true, reply = replyText });
+                            }
+                        }
+
+                        // Hỏi xem có điểm dừng trên đường không
                         if (!session.RouteIsDone)
                         {
-                            if (Regex.IsMatch(normUserMsg, @"\b(khong|xong|du roi|bo qua|het roi)\b"))
+                            if (!justConfirmedMain && Regex.IsMatch(normUserMsg, @"\b(khong|xong|du roi|bo qua|het roi|khong can)\b"))
                             {
                                 session.RouteIsDone = true;
                                 session.CurrentStep = TripStep.AskTimeAndPrice;
@@ -431,10 +451,10 @@ Tin nhắn của tài xế: {userMessage}";
                                 string intermediateStr = "";
                                 if (session.IntermediateStationIds.Any()) {
                                     var inters = await _context.Stations.Where(x => session.IntermediateStationIds.Contains(x.StationId)).ToListAsync();
-                                    intermediateStr = "\nCác trạm dừng: " + string.Join(", ", inters.Select(x => x.StationName));
+                                    intermediateStr = "\nCác điểm dừng đã thêm: " + string.Join(", ", inters.Select(x => x.StationName));
                                 }
 
-                                replyText = stepInfo + $"Lộ trình: **{fromS?.StationName}** -> **{toS?.StationName}**.{intermediateStr}\nBạn có muốn thêm điểm dừng dọc đường (trạm phụ) nào không?";
+                                replyText = stepInfo + $"Lộ trình: **{fromS?.StationName}** -> **{toS?.StationName}**.{intermediateStr}\nBạn có muốn thêm điểm dừng trên đường nào để có thể nhận thêm hàng ghép không? (Điểm dừng là các vị trí bạn có thể đỗ xe thực tế dọc tuyến đường)";
                                 SaveSessionTrip(session);
                                 return Json(new { success = true, reply = replyText });
                             }
