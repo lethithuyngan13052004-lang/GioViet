@@ -200,7 +200,7 @@
     </form>
 </div>
 
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<link href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css" rel="stylesheet" />
 
 <style>
     /* MAP PANEL - CreateRequest */
@@ -212,39 +212,57 @@
     .cr-gps-btn:hover { background: #157347; }
     .cr-map-result { padding: 6px 10px; background: #e8f4fd; font-size: 0.8rem; color: #0d6efd; display: none; }
     .cr-map-result.visible { display: block; }
+</style>
 
 @section Scripts {
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
     <script>
         // ============================================================
         // CR MAP LOGIC (CreateRequest page)
         // ============================================================
-        const crMaps = {}, crMarkers = {}, crStationGroups = { pickup: L.layerGroup(), delivery: L.layerGroup() };
+        const crMaps = {}, crMarkers = {}, crStationMarkers = { pickup: [], delivery: [] };
         const crModes = { pickup: 1, delivery: 1 }; // 1 = Address, 2 = Station
 
 
         function crInitMap(type) {
             if (crMaps[type]) return;
-            const center = [10.8231, 106.6297];
-            const m = L.map(type + 'Map').setView(center, 12);
-            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-                attribution: '&copy; OpenStreetMap'
-            }).addTo(m);
-            const marker = L.marker(center, { draggable: true }).addTo(m);
-            marker.on('dragend', () => { 
-                if (crModes[type] == 2) return;
-                const p = marker.getLatLng(); 
-                crReverseGeocode(type, p.lat, p.lng); 
+            const center = [106.6297, 10.8231]; // [lng, lat]
+            
+            const m = new maplibregl.Map({
+                container: type + 'Map',
+                style: 'https://tiles.openfreemap.org/styles/liberty',
+                center: center,
+                zoom: 12
             });
-            m.on('click', e => { 
-                if (crModes[type] == 2) return;
-                marker.setLatLng(e.latlng); 
-                crReverseGeocode(type, e.latlng.lat, e.latlng.lng); 
-            });
-            crMaps[type] = m; crMarkers[type] = marker;
-            crStationGroups[type].addTo(m);
-            setTimeout(() => m.invalidateSize(), 300);
 
+            m.on('load', function () {
+                applyMapLibreStyleFilter(m);
+                addVNIslandsToMapLibre(m, maplibregl);
+                
+                const marker = new maplibregl.Marker({ color: "#0d6efd", draggable: true })
+                    .setLngLat(center)
+                    .addTo(m);
+                
+                marker.on('dragend', () => { 
+                    if (crModes[type] == 2) return;
+                    const p = marker.getLngLat(); 
+                    crReverseGeocode(type, p.lat, p.lng); 
+                });
+
+                m.on('click', e => { 
+                    if (crModes[type] == 2) return;
+                    marker.setLngLat(e.lngLat); 
+                    crReverseGeocode(type, e.lngLat.lat, e.lngLat.lng); 
+                });
+
+                crMarkers[type] = marker;
+            });
+
+            crMaps[type] = m;
+            
+            setTimeout(() => {
+                m.resize();
+            }, 300);
         }
 
         async function crSearchMap(type) {
@@ -284,8 +302,8 @@
         }
 
         function crPlaceMarker(type, lat, lng, name) {
-            crMaps[type].setView([lat, lng], 16);
-            crMarkers[type].setLatLng([lat, lng]);
+            crMaps[type].flyTo({ center: [lng, lat], zoom: 16 });
+            crMarkers[type].setLngLat([lng, lat]);
             if (name) crSetAddress(type, lat, lng, name);
             else crReverseGeocode(type, lat, lng);
         }
@@ -301,8 +319,8 @@
 
         function crPlaceStation(type, lat, lng, name) {
             if (!crMaps[type]) crInitMap(type);
-            crMaps[type].setView([lat, lng], 16);
-            crMarkers[type].setLatLng([lat, lng]);
+            crMaps[type].flyTo({ center: [lng, lat], zoom: 16 });
+            crMarkers[type].setLngLat([lng, lat]);
             const res = document.getElementById(type + 'Result');
             res.textContent = '📍 ' + name; 
             res.classList.add('visible');
@@ -311,41 +329,49 @@
         // New function to update all station markers on map
         function crUpdateStationMarkers(type, stations) {
             if (!crMaps[type]) crInitMap(type);
-            const group = crStationGroups[type];
-            group.clearLayers();
-
-            const stationIcon = L.divIcon({
-                html: '<i class="bi bi-geo-alt-fill" style="color: #198754; font-size: 24px;"></i>',
-                className: 'station-marker-icon',
-                iconSize: [24, 24],
-                iconAnchor: [12, 24],
-                popupAnchor: [0, -20]
-            });
+            
+            // Clear cũ
+            crStationMarkers[type].forEach(sm => sm.remove());
+            crStationMarkers[type] = [];
 
             stations.forEach(s => {
                 if (s.latitude && s.longitude) {
-                    const smark = L.marker([s.latitude, s.longitude], { icon: stationIcon }).addTo(group);
-                    smark.bindPopup(`<strong>${s.name}</strong><br><small>${s.address}</small><br><button class="btn btn-primary btn-sm mt-2 w-100" onclick="crSelectStationFromMap('${type}', ${s.stationId})">Chọn trạm này</button>`);
-                    smark.on('click', () => crSelectStationFromMap(type, s.stationId));
+                    var el = document.createElement('div');
+                    el.innerHTML = '<i class="bi bi-geo-alt-fill" style="color: #198754; font-size: 24px;"></i>';
+                    el.className = 'station-marker-icon';
+                    el.style.cursor = 'pointer';
+
+                    const popup = new maplibregl.Popup({ offset: 25 }).setHTML(`
+                        <strong>${s.name}</strong><br><small>${s.address}</small><br>
+                        <button class="btn btn-primary btn-sm mt-2 w-100" onclick="crSelectStationFromMap('${type}', ${s.stationId})">Chọn trạm này</button>
+                    `);
+
+                    const smark = new maplibregl.Marker({ element: el, anchor: 'bottom' })
+                        .setLngLat([s.longitude, s.latitude])
+                        .setPopup(popup)
+                        .addTo(crMaps[type]);
+                    
+                    crStationMarkers[type].push(smark);
                 }
             });
-
 
             if (stations.length > 0 && (stations[0].latitude || stations[0].lat)) {
                 const first = stations[0];
                 const flat = first.latitude || first.lat;
                 const flng = first.longitude || first.lng;
-                crMaps[type].setView([flat, flng], 12);
+                crMaps[type].flyTo({ center: [flng, flat], zoom: 12 });
             }
-
         }
 
         function crSelectStationFromMap(type, stationId) {
             const selectId = type === 'pickup' ? 'fromStation' : 'toStation';
             const select = document.getElementById(selectId);
             select.value = stationId;
-            select.dispatchEvent(new Event('change'));
-            crMaps[type].closePopup();
+            crSelectStationFromMap(type, stationId);
+            const markers = crStationMarkers[type];
+            markers.forEach(m => {
+               if(m.getPopup().isOpen()) m.getPopup().remove();
+            });
         }
 
 
@@ -379,8 +405,9 @@
                     fromStationSelect.required = true;
                     document.getElementById('pickupSearchBox').classList.add('d-none');
                     document.getElementById('pickupGpsBtn').classList.add('d-none');
-                    if (crMarkers['pickup']) crMarkers['pickup'].dragging.disable();
-                    crStationGroups['pickup'].addTo(crMaps['pickup']);
+                    if (crMarkers['pickup']) crMarkers['pickup'].setDraggable(false);
+                    // Ẩn marker chính khi chọn trạm
+                    if (crMarkers['pickup']) crMarkers['pickup'].getElement().style.display = 'none';
                     loadStations(fromProv.value, fromStationSelect);
                 } else {
                     pickupAddr.classList.remove('d-none'); pickupStat.classList.add('d-none');
@@ -388,8 +415,10 @@
                     fromStationSelect.required = false;
                     document.getElementById('pickupSearchBox').classList.remove('d-none');
                     document.getElementById('pickupGpsBtn').classList.remove('d-none');
-                    if (crMarkers['pickup']) crMarkers['pickup'].dragging.enable();
-                    crStationGroups['pickup'].remove();
+                    if (crMarkers['pickup']) crMarkers['pickup'].setDraggable(true);
+                    if (crMarkers['pickup']) crMarkers['pickup'].getElement().style.display = 'block';
+                    crStationMarkers['pickup'].forEach(m => m.remove());
+                    crStationMarkers['pickup'] = [];
                     setTimeout(() => crInitMap('pickup'), 100);
                 }
 
@@ -403,8 +432,8 @@
                     toStationSelect.required = true;
                     document.getElementById('deliverySearchBox').classList.add('d-none');
                     document.getElementById('deliveryGpsBtn').classList.add('d-none');
-                    if (crMarkers['delivery']) crMarkers['delivery'].dragging.disable();
-                    crStationGroups['delivery'].addTo(crMaps['delivery']);
+                    if (crMarkers['delivery']) crMarkers['delivery'].setDraggable(false);
+                    if (crMarkers['delivery']) crMarkers['delivery'].getElement().style.display = 'none';
                     loadStations(toProv.value, toStationSelect);
                 } else {
                     deliveryAddr.classList.remove('d-none'); deliveryStat.classList.add('d-none');
@@ -412,8 +441,10 @@
                     toStationSelect.required = false;
                     document.getElementById('deliverySearchBox').classList.remove('d-none');
                     document.getElementById('deliveryGpsBtn').classList.remove('d-none');
-                    if (crMarkers['delivery']) crMarkers['delivery'].dragging.enable();
-                    crStationGroups['delivery'].remove();
+                    if (crMarkers['delivery']) crMarkers['delivery'].setDraggable(true);
+                    if (crMarkers['delivery']) crMarkers['delivery'].getElement().style.display = 'block';
+                    crStationMarkers['delivery'].forEach(m => m.remove());
+                    crStationMarkers['delivery'] = [];
                     setTimeout(() => crInitMap('delivery'), 100);
                 }
 

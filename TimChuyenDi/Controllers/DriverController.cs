@@ -985,6 +985,95 @@ namespace TimChuyenDi.Controllers
             return RedirectToAction("MyTrips");
         }
 
+        // POST: Ajax merge (For Chatbot)
+        [HttpPost]
+        public async Task<IActionResult> MergeToExistingTripAjax(int reqId, int tripId)
+        {
+            var userIdStr = User.FindFirstValue("UserId");
+            if (string.IsNullOrEmpty(userIdStr)) return Json(new { success = false, message = "Bạn cần đăng nhập." });
+            int driverId = int.Parse(userIdStr);
+
+            var trip = await _context.Trips
+                .Include(t => t.FromStationNavigation)
+                .Include(t => t.ToStationNavigation)
+                .Include(t => t.TripStations).ThenInclude(ts => ts.Station)
+                .FirstOrDefaultAsync(t => t.TripId == tripId && t.DriverId == driverId);
+
+            var req = await _context.Shiprequests
+                .Include(r => r.Shippingroutes).ThenInclude(sr => sr.FromStation)
+                .Include(r => r.Shippingroutes).ThenInclude(sr => sr.ToStation)
+                .Include(r => r.Cargodetails)
+                .FirstOrDefaultAsync(r => r.Id == reqId);
+
+            if (trip == null || req == null) return Json(new { success = false, message = "Không tìm thấy chuyến xe hoặc đơn hàng." });
+
+            var reqRoute = req.Shippingroutes.FirstOrDefault();
+            if (reqRoute == null) return Json(new { success = false, message = "Lỗi đơn hàng không có tuyến" });
+
+            double totalWeight = (double)(req.Cargodetails.Sum(c => c.Weight) ?? 0m);
+            if (trip.AvaiCapacityKg < totalWeight)
+            {
+                return Json(new { success = false, message = "Sức chứa xe không đủ để nhận đơn này!" });
+            }
+
+            var existingStationIds = trip.TripStations.Select(ts => ts.StationId).ToHashSet();
+            existingStationIds.Add(trip.FromStation);
+            existingStationIds.Add(trip.ToStation);
+
+            var stationsToInsert = new List<Station>();
+            if (reqRoute.FromStationId.HasValue && !existingStationIds.Contains(reqRoute.FromStationId.Value)) stationsToInsert.Add(reqRoute.FromStation);
+            if (reqRoute.ToStationId.HasValue && !existingStationIds.Contains(reqRoute.ToStationId.Value)) stationsToInsert.Add(reqRoute.ToStation);
+
+            if (stationsToInsert.Any())
+            {
+                var allIntermediates = trip.TripStations.Select(ts => ts.Station).ToList();
+                allIntermediates.AddRange(stationsToInsert);
+
+                double startLat = (double)(trip.FromStationNavigation.Latitude ?? 0);
+                double startLng = (double)(trip.FromStationNavigation.Longitude ?? 0);
+                double vecLat = (double)(trip.ToStationNavigation.Latitude ?? 0) - startLat;
+                double vecLng = (double)(trip.ToStationNavigation.Longitude ?? 0) - startLng;
+
+                allIntermediates.Sort((a, b) => {
+                    double projA = ((double)(a.Latitude ?? 0) - startLat) * vecLat + ((double)(a.Longitude ?? 0) - startLng) * vecLng;
+                    double projB = ((double)(b.Latitude ?? 0) - startLat) * vecLat + ((double)(b.Longitude ?? 0) - startLng) * vecLng;
+                    return projA.CompareTo(projB);
+                });
+
+                var coordsList = new List<(double lat, double lng)>();
+                coordsList.Add(((double)(trip.FromStationNavigation.Latitude ?? 0), (double)(trip.FromStationNavigation.Longitude ?? 0)));
+                coordsList.AddRange(allIntermediates.Select(s => ((double)(s.Latitude ?? 0), (double)(s.Longitude ?? 0))));
+                coordsList.Add(((double)(trip.ToStationNavigation.Latitude ?? 0), (double)(trip.ToStationNavigation.Longitude ?? 0)));
+
+                var (newDistance, newDuration) = await _routingService.GetRouteAsync(coordsList);
+
+                if (newDuration > 0)
+                {
+                    trip.Distance = (decimal)newDistance;
+                    trip.EstArrivalTime = trip.StartTime.AddSeconds(newDuration);
+                }
+
+                _context.TripStations.RemoveRange(trip.TripStations);
+                for (int i = 0; i < allIntermediates.Count; i++)
+                {
+                    var segTime = newDuration > 0 ? (newDuration / (allIntermediates.Count + 1)) * (i + 1) : 3600;
+                    _context.TripStations.Add(new TripStation {
+                        TripId = trip.TripId,
+                        StationId = allIntermediates[i].StationId,
+                        StopOrder = i + 1,
+                        EstArrivalTime = trip.StartTime.AddSeconds(segTime)
+                    });
+                }
+            }
+
+            trip.AvaiCapacityKg -= (int)totalWeight;
+            req.TripId = trip.TripId;
+            req.Status = 1;
+
+            await _context.SaveChangesAsync();
+            return Json(new { success = true, message = "Đã ghép nối đơn hàng thành công!" });
+        }
+
         // POST: Xóa xe
         [HttpPost]
         public async Task<IActionResult> DeleteVehicle(int id)

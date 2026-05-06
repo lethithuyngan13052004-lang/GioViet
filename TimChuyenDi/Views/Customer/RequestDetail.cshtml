@@ -30,9 +30,7 @@
     var tripStations = Model.Trip?.TripStations?.OrderBy(ts => ts.StopOrder).ToList() ?? new List<TimChuyenDi.Models.TripStation>();
 }
 
-<!-- Leaflet & Routing Assets -->
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-<link rel="stylesheet" href="https://unpkg.com/leaflet-routing-machine/dist/leaflet-routing-machine.css" />
+<link href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css" rel="stylesheet" />
 <style>
     .timeline-container { position: relative; padding-left: 20px; border-left: 2px dashed #dee2e6; margin-left: 10px; }
     .timeline-item { position: relative; margin-bottom: 25px; }
@@ -291,13 +289,11 @@
     </div>
 </div>
 
-<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-<script src="https://unpkg.com/leaflet-routing-machine/dist/leaflet-routing-machine.js"></script>
+@section Scripts {
+<script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
 
 <script>
     var map;
-    var routingControl;
     
     $(document).ready(function () {
         @if (Model.Trip != null) {
@@ -305,183 +301,163 @@
         }
     });
 
-    function initMapView() {
-        map = L.map('map').setView([16.0544, 108.2022], 6);
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
-
-        routingControl = L.Routing.control({
-            waypoints: [],
-            routeWhileDragging: false,
-            addWaypoints: false,      // User cannot add points
-            draggableWaypoints: false,// Prevents dragging
-            show: false,
-            fitSelectedRoutes: false, // We fit bounds manually
-            router: L.Routing.osrmv1({ 
-                serviceUrl: 'https://router.project-osrm.org/route/v1', 
-                profile: 'driving' 
-            }),
-            lineOptions: { styles: [{ color: '#36b9cc', opacity: 0.8, weight: 6 }] },
-            createMarker: () => null
-        }).addTo(map);
-
-        routingControl.on('routesfound', function (e) {
-            var route = e.routes[0];
-            var summary = route.summary;
-            $('#totalDistance').text((summary.totalDistance / 1000).toFixed(1) + " km");
-            $('#totalTime').text((summary.totalTime / 3600).toFixed(1) + " h");
+    async function initMapView() {
+        map = new maplibregl.Map({
+            container: 'map',
+            style: 'https://tiles.openfreemap.org/styles/liberty',
+            center: [108.2022, 16.0544],
+            zoom: 6
         });
 
-        routingControl.on('routingerror', function (e) {
-            console.error("OSRM Routing Error:", e);
-            // Draw a dashed straight line indicating failure
-            $('#totalDistance').text("Lỗi dẫn đường");
-            $('#totalTime').text("--");
-            alert("Hệ thống bản đồ (OSRM) đang quá tải hoặc các điểm dừng nằm ngoài mạng lưới đường bộ. Đang hiển thị đường thẳng nối các trạm.");
-        });
+        map.on('load', async function () {
+            applyMapLibreStyleFilter(map);
+            addVNIslandsToMapLibre(map, maplibregl);
 
-        const VN_CORRIDOR = [
-            { name: "Hà Tĩnh (AH1)", lat: 18.06, lng: 106.31 },
-            { name: "Quảng Ngãi (AH1)", lat: 15.12, lng: 108.79 },
-            { name: "Phú Yên (AH1)", lat: 13.10, lng: 109.28 },
-            { name: "Ninh Thuận (AH1)", lat: 11.58, lng: 108.98 }
-        ];
+            const VN_CORRIDOR = [
+                { name: "Hà Tĩnh (AH1)", lat: 18.06, lng: 106.31 },
+                { name: "Quảng Ngãi (AH1)", lat: 15.12, lng: 108.79 },
+                { name: "Phú Yên (AH1)", lat: 13.10, lng: 109.28 },
+                { name: "Ninh Thuận (AH1)", lat: 11.58, lng: 108.98 }
+            ];
 
-        const VN_REGIONS = {
-            'North': ["Hà Nội", "Hải Phòng", "Hải Dương", "Hưng Yên", "Bắc Ninh", "Vĩnh Phúc", "Thái Nguyên", "Phú Thọ", "Bắc Giang", "Quảng Ninh", "Bắc Kạn", "Cao Bằng", "Hà Giang", "Lạng Sơn", "Tuyên Quang", "Lào Cai", "Yên Bái", "Điện Biên", "Hòa Bình", "Lai Châu", "Sơn La", "Hà Nam", "Nam Định", "Ninh Bình", "Thái Bình"],
-            'Central': ["Thanh Hóa", "Nghệ An", "Hà Tĩnh", "Quảng Bình", "Quảng Trị", "Thừa Thiên Huế", "Đà Nẵng", "Quảng Nam", "Quảng Ngãi", "Bình Định", "Phú Yên", "Khánh Hòa", "Ninh Thuận", "Bình Thuận", "Kon Tum", "Gia Lai", "Đắk Lắk", "Đắk Nông", "Lâm Đồng"],
-            'South': ["Hồ Chí Minh", "Bình Dương", "Đồng Nai", "Bình Phước", "Tây Ninh", "Bà Rịa - Vũng Tàu", "Long An", "Tiền Giang", "Bến Tre", "Trà Vinh", "Vĩnh Long", "Đồng Tháp", "An Giang", "Kiên Giang", "Cần Thơ", "Hậu Giang", "Sóc Trăng", "Bạc Liêu", "Cà Mau"]
-        };
+            const VN_REGIONS = {
+                'North': ["Hà Nội", "Hải Phòng", "Hải Dương", "Hưng Yên", "Bắc Ninh", "Vĩnh Phúc", "Thái Nguyên", "Phú Thọ", "Bắc Giang", "Quảng Ninh", "Bắc Kạn", "Cao Bằng", "Hà Giang", "Lạng Sơn", "Tuyên Quang", "Lào Cai", "Yên Bái", "Điện Biên", "Hòa Bình", "Lai Châu", "Sơn La", "Hà Nam", "Nam Định", "Ninh Bình", "Thái Bình"],
+                'Central': ["Thanh Hóa", "Nghệ An", "Hà Tĩnh", "Quảng Bình", "Quảng Trị", "Thừa Thiên Huế", "Đà Nẵng", "Quảng Nam", "Quảng Ngãi", "Bình Định", "Phú Yên", "Khánh Hòa", "Ninh Thuận", "Bình Thuận", "Kon Tum", "Gia Lai", "Đắk Lắk", "Đắk Nông", "Lâm Đồng"],
+                'South': ["Hồ Chí Minh", "Bình Dương", "Đồng Nai", "Bình Phước", "Tây Ninh", "Bà Rịa - Vũng Tàu", "Long An", "Tiền Giang", "Bến Tre", "Trà Vinh", "Vĩnh Long", "Đồng Tháp", "An Giang", "Kiên Giang", "Cần Thơ", "Hậu Giang", "Sóc Trăng", "Bạc Liêu", "Cà Mau"]
+            };
 
-        function getRegion(provinceName) {
-            if (!provinceName) return null;
-            for (let region in VN_REGIONS) {
-                if (VN_REGIONS[region].some(p => provinceName.includes(p) || p.includes(provinceName))) return region;
+            function getRegion(provinceName) {
+                if (!provinceName) return null;
+                for (let region in VN_REGIONS) {
+                    if (VN_REGIONS[region].some(p => provinceName.includes(p) || p.includes(provinceName))) return region;
+                }
+                return null;
             }
-            return null;
-        }
 
-        function sortRawWaypoints(start, end, stops) {
-            if (stops.length <= 1) return stops;
-            const vecAB = { lat: end.lat - start.lat, lng: end.lng - start.lng };
-            return stops.sort((a, b) => {
-                const projA = (a.lat - start.lat) * vecAB.lat + (a.lng - start.lng) * vecAB.lng;
-                const projB = (b.lat - start.lat) * vecAB.lat + (b.lng - start.lng) * vecAB.lng;
-                return projA - projB;
-            });
-        }
+            var startPoint = null, endPoint = null;
+            var intermediateStops = [];
 
-        var markers = L.layerGroup().addTo(map);
-
-        const iconBase = "https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-";
-        const shadowUrl = "https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png";
-        const createIcon = (color) => L.icon({
-            iconUrl: iconBase + color + ".png", shadowUrl: shadowUrl,
-            iconSize: [25, 41], iconAnchor: [12, 41], popupAnchor: [1, -34], shadowSize: [41, 41]
-        });
-
-        var startPoint = null, endPoint = null;
-        var intermediateStops = [];
-
-        @if (Model.Trip?.FromStationNavigation != null)
-        {
-            <text>
-            var sLat = @((Model.Trip.FromStationNavigation.Latitude ?? 0).ToString(System.Globalization.CultureInfo.InvariantCulture));
-            var sLng = @((Model.Trip.FromStationNavigation.Longitude ?? 0).ToString(System.Globalization.CultureInfo.InvariantCulture));
-            if (sLat && sLng) {
-                startPoint = { lat: sLat, lng: sLng, icon: createIcon('blue'), name: '<b>Bắt đầu:</b> @Html.Raw(Model.Trip.FromStationNavigation.StationName)', province: '@Html.Raw(Model.Trip.FromStationNavigation.Province?.ProvinceName ?? "")' };
-            }
-            </text>
-        }
-
-        @if (Model.Trip?.TripStations != null)
-        {
-            foreach (var ts in Model.Trip.TripStations.OrderBy(x => x.StopOrder))
+            @if (Model.Trip?.FromStationNavigation != null)
             {
-                if (ts.Station != null)
+                <text>
+                startPoint = { lat: @((Model.Trip.FromStationNavigation.Latitude ?? 0).ToString(System.Globalization.CultureInfo.InvariantCulture)), lng: @((Model.Trip.FromStationNavigation.Longitude ?? 0).ToString(System.Globalization.CultureInfo.InvariantCulture)), color: '#0d6efd', name: '<b>Bắt đầu:</b> @Html.Raw(Model.Trip.FromStationNavigation.StationName)', province: '@Html.Raw(Model.Trip.FromStationNavigation.Province?.ProvinceName ?? "")' };
+                </text>
+            }
+
+            @if (Model.Trip?.TripStations != null)
+            {
+                foreach (var ts in Model.Trip.TripStations.OrderBy(x => x.StopOrder))
                 {
-                    <text>
-                    var iLat = @((ts.Station.Latitude ?? 0).ToString(System.Globalization.CultureInfo.InvariantCulture));
-                    var iLng = @((ts.Station.Longitude ?? 0).ToString(System.Globalization.CultureInfo.InvariantCulture));
-                    if (iLat && iLng) {
-                        intermediateStops.push({ lat: iLat, lng: iLng, icon: createIcon('orange'), name: '<b>Trạm đi qua:</b> @Html.Raw(ts.Station.StationName)', province: '@Html.Raw(ts.Station.Province?.ProvinceName ?? "")' });
+                    if (ts.Station != null)
+                    {
+                        <text>
+                        intermediateStops.push({ lat: @((ts.Station.Latitude ?? 0).ToString(System.Globalization.CultureInfo.InvariantCulture)), lng: @((ts.Station.Longitude ?? 0).ToString(System.Globalization.CultureInfo.InvariantCulture)), color: '#ffc107', name: '<b>Trạm dừng:</b> @Html.Raw(ts.Station.StationName)', province: '@Html.Raw(ts.Station.Province?.ProvinceName ?? "")' });
+                        </text>
                     }
-                    </text>
                 }
             }
-        }
 
-        @if (Model.Trip?.ToStationNavigation != null)
-        {
-            <text>
-            var eLat = @((Model.Trip.ToStationNavigation.Latitude ?? 0).ToString(System.Globalization.CultureInfo.InvariantCulture));
-            var eLng = @((Model.Trip.ToStationNavigation.Longitude ?? 0).ToString(System.Globalization.CultureInfo.InvariantCulture));
-            if (eLat && eLng) {
-                endPoint = { lat: eLat, lng: eLng, icon: createIcon('green'), name: '<b>Kết thúc:</b> @Html.Raw(Model.Trip.ToStationNavigation.StationName)', province: '@Html.Raw(Model.Trip.ToStationNavigation.Province?.ProvinceName ?? "")' };
+            @if (Model.Trip?.ToStationNavigation != null)
+            {
+                <text>
+                endPoint = { lat: @((Model.Trip.ToStationNavigation.Latitude ?? 0).ToString(System.Globalization.CultureInfo.InvariantCulture)), lng: @((Model.Trip.ToStationNavigation.Longitude ?? 0).ToString(System.Globalization.CultureInfo.InvariantCulture)), color: '#dc3545', name: '<b>Kết thúc:</b> @Html.Raw(Model.Trip.ToStationNavigation.StationName)', province: '@Html.Raw(Model.Trip.ToStationNavigation.Province?.ProvinceName ?? "")' };
+                </text>
             }
-            </text>
-        }
 
-        // Apply geographic sorting
-        if (startPoint && endPoint && intermediateStops.length > 0) {
-            intermediateStops = sortRawWaypoints(startPoint, endPoint, intermediateStops);
-        }
+            var rawWaypoints = [];
+            if (startPoint) rawWaypoints.push(startPoint);
+            intermediateStops.forEach(s => rawWaypoints.push(s));
+            if (endPoint) rawWaypoints.push(endPoint);
 
-        var rawWaypoints = [];
-        if (startPoint) rawWaypoints.push(startPoint);
-        intermediateStops.forEach(s => rawWaypoints.push(s));
-        if (endPoint) rawWaypoints.push(endPoint);
+            if (rawWaypoints.length < 2) return;
 
-        var startRegion = startPoint ? getRegion(startPoint.province) : null;
-        var endRegion = endPoint ? getRegion(endPoint.province) : null;
-        var sameRegion = (startRegion && endRegion && startRegion === endRegion);
-        var isShortCrossRegion = false;
-        
-        if (startRegion && endRegion && !sameRegion) {
-            if ((startRegion === 'Central' && (endRegion === 'North' || endRegion === 'South')) ||
-                (endRegion === 'Central' && (startRegion === 'North' || startRegion === 'South'))) {
-                isShortCrossRegion = true;
+            var startRegion = startPoint ? getRegion(startPoint.province) : null;
+            var endRegion = endPoint ? getRegion(endPoint.province) : null;
+            var sameRegion = (startRegion && endRegion && startRegion === endRegion);
+            var isShortCrossRegion = false;
+            
+            if (startRegion && endRegion && !sameRegion) {
+                if ((startRegion === 'Central' && (endRegion === 'North' || endRegion === 'South')) ||
+                    (endRegion === 'Central' && (startRegion === 'North' || startRegion === 'South'))) {
+                    isShortCrossRegion = true;
+                }
             }
-        }
 
-        var finalWaypoints = [];
-        for (var i = 0; i < rawWaypoints.length; i++) {
-            var curr = rawWaypoints[i];
-            var latLng = L.latLng(curr.lat, curr.lng);
-            L.marker(latLng, { icon: curr.icon }).addTo(markers).bindPopup(curr.name);
-            finalWaypoints.push(latLng);
+            var finalWaypoints = [];
+            var bounds = new maplibregl.LngLatBounds();
 
-            if (i < rawWaypoints.length - 1 && !sameRegion) {
-                var next = rawWaypoints[i+1];
-                var latDiff = Math.abs(curr.lat - next.lat);
-                var crossesWaist = (Math.min(curr.lat, next.lat) < 16.5 && Math.max(curr.lat, next.lat) > 19.5);
-                
-                if (latDiff > 2.5 || crossesWaist) { 
-                    var minLat = Math.min(curr.lat, next.lat);
-                    var maxLat = Math.max(curr.lat, next.lat);
-                    var isNorthbound = (next.lat > curr.lat);
-                    var applicablePoints = VN_CORRIDOR.filter(cp => cp.lat > minLat + 0.5 && cp.lat < maxLat - 0.5);
+            for (var i = 0; i < rawWaypoints.length; i++) {
+                var curr = rawWaypoints[i];
+                finalWaypoints.push([curr.lng, curr.lat]);
+                bounds.extend([curr.lng, curr.lat]);
+
+                new maplibregl.Marker({ color: curr.color })
+                    .setLngLat([curr.lng, curr.lat])
+                    .setPopup(new maplibregl.Popup({ offset: 25 }).setHTML(curr.name))
+                    .addTo(map);
+
+                if (i < rawWaypoints.length - 1 && !sameRegion) {
+                    var next = rawWaypoints[i+1];
+                    var latDiff = Math.abs(curr.lat - next.lat);
+                    var crossesWaist = (Math.min(curr.lat, next.lat) < 16.5 && Math.max(curr.lat, next.lat) > 19.5);
                     
-                    if (isNorthbound) applicablePoints.sort((a,b) => a.lat - b.lat);
-                    else applicablePoints.sort((a,b) => b.lat - a.lat);
-                    
-                    var maxAnchors = isShortCrossRegion ? 1 : 2;
-                    if (applicablePoints.length > maxAnchors) {
-                        if (maxAnchors === 1) applicablePoints = [applicablePoints[Math.floor(applicablePoints.length / 2)]];
-                        else applicablePoints = [applicablePoints[0], applicablePoints[applicablePoints.length - 1]];
+                    if (latDiff > 2.5 || crossesWaist) { 
+                        var minLat = Math.min(curr.lat, next.lat);
+                        var maxLat = Math.max(curr.lat, next.lat);
+                        var isNorthbound = (next.lat > curr.lat);
+                        var applicablePoints = VN_CORRIDOR.filter(cp => cp.lat > minLat + 0.5 && cp.lat < maxLat - 0.5);
+                        
+                        if (isNorthbound) applicablePoints.sort((a,b) => a.lat - b.lat);
+                        else applicablePoints.sort((a,b) => b.lat - a.lat);
+                        
+                        var maxAnchors = isShortCrossRegion ? 1 : 2;
+                        if (applicablePoints.length > maxAnchors) {
+                            if (maxAnchors === 1) applicablePoints = [applicablePoints[Math.floor(applicablePoints.length / 2)]];
+                            else applicablePoints = [applicablePoints[0], applicablePoints[applicablePoints.length - 1]];
+                        }
+                        applicablePoints.forEach(cp => {
+                            finalWaypoints.push([cp.lng, cp.lat]);
+                        });
                     }
-                    applicablePoints.forEach(cp => {
-                        finalWaypoints.push(L.latLng(cp.lat, cp.lng));
+                }
+            }
+
+            const coords = finalWaypoints.map(w => w[0] + ',' + w[1]).join(';');
+            try {
+                const response = await fetch(`https://router.project-osrm.org/route/v1/driving/${coords}?overview=full&geometries=geojson`);
+                const data = await response.json();
+                if (data.code === 'Ok' && data.routes.length > 0) {
+                    const route = data.routes[0];
+                    map.addSource('route', {
+                        'type': 'geojson',
+                        'data': { 'type': 'Feature', 'properties': {}, 'geometry': route.geometry }
                     });
+                    map.addLayer({
+                        'id': 'route',
+                        'type': 'line',
+                        'source': 'route',
+                        'layout': { 'line-join': 'round', 'line-cap': 'round' },
+                        'paint': { 'line-color': '#0d6efd', 'line-width': 6, 'line-opacity': 0.8 }
+                    });
+                    $('#totalDistance').text((route.distance / 1000).toFixed(1) + " km");
+                    $('#totalTime').text((route.duration / 3600).toFixed(1) + " h");
                 }
+            } catch (err) {
+                console.error("Routing Error:", err);
+                map.addSource('route-fallback', {
+                    'type': 'geojson',
+                    'data': { 'type': 'Feature', 'properties': {}, 'geometry': { 'type': 'LineString', 'coordinates': finalWaypoints } }
+                });
+                map.addLayer({
+                    'id': 'route-fallback',
+                    'type': 'line',
+                    'source': 'route-fallback',
+                    'layout': { 'line-join': 'round', 'line-cap': 'round' },
+                    'paint': { 'line-color': '#0d6efd', 'line-width': 6, 'line-opacity': 0.6, 'line-dasharray': [2, 2] }
+                });
             }
-        }
-
-        if (finalWaypoints.length >= 2) {
-            routingControl.setWaypoints(finalWaypoints);
-            setTimeout(() => {
-                var group = new L.featureGroup(rawWaypoints.map(w => L.marker([w.lat, w.lng])));
-                map.fitBounds(group.getBounds().pad(0.2));
-            }, 500);
-        }
+            map.fitBounds(bounds, { padding: 60 });
+        });
     }
 </script>
+}

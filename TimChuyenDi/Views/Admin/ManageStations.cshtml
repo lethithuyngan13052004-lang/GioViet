@@ -161,17 +161,16 @@
     .custom-scrollbar::-webkit-scrollbar-thumb { background-color: #dee2e6; border-radius: 10px; }
 </style>
 
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<link href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css" rel="stylesheet" />
 <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/select2-bootstrap-5-theme@1.3.0/dist/select2-bootstrap-5-theme.min.css" />
 
 @section Scripts {
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
 
     <script>
-        var map;
-        var markers = L.layerGroup();
+        var map, marker, stationMarkers = [];
         var tempMarker = null;
 
         function initSelect2() {
@@ -184,7 +183,6 @@
             });
         }
 
-        // Tự động focus vào ô tìm kiếm khi click mở Dropdown Select2
         $(document).on('select2:open', () => {
             setTimeout(() => {
                 let searchField = document.querySelector('.select2-container--open .select2-search__field');
@@ -211,33 +209,27 @@
                 loadStations();
             });
 
-            // Khởi tạo map tại Việt Nam
-            map = L.map('stationMap').setView([16.0544, 108.2022], 6);
+            // Khởi tạo native MapLibre GL
+            map = new maplibregl.Map({
+                container: 'stationMap',
+                style: 'https://tiles.openfreemap.org/styles/liberty',
+                center: [108.2022, 16.0544],
+                zoom: 6
+            });
 
-            // Thay đổi sang base map bản gốc OSM hiển thị quốc lộ đỏ
-            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-                attribution: '&copy; OpenStreetMap contributors',
-            maxZoom: 20
-        }).addTo(map);
+            map.on('load', function () {
+                applyMapLibreStyleFilter(map);
+                addVNIslandsToMapLibre(map, maplibregl);
+                
+                // Lấy danh sách trạm từ API và vẽ lên bản đồ
+                loadStations();
 
-        // Giới hạn vùng của bản đồ nằm trong khoảng Toạ độ của Việt Nam
-        var bounds = [
-            [8.18, 102.14],
-            [23.4, 109.46]
-        ];
-        map.setMaxBounds(bounds);
-        map.options.minZoom = 5;
-        
-        markers.addTo(map);
-
-        // Lấy danh sách trạm từ API và vẽ lên bản đồ
-        loadStations();
-
-        // Xử lý sự kiện click trên bản đồ
-        map.on('click', function(e) {
-            handleMapClick(e.latlng.lat, e.latlng.lng);
+                // Xử lý sự kiện click trên bản đồ
+                map.on('click', function(e) {
+                    handleMapClick(e.lngLat.lat, e.lngLat.lng);
+                });
+            });
         });
-    });
 
     function showToast(message, isError = false) {
         var toastEl = document.getElementById('actionToast');
@@ -276,7 +268,7 @@
                 var lon = parseFloat(data[0].lon);
                 
                 status.innerHTML = "✅ Đã tìm thấy!";
-                map.setView([lat, lon], 16);
+                map.flyTo({ center: [lon, lat], zoom: 16 });
                 handleMapClick(lat, lon);
             } else {
                 status.innerHTML = "❌ Không tìm thấy địa chỉ này!";
@@ -303,13 +295,15 @@
 
         // Di chuyển cái ghim tạm
         if(tempMarker) {
-            tempMarker.setLatLng([lat, lng]);
+            tempMarker.setLngLat([lng, lat]);
         } else {
-            tempMarker = L.marker([lat, lng], { draggable: true }).addTo(map);
-            // Kéo ghim cũng tự update toạ độ
-            tempMarker.on('dragend', function(event) {
-                var position = tempMarker.getLatLng();
-                handleMapClick(position.lat, position.lng);
+            tempMarker = new maplibregl.Marker({ color: "#dc3545", draggable: true })
+                .setLngLat([lng, lat])
+                .addTo(map);
+            
+            tempMarker.on('dragend', function() {
+                var pos = tempMarker.getLngLat();
+                handleMapClick(pos.lat, pos.lng);
             });
         }
         
@@ -371,11 +365,14 @@
                 + '&districtId=' + searchDistrictId 
                 + '&wardId=' + searchWardId;
         
-        markers.clearLayers();
+        // Clear cũ
+        stationMarkers.forEach(m => m.remove());
+        stationMarkers = [];
+
         fetch(url)
             .then(res => res.json())
             .then(data => {
-                var bounds = [];
+                var bounds = new maplibregl.LngLatBounds();
                 var isFiltering = searchName !== '' || searchProvinceId !== '';
 
                 if (isFiltering && data.length === 0) {
@@ -384,19 +381,9 @@
 
                 data.forEach(s => {
                     if (s.lat && s.lng) {
-                        bounds.push([s.lat, s.lng]);
-                        // Custom icon cho trạm đã lưu
-                        var customIcon = L.icon({
-                            iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-green.png',
-                            shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png',
-                            iconSize: [25, 41],
-                            iconAnchor: [12, 41],
-                            popupAnchor: [1, -34],
-                            shadowSize: [41, 41]
-                        });
+                        bounds.extend([s.lng, s.lat]);
 
-                        var m = L.marker([s.lat, s.lng], {icon: customIcon});
-                        var popupContent = `
+                        const popup = new maplibregl.Popup({ offset: 25 }).setHTML(`
                             <div class="text-center">
                                 <h6 class="fw-bold mb-1">${s.name}</h6>
                                 <p class="small text-muted mb-2">${s.address}<br/>${s.wardName ? s.wardName + ', ' : ''}${s.districtName ? s.districtName + ', ' : ''}${s.provinceName}</p>
@@ -404,14 +391,19 @@
                                     <i class="bi bi-pencil-square"></i> Chọn Sửa Trạm Này
                                 </button>
                             </div>
-                        `;
-                        m.bindPopup(popupContent);
-                        markers.addLayer(m);
+                        `);
+
+                        const m = new maplibregl.Marker({ color: '#198754' })
+                            .setLngLat([s.lng, s.lat])
+                            .setPopup(popup)
+                            .addTo(map);
+                        
+                        stationMarkers.push(m);
                     }
                 });
 
-                if (isFiltering && bounds.length > 0) {
-                    map.fitBounds(bounds, { padding: [50, 50], maxZoom: 16 });
+                if (isFiltering && !bounds.isEmpty()) {
+                    map.fitBounds(bounds, { padding: 50, maxZoom: 16 });
                 }
             });
     }
@@ -437,7 +429,7 @@
         
         // Remove temp marker if editing existing
         if(tempMarker) {
-            map.removeLayer(tempMarker);
+            tempMarker.remove();
             tempMarker = null;
         }
 
@@ -451,8 +443,7 @@
         });
 
         // Đóng popup
-        map.closePopup();
-        map.setView([s.lat, s.lng], 16);
+        map.flyTo({ center: [s.lng, s.lat], zoom: 16 });
     }
 
     function resetForm() {
@@ -468,7 +459,7 @@
         document.getElementById('searchStatus').innerHTML = "";
         
         if(tempMarker) {
-            map.removeLayer(tempMarker);
+            tempMarker.remove();
             tempMarker = null;
         }
     }

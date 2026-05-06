@@ -42,6 +42,20 @@ namespace TimChuyenDi.Controllers
                     return Json(new { success = true, reply = "HỆ THỐNG: Đã hủy bỏ tiến trình tạo chuyến xe. Bạn cần hỗ trợ gì khác không?" });
                 }
 
+                // Intercept SYSTEM MERGE_SUCCESS message
+                if (userMessage != null && userMessage.StartsWith("[SYSTEM] MERGE_SUCCESS"))
+                {
+                    var parts = userMessage.Split(' ');
+                    if (parts.Length >= 4)
+                    {
+                        string rId = parts[2];
+                        string tId = parts[3];
+                        string prompt = $"Hệ thống vừa tự động ghép thành công đơn hàng (Mã Đơn: {rId}) vào chuyến xe (Mã Chuyến: {tId}) của tài xế. Hãy tạo một câu trả lời ngắn gọn, tự nhiên, vui vẻ (tối đa 2 câu) báo cho tài xế biết việc ghép đơn và cập nhật lộ trình thành công. BẮT BUỘC chèn thẻ [[EDIT_TRIP_LINK:{tId}]] ở cuối câu để tài xế có thể xem và sửa lại lộ trình nếu cần.";
+                        string aiReply = await _openAIService.SendMessageAsync(prompt);
+                        return Json(new { success = true, reply = aiReply });
+                    }
+                }
+
                 // AI System Prompt for Driver
                 string systemPrompt = $@"Bạn là 'Trợ Gió', AI hỗ trợ TÀI XẾ cho ứng dụng Tìm Chuyến Đi.
 Nhiệm vụ: Phân tích tin nhắn của tài xế và trả về JSON.

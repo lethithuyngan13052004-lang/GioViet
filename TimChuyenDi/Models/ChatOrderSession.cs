@@ -37,13 +37,15 @@ namespace TimChuyenDi.Models
         // 2. Thông tin hàng hóa (Cargodetail)
         public decimal Weight { get; set; }
         public decimal? WeightSuggest { get; set; } // Trọng lượng AI gợi ý, cần khách xác nhận
-        public decimal Length { get; set; } = 10;
-        public decimal Width { get; set; } = 10;
-        public decimal Height { get; set; } = 10;
+        public decimal Length { get; set; } = 0;
+        public decimal Width { get; set; } = 0;
+        public decimal Height { get; set; } = 0;
         public string? Description { get; set; }
         
         public int? CargoTypeId { get; set; }
         public int? CargoTypeIdSuggest { get; set; }
+
+        public bool HasRemindedWaitingOrder { get; set; } = false;
 
         // 3. Thông tin lộ trình (Shippingroute)
         public int? FromProvinceId { get; set; }
