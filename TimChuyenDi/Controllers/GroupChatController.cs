@@ -55,7 +55,37 @@ namespace TimChuyenDi.Controllers
         [HttpGet]
         public async Task<IActionResult> ChatByRequest(int requestId)
         {
+            var req = await _context.Shiprequests.Include(r => r.Trip).FirstOrDefaultAsync(r => r.Id == requestId);
+            if (req == null) return NotFound();
+
             var session = await _context.Chatsessions.FirstOrDefaultAsync(s => s.ReqId == requestId);
+
+            // Tự động khởi tạo phiên chat nếu đơn đã được nhận nhưng chưa có chat
+            if (session == null && req.Status >= 1 && req.TripId != null)
+            {
+                session = new Chatsession
+                {
+                    ReqId = req.Id,
+                    CustomerId = req.UserId,
+                    DriverId = req.Trip.DriverId,
+                    CreatedAt = DateTime.Now,
+                    Status = 0
+                };
+                _context.Chatsessions.Add(session);
+                await _context.SaveChangesAsync();
+
+                var welcomeMsg = new Chatmessage
+                {
+                    SessionId = session.SessionId,
+                    SenderId = req.Trip.DriverId,
+                    Message = "Đơn hàng của bạn đã được xác nhận, vui lòng trao đổi với tài xế tại đây.",
+                    SenderRole = "bot",
+                    CreatedAt = DateTime.Now
+                };
+                _context.Chatmessages.Add(welcomeMsg);
+                await _context.SaveChangesAsync();
+            }
+
             if (session == null)
             {
                 TempData["Error"] = "Cuộc trò chuyện này chưa được khởi tạo hoặc không tồn tại.";

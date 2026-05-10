@@ -234,7 +234,7 @@ Ví dụ:
                 }
 
                 // 4. Định dạng lại kết quả cho tự nhiên bằng AI
-                string finalInstruction = $"Bạn là Trợ Gió Admin. Tôi đã truy vấn cơ sở dữ liệu dựa trên yêu cầu của quản trị viên và nhận được dữ liệu sau:\n\n{dbResultText}\n\nHãy trả lời lại cho Admin một cách tự nhiên, rõ ràng, dễ đọc (sử dụng list, in đậm nếu cần). Trả lời NGẮN GỌN, đi thẳng vào vấn đề. Nếu dữ liệu rỗng, báo cáo là không tìm thấy.";
+                string finalInstruction = $"Bạn là Trợ Gió Admin. Tôi đã truy vấn cơ sở dữ liệu dựa trên yêu cầu của quản trị viên và nhận được dữ liệu sau:\n\n{dbResultText}\n\nHãy trả lời lại cho Admin một cách tự nhiên, rõ ràng, dễ đọc (sử dụng list, in đậm nếu cần). Trả lời NGẮN GỌN, đi thẳng vào vấn đề. TUYỆT ĐỐI KHÔNG thêm các câu sáo rỗng như 'Nếu cần thêm thông tin chi tiết, vui lòng liên hệ' ở cuối. Nếu dữ liệu rỗng, báo cáo là không tìm thấy.";
                 string finalAiReply = await _openAIService.SendMessageAsync($"{finalInstruction}\n\nUSER MESSAGE: {userMessage}");
 
                 return Json(new { success = true, reply = finalAiReply });

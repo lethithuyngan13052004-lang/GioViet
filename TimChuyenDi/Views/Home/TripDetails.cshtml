@@ -182,8 +182,8 @@
 </div>
 
 <link href='https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css' rel='stylesheet' />
+@section Scripts {
 <script src='https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js'></script>
-
 <script>
     document.addEventListener("DOMContentLoaded", function () {
         var map;
@@ -193,7 +193,7 @@
             if (!map) {
                 map = new maplibregl.Map({
                     container: 'routeMap',
-                    style: 'https://basemaps.cartocdn.com/gl/voyager-gl-style/style.json',
+                    style: 'https://tiles.openfreemap.org/styles/liberty',
                     center: [108.2022, 16.0544],
                     zoom: 6
                 });
@@ -324,19 +324,8 @@
                 }
 
                 map.on('load', function () {
-                    // Quần đảo Hoàng Sa và Trường Sa (Việt Nam)
-                    var vnIslands = [
-                        { lng: 112.00, lat: 16.47, name: '<b>Quần đảo Hoàng Sa</b><br/><small>Việt Nam</small>' },
-                        { lng: 113.90, lat:  9.80, name: '<b>Quần đảo Trường Sa</b><br/><small>Việt Nam</small>' }
-                    ];
-                    vnIslands.forEach(function (island) {
-                        var el = document.createElement('div');
-                        el.style.cssText = 'width:12px;height:12px;border-radius:50%;background:#e63946;border:2px solid #fff;box-shadow:0 0 4px rgba(0,0,0,.5);cursor:pointer;';
-                        new maplibregl.Marker({ element: el })
-                            .setLngLat([island.lng, island.lat])
-                            .setPopup(new maplibregl.Popup({ offset: 14 }).setHTML(island.name))
-                            .addTo(map);
-                    });
+                    applyMapLibreStyleFilter(map);
+                    addVNIslandsToMapLibre(map, maplibregl);
 
                     rawWaypoints.forEach(function (wp) {
                         new maplibregl.Marker({ color: wp.color })
@@ -389,7 +378,8 @@
             map.resize();
         });
     });
-</script>            
+</script>
+}            
         </div>
     </div>
 </div>

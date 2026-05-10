@@ -619,7 +619,7 @@
                                                     </button>
                                                     <ul class='dropdown-menu w-100 shadow border-0 mt-1 rounded-3'>`;
                                         payload.ActiveTrips.forEach(t => {
-                                            html += `<li><a class='dropdown-item py-2 border-bottom' href='/Driver/MergeToExistingTrip?reqId=${payload.ReqId}&tripId=${t.Id}'>${t.Name}</a></li>`;
+                                            html += `<li><button class='dropdown-item py-2 border-bottom text-start w-100 bg-transparent border-0' onclick='mergeOrderAjax(${payload.ReqId}, ${t.Id}, "${t.Name.replace(/"/g, '&quot;')}")'>${t.Name}</button></li>`;
                                         });
                                         html += `</ul></div>`;
                                     } else {
@@ -661,6 +661,11 @@
                                 return `<br/><a href='/Admin/ConfirmChatTripType?${params.trim()}' class='btn btn-warning fw-bold mt-2 px-4 shadow-sm text-dark'><i class='bi bi-shuffle'></i> Xác nhận Cập nhật Loại hình</a>`;
                             });
 
+                            // 2.12 Phân giải nút Sửa Lộ Trình Chuyến Xe
+                            reply = reply.replace(/\[\[EDIT_TRIP_LINK:(.*?)\]\]/g, function(match, tripId) {
+                                return `<br/><a href='/Driver/EditTrip/${tripId}' class='btn btn-warning fw-bold mt-2 px-4 shadow-sm text-dark'><i class='bi bi-pencil-square'></i> Xem và Sửa Lộ Trình</a>`;
+                            });
+
                             // 3. Phân giải Icon Định vị (Placeholder: [[GEO_ICON]])
                             reply = reply.replace(/\[\[GEO_ICON\]\]/g, '<i class="bi bi-geo-alt-fill text-success"></i>');
 
@@ -687,6 +692,7 @@
         });
 
     </script>
+    <script src="~/js/map-config.js" asp-append-version="true"></script>
     <script src="~/js/site.js" asp-append-version="true"></script>
 
     @await RenderSectionAsync("Scripts", required: false)
@@ -805,6 +811,26 @@
                 }
             }).fail(function() {
                 $(btn).html(originalText).prop("disabled", false);
+                alert("Lỗi kết nối máy chủ.");
+            });
+        }
+
+        function mergeOrderAjax(reqId, tripId, tripName) {
+            // Tạm thời tắt menu
+            $("#aiChatMessages").append(`<div class="ai-loading mb-3" id="merge_load"><span class="spinner-border spinner-border-sm me-1"></span> Đang ghép đơn vào chuyến xe...</div>`);
+            $("#aiChatMessages").scrollTop($("#aiChatMessages")[0].scrollHeight);
+            
+            $.post('/Driver/MergeToExistingTripAjax', { reqId: reqId, tripId: tripId }, function(res) {
+                $("#merge_load").remove();
+                if (res.success) {
+                    // Đánh thức AI
+                    $("#aiUserInput").val(`[SYSTEM] MERGE_SUCCESS ${reqId} ${tripId}`);
+                    $("#aiChatForm").submit();
+                } else {
+                    alert("Lỗi ghép chuyến: " + res.message);
+                }
+            }).fail(function() {
+                $("#merge_load").remove();
                 alert("Lỗi kết nối máy chủ.");
             });
         }

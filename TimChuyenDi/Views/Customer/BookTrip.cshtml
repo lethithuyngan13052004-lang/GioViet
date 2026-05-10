@@ -3,7 +3,7 @@
     ViewData["Title"] = "Tạo đơn vận chuyển";
 }
 
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<link href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css" rel="stylesheet" />
 
 <style>
     body { background-color: #f8f9fa; }
@@ -23,7 +23,7 @@
     .map-search-bar { display: flex; gap: 6px; padding: 10px; background: #f0f6ff; }
     .map-search-bar input { flex: 1; border-radius: 8px; border: 1px solid #ced4da; padding: 8px 12px; font-size: 0.9rem; }
     .map-search-bar button { white-space: nowrap; }
-    .leaflet-map { height: 250px; width: 100%; }
+    .map-panel-container { height: 250px; width: 100%; position: relative; }
     .gps-btn { width: 100%; margin: 6px 0 0; background: #198754; color: white; border: none; border-radius: 8px; padding: 8px; font-size: 0.9rem; }
     .gps-btn:hover { background: #157347; }
     .map-result-bar { padding: 8px 10px; background: #e8f4fd; font-size: 0.82rem; color: #0d6efd; display: none; }
@@ -77,7 +77,7 @@
                         <input type="text" id="pickupSearch" placeholder="Tìm địa chỉ lấy hàng..." />
                         <button type="button" class="btn btn-primary btn-sm" onclick="searchMap('pickup')"><i class="bi bi-search"></i></button>
                     </div>
-                    <div id="pickupMap" class="leaflet-map"></div>
+                    <div id="pickupMap" class="map-panel-container"></div>
                     <button type="button" class="gps-btn" onclick="useGPS('pickup')">
                         <i class="bi bi-cursor-fill me-1"></i> Dùng vị trí GPS của tôi
                     </button>
@@ -105,7 +105,7 @@
                         <input type="text" id="deliverySearch" placeholder="Tìm địa chỉ giao hàng..." />
                         <button type="button" class="btn btn-primary btn-sm" onclick="searchMap('delivery')"><i class="bi bi-search"></i></button>
                     </div>
-                    <div id="deliveryMap" class="leaflet-map"></div>
+                    <div id="deliveryMap" class="map-panel-container"></div>
                     <button type="button" class="gps-btn" onclick="useGPS('delivery')">
                         <i class="bi bi-cursor-fill me-1"></i> Dùng vị trí GPS của tôi
                     </button>
@@ -184,37 +184,46 @@
     </form>
 </div>
 
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
 <script>
-    // ============================================================
-    // MAP STATE
-    // ============================================================
     const maps = {};
     const markers = {};
 
     function initMap(type) {
-        if (maps[type]) return; // already initialized
-        const center = [10.8231, 106.6297]; // Ho Chi Minh City default
-        const m = L.map(type + 'Map').setView(center, 13);
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-            attribution: '&copy; OpenStreetMap contributors'
-        }).addTo(m);
-
-        const marker = L.marker(center, { draggable: true }).addTo(m);
-        marker.on('dragend', function() {
-            const pos = marker.getLatLng();
-            reverseGeocode(type, pos.lat, pos.lng);
+        if (maps[type]) return; 
+        
+        const center = [106.6297, 10.8231]; // [lng, lat]
+        
+        const m = new maplibregl.Map({
+            container: type + 'Map',
+            style: 'https://tiles.openfreemap.org/styles/liberty',
+            center: center,
+            zoom: 13
         });
+        
+        m.on('load', function () {
+            applyMapLibreStyleFilter(m);
+            addVNIslandsToMapLibre(m, maplibregl);
+            
+            const marker = new maplibregl.Marker({ draggable: true, color: '#0d6efd' })
+                .setLngLat(center)
+                .addTo(m);
+            
+            marker.on('dragend', function() {
+                const pos = marker.getLngLat();
+                reverseGeocode(type, pos.lat, pos.lng);
+            });
 
-        m.on('click', function(e) {
-            marker.setLatLng(e.latlng);
-            reverseGeocode(type, e.latlng.lat, e.latlng.lng);
+            m.on('click', function(e) {
+                marker.setLngLat(e.lngLat);
+                reverseGeocode(type, e.lngLat.lat, e.lngLat.lng);
+            });
+
+            markers[type] = marker;
         });
 
         maps[type] = m;
-        markers[type] = marker;
-        // Fix: leaflet tiles don't load properly until map is visible
-        setTimeout(() => m.invalidateSize(), 300);
+        setTimeout(() => m.resize(), 300);
     }
 
     // ============================================================
@@ -308,8 +317,8 @@
     function placeMarker(type, lat, lng, displayName) {
         const m = maps[type];
         const marker = markers[type];
-        marker.setLatLng([lat, lng]);
-        m.setView([lat, lng], 16);
+        if (marker) marker.setLngLat([lng, lat]);
+        m.flyTo({ center: [lng, lat], zoom: 16 });
         if (displayName) {
             setAddress(type, lat, lng, displayName);
         } else {

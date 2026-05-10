@@ -70,9 +70,9 @@
     }
 </div>
 
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-
+@section Scripts {
+<link href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css" rel="stylesheet" />
+<script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
 <script>
     document.addEventListener("DOMContentLoaded", function () {
         var maps = {};
@@ -83,31 +83,63 @@
         if(modal_@(item.TripId)) {
             modal_@(item.TripId).addEventListener('shown.bs.modal', function () {
                 if (!maps[@item.TripId]) {
-                    var map = L.map('routeMap_@item.TripId');
-                    maps[@item.TripId] = map;
-                    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-                        attribution: '&copy; OpenStreetMap'
-                    }).addTo(map);
-
                     var fromLat = @(item.FromStationNavigation?.Latitude?.ToString(System.Globalization.CultureInfo.InvariantCulture) ?? "21.028511");
                     var fromLng = @(item.FromStationNavigation?.Longitude?.ToString(System.Globalization.CultureInfo.InvariantCulture) ?? "105.804817");
                     var toLat = @(item.ToStationNavigation?.Latitude?.ToString(System.Globalization.CultureInfo.InvariantCulture) ?? "10.823099");
                     var toLng = @(item.ToStationNavigation?.Longitude?.ToString(System.Globalization.CultureInfo.InvariantCulture) ?? "106.629662");
 
-                    var fromMarker = L.marker([fromLat, fromLng], {
-                        icon: L.icon({ iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-blue.png', iconSize: [25, 41], iconAnchor: [12, 41], popupAnchor: [1, -34] })
-                    }).addTo(map).bindPopup(`<b>Trạm đón:</b><br/>@Html.Raw(item.FromStationNavigation?.StationName ?? "")`);
-                    
-                    var toMarker = L.marker([toLat, toLng], {
-                        icon: L.icon({ iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-red.png', iconSize: [25, 41], iconAnchor: [12, 41], popupAnchor: [1, -34] })
-                    }).addTo(map).bindPopup(`<b>Trạm trả:</b><br/>@Html.Raw(item.ToStationNavigation?.StationName ?? "")`);
+                    var map = new maplibregl.Map({
+                        container: 'routeMap_@item.TripId',
+                        style: 'https://tiles.openfreemap.org/styles/liberty',
+                        center: [(fromLng + toLng) / 2, (fromLat + toLat) / 2],
+                        zoom: 6
+                    });
+                    maps[@item.TripId] = map;
 
-                    var latlngs = [
-                        [fromLat, fromLng],
-                        [toLat, toLng]
-                    ];
-                    var polyline = L.polyline(latlngs, {color: '#0d6efd', weight: 4, opacity: 0.8, dashArray: '10, 10'}).addTo(map);
-                    map.fitBounds(polyline.getBounds(), { padding: [50, 50] });
+                    map.on('load', function () {
+                        applyMapLibreStyleFilter(map);
+                        addVNIslandsToMapLibre(map, maplibregl);
+
+                        // Markers
+                        new maplibregl.Marker({ color: "#007bff" })
+                            .setLngLat([fromLng, fromLat])
+                            .setPopup(new maplibregl.Popup().setHTML("<b>Trạm đón:</b><br/>@Html.Raw(item.FromStationNavigation?.StationName ?? "")"))
+                            .addTo(map);
+
+                        new maplibregl.Marker({ color: "#dc3545" })
+                            .setLngLat([toLng, toLat])
+                            .setPopup(new maplibregl.Popup().setHTML("<b>Trạm trả:</b><br/>@Html.Raw(item.ToStationNavigation?.StationName ?? "")"))
+                            .addTo(map);
+
+                        // Line
+                        map.addSource('route', {
+                            'type': 'geojson',
+                            'data': {
+                                'type': 'Feature',
+                                'properties': {},
+                                'geometry': {
+                                    'type': 'LineString',
+                                    'coordinates': [[fromLng, fromLat], [toLng, toLat]]
+                                }
+                            }
+                        });
+                        map.addLayer({
+                            'id': 'route',
+                            'type': 'line',
+                            'source': 'route',
+                            'layout': { 'line-join': 'round', 'line-cap': 'round' },
+                            'paint': { 'line-color': '#0d6efd', 'line-width': 4, 'line-dasharray': [2, 2] }
+                        });
+
+                        var bounds = new maplibregl.LngLatBounds()
+                            .extend([fromLng, fromLat])
+                            .extend([toLng, toLat]);
+                        map.fitBounds(bounds, { padding: 50 });
+                    });
+                    
+                    setTimeout(function() { map.resize(); }, 300);
+                } else {
+                    setTimeout(function() { maps[@item.TripId].resize(); }, 100);
                 }
             });
         }
@@ -115,3 +147,4 @@
         }
     });
 </script>
+}

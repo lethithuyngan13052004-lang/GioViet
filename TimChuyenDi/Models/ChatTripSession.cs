@@ -38,6 +38,7 @@ namespace TimChuyenDi.Models
         public List<string> IntermediateQueries { get; set; } = new();
 
         public bool RouteIsDone { get; set; } = false;
+        public bool IsRouteMainConfirmed { get; set; } = false;
 
         // 3. Time, Capacity and Price
         public DateTime? StartTime { get; set; }
